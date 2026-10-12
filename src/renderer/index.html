@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediDesk POS - Retail Pharmacy Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- App Top Navigation Bar -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo-img" id="headerLogoContainer" style="padding:0; overflow:hidden;">
+          <img src="icon.png" alt="MediDesk POS" style="width:100%; height:100%; object-fit:cover; border-radius:4px;">
+        </div>
+        <div>
+          <h1 class="brand-title" id="displayStoreName">Hashmi Medical Store</h1>
+          <span style="font-size:0.75rem; color:var(--text-muted);" id="displayStoreSub">Muhammdia Colony St 9 Sargodha</span>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div class="status-badge">
+          <span class="status-dot"></span>
+          <span>OFFLINE LOCAL DB</span>
+        </div>
+
+        <button class="theme-toggle-btn" id="themeToggleBtn">
+          <span id="themeIcon">🌙</span> <span id="themeLabel">Dark Mode</span>
+        </button>
+
+        <div class="user-profile-badge">
+          <div class="user-avatar" id="userAvatar">S</div>
+          <div class="user-info">
+            <span class="user-name" id="userName">Syed Brothers</span>
+            <span class="user-role" id="userRole">Admin</span>
+          </div>
+        </div>
+
+        <button class="lock-btn" id="lockPinBtn" title="Lock Terminal">
+          🔒 Lock (F12)
+        </button>
+      </div>
+    </header>
+
+    <!-- App Main Body with Sidebar Navigation -->
+    <div class="app-body">
+      <aside class="app-sidebar" id="appSidebar">
+        <button type="button" class="sidebar-collapse-btn" id="btnToggleSidebar" title="Minimize / Expand Navigation Sidebar (Alt+S)">
+          <span class="collapse-icon" id="sidebarToggleIcon">◀</span>
+          <span>Minimize Menu</span>
+        </button>
+
+        <a class="nav-item active" data-target="posView" id="navPos" title="POS Terminal (F1)">
+          <span class="nav-icon">🛒</span>
+          <span>POS Terminal</span>
+          <span style="font-size:0.7rem; color:var(--text-dim); margin-left:auto;">F1</span>
+        </a>
+        <a class="nav-item" data-target="dashboardView" id="navDashboard" title="Executive Dashboard">
+          <span class="nav-icon">📊</span>
+          <span>Executive Dashboard</span>
+        </a>
+        <a class="nav-item" data-target="inventoryView" id="navInventory" title="Inventory Master">
+          <span class="nav-icon">📦</span>
+          <span>Inventory Master</span>
+          <span class="nav-badge" id="lowStockCountBadge" style="display:none; background:var(--warning); color:black;">0</span>
+        </a>
+        <a class="nav-item" data-target="suppliersView" id="navSuppliers" title="Suppliers & Categories">
+          <span class="nav-icon">🚚</span>
+          <span>Suppliers & Categories</span>
+        </a>
+        <a class="nav-item" data-target="khataView" id="navKhata" title="Customer Khata">
+          <span class="nav-icon">💳</span>
+          <span>Customer Khata</span>
+        </a>
+        <a class="nav-item" data-target="ordersView" id="navOrders" title="Restock Orders">
+          <span class="nav-icon">📋</span>
+          <span>Restock Orders</span>
+        </a>
+        <a class="nav-item" data-target="expiryView" id="navExpiry" title="Expiry Center">
+          <span class="nav-icon">⚠️</span>
+          <span>Expiry Center</span>
+          <span class="nav-badge" id="expiryCountBadge" style="display:none;">0</span>
+        </a>
+        <a class="nav-item" data-target="quotationView" id="navQuotation" title="Quotation Builder">
+          <span class="nav-icon">📄</span>
+          <span>Quotation Builder</span>
+        </a>
+        <a class="nav-item" data-target="salesView" id="navSales" title="Sales & Void Log">
+          <span class="nav-icon">📜</span>
+          <span>Sales & Void Log</span>
+        </a>
+        <a class="nav-item" data-target="settingsView" id="navSettings" title="Settings & Reset">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings & Reset</span>
+        </a>
+      </aside>
+
+      <!-- Main Workspace Container -->
+      <main class="main-content">
+
+        <!-- MODULE B: POS TERMINAL VIEW -->
+        <section id="posView" class="view-section active">
+          <div class="pos-container">
+            <!-- Left Products Grid Panel -->
+            <div class="pos-products-panel">
+              <div class="pos-search-bar">
+                <div class="search-input-group">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" id="posSearchInput" class="search-input" placeholder="Scan Barcode or Search product name, generic, supplier, barcode..." autofocus>
+                </div>
+                <select id="posCategoryFilter" class="category-filter">
+                  <option value="ALL">All Categories</option>
+                </select>
+                <select id="posSupplierFilter" class="category-filter" style="min-width:140px;">
+                  <option value="ALL">All Suppliers</option>
+                </select>
+              </div>
+
+              <div id="productGrid" class="product-grid">
+                <!-- Dynamically loaded product cards -->
+              </div>
+            </div>
+
+            <!-- Right Cart Panel -->
+            <div class="pos-cart-panel">
+              <div class="cart-header">
+                <div class="cart-title-group">
+                  <span>🛒 Cart Order</span>
+                  <span class="badge badge-success" id="cartItemCountBadge">0 Items</span>
+                </div>
+                <button class="btn btn-secondary" id="btnParkOrder" style="padding:4px 8px; font-size:0.75rem;">
+                  ⏸️ Hold Cart
+                </button>
+                <button class="btn btn-secondary" id="btnViewParked" style="padding:4px 8px; font-size:0.75rem;">
+                  📂 Parked Tabs
+                </button>
+              </div>
+
+              <!-- Customer Selector & Rx Attachment Compact Row -->
+              <div style="padding:4px 8px; border-bottom:1px solid var(--border-color); background:var(--input-bg); display:flex; gap:6px; align-items:center;">
+                <div style="flex:1; display:flex; gap:4px; align-items:center;">
+                  <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Cust:</span>
+                  <select id="cartCustomerSelect" class="form-control" style="font-weight:600; font-size:0.8rem; padding:2px 4px; flex:1;">
+                    <option value="1">Walk-in Customer (Cash Only)</option>
+                  </select>
+                </div>
+                <input type="file" id="prescriptionFileInput" accept="image/*" style="display:none;">
+                <button class="btn btn-secondary" id="btnAttachPrescription" style="padding:2px 6px; font-size:0.72rem; white-space:nowrap;" title="Attach Prescription Copy">
+                  📷 Rx Copy
+                </button>
+                <span id="prescriptionStatusTag" style="font-size:0.7rem; color:var(--accent); font-weight:bold;"></span>
+              </div>
+              <div id="customerCreditAlert" style="font-size:0.75rem; padding:0 8px; display:none;"></div>
+
+              <!-- Cart Line Items -->
+              <div class="cart-items-list" id="cartItemsList" style="flex:1; min-height:220px; overflow-y:auto;">
+                <div style="text-align:center; color:var(--text-muted); margin-top:40px;">
+                  Cart is empty.<br>Scan barcode or click a product to add single unit by default.
+                </div>
+              </div>
+
+              <!-- Compact Cart Summary & Calculations (Keyboard Controlled Discount F3) -->
+              <div class="cart-summary" style="padding:6px 10px; gap:4px; border-top:1px solid var(--border-color); background:hsla(0,0%,0%,0.2);">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.78rem;">
+                  <span>Subtotal: <strong id="summarySubtotal">Rs 0.00</strong></span>
+                  <span>FBR POS Fee: <strong id="summaryTax">Rs 1.00</strong></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--input-bg); padding:3px 6px; border-radius:var(--radius-sm); font-size:0.78rem;">
+                  <span>Discount <span style="font-size:0.65rem; color:var(--accent); font-weight:bold;">(F3)</span>:</span>
+                  <div style="display:flex; gap:4px; align-items:center;">
+                    <input type="number" id="cartDiscountInput" class="form-control" style="width:65px; padding:2px 4px; text-align:right; font-weight:bold; font-size:0.8rem;" value="0" min="0" title="Press F3 to focus discount">
+                    <select id="cartDiscountType" class="form-control" style="padding:2px 4px; font-weight:bold; font-size:0.8rem;">
+                      <option value="FLAT">Rs</option>
+                      <option value="PERCENT">%</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                  <span style="font-size:0.85rem; font-weight:700;">Payable Total:</span>
+                  <span id="summaryTotal" style="color:var(--accent); font-size:1.25rem; font-weight:800;">Rs 0.00</span>
+                </div>
+              </div>
+
+              <div class="cart-actions">
+                <button class="btn btn-secondary" id="btnClearCart">Clear Cart</button>
+                <button class="btn btn-accent" id="btnOpenCheckoutModal" style="font-size:1rem; font-weight:800; flex:2;">
+                  ⚡ Proceed to Checkout (F2)
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE A2: EXECUTIVE ADMIN DASHBOARD VIEW -->
+        <section id="dashboardView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">📊 Executive Admin Analytics & Demand Dashboard</div>
+              <button class="btn btn-secondary" id="btnRefreshDashboard" style="padding:4px 10px;">🔄 Refresh Data</button>
+            </div>
+
+            <!-- KPI Summary Cards -->
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+              <div style="background:hsla(212, 100%, 50%, 0.12); border:1px solid var(--primary); padding:14px; border-radius:var(--radius-md);">
+                <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Gross Total Sales Revenue</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--primary); margin-top:4px;" id="dashTotalSales">Rs 0.00</div>
+                <div style="font-size:0.75rem; color:var(--text-dim);" id="dashTotalInvoices">0 Completed Invoices</div>
+              </div>
+              <div style="background:hsla(160, 84%, 39%, 0.12); border:1px solid var(--accent); padding:14px; border-radius:var(--radius-md);">
+                <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Today's Sales Revenue</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--accent); margin-top:4px;" id="dashTodaySales">Rs 0.00</div>
+                <div style="font-size:0.75rem; color:var(--text-dim);" id="dashTodayInvoices">0 Sales Today</div>
+              </div>
+              <div style="background:hsla(38, 92%, 50%, 0.12); border:1px solid var(--warning); padding:14px; border-radius:var(--radius-md);">
+                <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Outstanding Khata Credit Debt</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--warning); margin-top:4px;" id="dashCustomerDebt">Rs 0.00</div>
+                <div style="font-size:0.75rem; color:var(--text-dim);">Customer Receivable Balance</div>
+              </div>
+              <div style="background:hsla(354, 85%, 54%, 0.12); border:1px solid var(--danger); padding:14px; border-radius:var(--radius-md);">
+                <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Stock & Expiry Risk Alerts</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--danger); margin-top:4px;" id="dashRiskAlerts">0</div>
+                <div style="font-size:0.75rem; color:var(--text-dim);" id="dashRiskAlertsSub">Low Stock or Expiry Warning</div>
+              </div>
+            </div>
+
+            <!-- Graphs & Demand Analytics Grid -->
+            <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:14px; margin-top:10px;">
+              
+              <!-- Graph 1: Daily Revenue Trend Chart -->
+              <div style="background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:10px;">
+                <div style="font-size:0.95rem; font-weight:700; color:var(--text-main);">📈 Sales Revenue Trend</div>
+                <div id="chartSalesTrendContainer" style="height:200px; width:100%; display:flex; align-items:flex-end; gap:8px; padding-top:20px;">
+                  <!-- SVG Bar Chart -->
+                </div>
+              </div>
+
+              <!-- Graph 2: Payment Method Revenue Distribution -->
+              <div style="background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:10px;">
+                <div style="font-size:0.95rem; font-weight:700; color:var(--text-main);">💳 Payment Method Breakdown</div>
+                <div id="chartPaymentDistribution" style="display:flex; flex-direction:column; gap:8px; justify-content:center; height:200px;">
+                  <!-- Progress bars -->
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Bottom Row: Demanding Products & Supply Ordering Schedule -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:10px;">
+              
+              <!-- Bestselling / Most Demanding Products Leaderboard -->
+              <div style="background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px;">
+                <div style="font-size:0.95rem; font-weight:700; margin-bottom:10px;">🔥 Top Demanding Medicines</div>
+                <div class="table-container" style="max-height:220px; overflow-y:auto;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Medicine Title</th>
+                        <th>Sold Qty</th>
+                        <th>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashTopDemandingBody">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Supply Ordering Schedule Table -->
+              <div style="background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px;">
+                <div style="font-size:0.95rem; font-weight:700; margin-bottom:10px;">🚚 Supply Restock Schedule</div>
+                <div class="table-container" style="max-height:220px; overflow-y:auto;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Supplier</th>
+                        <th>Low Stock Items</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashSupplyScheduleBody">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE D: INVENTORY MANAGEMENT VIEW -->
+        <section id="inventoryView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">📦 Product Master Inventory</div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary" onclick="switchView('suppliersView')">🚚 Manage Suppliers & Categories</button>
+                <button class="btn btn-primary" id="btnOpenAddProduct">➕ Add New Product</button>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="inventoryTable">
+                <thead>
+                  <tr>
+                    <th>Barcode</th>
+                    <th>Product Title</th>
+                    <th>Generic Name</th>
+                    <th>Category</th>
+                    <th>Pack Size</th>
+                    <th>Expiry Date</th>
+                    <th>Pack Stock</th>
+                    <th>Single Stock</th>
+                    <th>Sale/Pack (Rs)</th>
+                    <th>Single Unit Price (Rs)</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pagination-bar" id="inventoryPaginationBar">
+              <span id="inventoryPaginationInfo">Showing 0-0 of 0 products</span>
+              <div class="pagination-controls">
+                <button type="button" class="page-btn" id="btnInvPrevPage">◀ Prev</button>
+                <span id="inventoryPageNum" style="font-weight:700; color:var(--text-main);">Page 1</span>
+                <button type="button" class="page-btn" id="btnInvNextPage">Next ▶</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE J: DEDICATED SUPPLIERS & CATEGORIES MANAGEMENT VIEW -->
+        <section id="suppliersView" class="view-section">
+          <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:16px;">
+            
+            <!-- Panel 1: Suppliers Directory & Management -->
+            <div class="panel-card">
+              <div class="panel-header">
+                <div class="panel-title">🚚 Supplier Directory Management</div>
+              </div>
+
+              <!-- Register / Edit Supplier Form -->
+              <div style="background:var(--input-bg); padding:14px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+                <div style="font-size:0.95rem; font-weight:700; margin-bottom:10px; color:var(--accent);" id="pageSupFormHeader">➕ Register / Edit Supplier</div>
+                <form id="pageSupplierForm">
+                  <input type="hidden" id="pageEditSupplierId" value="">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label">Supplier Company Name:</label>
+                      <input type="text" id="pageSupNameInput" class="form-control" placeholder="e.g. Pfizer Pharma Ltd" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Contact Person:</label>
+                      <input type="text" id="pageSupContactInput" class="form-control" placeholder="e.g. Mr. Tariq (Sales Rep)">
+                    </div>
+                  </div>
+                  <div class="form-row" style="margin-top:10px;">
+                    <div class="form-group">
+                      <label class="form-label">Phone / Contact Number:</label>
+                      <input type="text" id="pageSupPhoneInput" class="form-control" placeholder="+92 300 1234567">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Office Address:</label>
+                      <input type="text" id="pageSupAddressInput" class="form-control" placeholder="e.g. Lahore Depot">
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button type="button" class="btn btn-secondary" id="btnPageCancelEditSupplier" style="display:none;">Cancel Edit</button>
+                    <button type="submit" class="btn btn-accent" id="btnPageSaveSupplier" style="flex:1; font-weight:700;">
+                      💾 Save Supplier
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Suppliers Table -->
+              <div class="table-container" style="max-height:350px; overflow-y:auto; margin-top:10px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Supplier Company</th>
+                      <th>Contact Rep</th>
+                      <th>Phone</th>
+                      <th>Address</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pageSuppliersTableBody">
+                    <!-- JS Populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Panel 2: Categories Directory & Management -->
+            <div class="panel-card">
+              <div class="panel-header">
+                <div class="panel-title">🏷️ Category Directory Management</div>
+              </div>
+
+              <!-- Register / Edit Category Form -->
+              <div style="background:var(--input-bg); padding:14px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+                <div style="font-size:0.95rem; font-weight:700; margin-bottom:10px; color:var(--primary);" id="pageCatFormHeader">🏷️ Add / Edit Category</div>
+                <form id="pageCategoryForm">
+                  <input type="hidden" id="pageEditCategoryId" value="">
+                  <div class="form-group">
+                    <label class="form-label">Category Name:</label>
+                    <input type="text" id="pageCatNameInput" class="form-control" placeholder="e.g. Antibiotics / Injections" required>
+                  </div>
+                  <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button type="button" class="btn btn-secondary" id="btnPageCancelEditCategory" style="display:none;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnPageSaveCategory" style="flex:1; font-weight:700;">
+                      ➕ Save Category
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Categories Table -->
+              <div class="table-container" style="max-height:350px; overflow-y:auto; margin-top:10px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Category Name</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pageCategoriesTableBody">
+                    <!-- JS Populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+
+        <!-- MODULE C: STORE CREDIT & KHATA VIEW -->
+        <section id="khataView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">💳 Customer Ledger Accounts (Khata Directory)</div>
+              <button class="btn btn-primary" id="btnOpenAddCustomer">➕ Add Customer Account</button>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th>Credit Limit</th>
+                    <th>Current Debt</th>
+                    <th>Available Credit</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="customerTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pagination-bar" id="khataPaginationBar">
+              <span id="khataPaginationInfo">Showing 0-0 of 0 customers</span>
+              <div class="pagination-controls">
+                <button type="button" class="page-btn" id="btnKhataPrevPage">◀ Prev</button>
+                <span id="khataPageNum" style="font-weight:700; color:var(--text-main);">Page 1</span>
+                <button type="button" class="page-btn" id="btnKhataNextPage">Next ▶</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE E: STOCK DEMAND & RESTOCK ORDERS VIEW -->
+        <section id="ordersView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">📋 Stock Demand & Supplier Purchase Order Builder</div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary" onclick="switchView('suppliersView')">🚚 Manage Suppliers</button>
+                <select id="supplierOrderSelect" class="form-control">
+                  <option value="">-- Select Supplier --</option>
+                </select>
+                <button class="btn btn-primary" id="btnGeneratePO">📄 Generate A4 Purchase Order</button>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:12px; align-items:center;">
+              <label><input type="radio" name="stockFilter" value="LOW" checked> Low Stock (< Min Level)</label>
+              <label><input type="radio" name="stockFilter" value="OUT"> Out of Stock (0 Stock)</label>
+              <label><input type="radio" name="stockFilter" value="ALL"> All Products</label>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Product Title</th>
+                    <th>Supplier</th>
+                    <th>Current Pack Stock</th>
+                    <th>Min Level</th>
+                    <th>Pack Size</th>
+                    <th>Requested Order Packs</th>
+                    <th>Estimated Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="restockTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE F: EXPIRY CENTER VIEW (6-Month Expiry Warning Dashboard) -->
+        <section id="expiryView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">⚠️ Expiry Center & 6-Month Warning Board</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+              <div style="background:hsla(354, 85%, 54%, 0.15); border:1px solid var(--danger); padding:12px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:1.8rem; font-weight:800; color:var(--danger);" id="statExpired">0</div>
+                <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">Already Expired</div>
+              </div>
+              <div style="background:hsla(38, 92%, 50%, 0.15); border:1px solid var(--warning); padding:12px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:1.8rem; font-weight:800; color:var(--warning);" id="statExp30">0</div>
+                <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">Expiring in 30 Days</div>
+              </div>
+              <div style="background:hsla(212, 100%, 50%, 0.15); border:1px solid var(--primary); padding:12px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:1.8rem; font-weight:800; color:var(--primary);" id="statExp90">0</div>
+                <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">Expiring in 90 Days</div>
+              </div>
+              <div style="background:hsla(160, 84%, 39%, 0.15); border:1px solid var(--accent); padding:12px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:1.8rem; font-weight:800; color:var(--accent);" id="statExp180">0</div>
+                <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">⚠️ 6-Month Warning (180 Days)</div>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Product Title</th>
+                    <th>Barcode</th>
+                    <th>Expiry Date</th>
+                    <th>Expiry Warning Status</th>
+                    <th>Available Pack Stock</th>
+                    <th>Available Single Stock</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="expiryTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE G: QUOTATION BUILDER VIEW -->
+        <section id="quotationView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">📄 Price Quotation Builder</div>
+              <button class="btn btn-primary" id="btnPrintQuote">Print A4 Quotation Document</button>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Customer / Institution Name:</label>
+                <input type="text" id="quoteCustomerName" class="form-control" placeholder="e.g. City General Clinic">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Customer Phone / Contact:</label>
+                <input type="text" id="quoteCustomerPhone" class="form-control" placeholder="+92 300 0000000">
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Product Title</th>
+                    <th>Unit Type</th>
+                    <th>Quantity</th>
+                    <th>Unit Price (Rs)</th>
+                    <th>Total (Rs)</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="quoteItemsBody">
+                  <!-- Quote rows -->
+                </tbody>
+              </table>
+            </div>
+
+            <button class="btn btn-secondary" id="btnAddQuoteRow">➕ Add Quotation Item</button>
+          </div>
+        </section>
+
+
+        <!-- MODULE H: SALES HISTORY & VOID LOG VIEW -->
+        <section id="salesView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">📜 Sales Invoice History & Prescription Attachment Audit Log</div>
+            </div>
+
+            <!-- Hidden File Input for attaching prescription to historical sales -->
+            <input type="file" id="invoiceRxFileInput" accept="image/*" style="display:none;">
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Invoice #</th>
+                    <th>Date & Time</th>
+                    <th>Cashier</th>
+                    <th>Customer</th>
+                    <th>Payment Method</th>
+                    <th>Total (Rs)</th>
+                    <th>Status</th>
+                    <th>Prescription Image</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="salesTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pagination-bar" id="salesPaginationBar">
+              <span id="salesPaginationInfo">Showing 0-0 of 0 sales</span>
+              <div class="pagination-controls">
+                <button type="button" class="page-btn" id="btnSalesPrevPage">◀ Prev</button>
+                <span id="salesPageNum" style="font-weight:700; color:var(--text-main);">Page 1</span>
+                <button type="button" class="page-btn" id="btnSalesNextPage">Next ▶</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- MODULE I: SETTINGS & FACTORY RESET VIEW -->
+        <section id="settingsView" class="view-section">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">⚙️ Store Settings & Database Backup</div>
+            </div>
+
+            <form id="settingsForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Pharmacy Store Name:</label>
+                  <input type="text" id="settingStoreName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Phone / Contact:</label>
+                  <input type="text" id="settingStorePhone" class="form-control" required>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top:10px;">
+                <label class="form-label">Store Address:</label>
+                <input type="text" id="settingStoreAddress" class="form-control" required>
+              </div>
+
+              <div class="form-row" style="margin-top:10px;">
+                <div class="form-group">
+                  <label class="form-label">NTN / FBR Reg ID:</label>
+                  <input type="text" id="settingNtnFbr" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">FBR Tax Rule:</label>
+                  <input type="text" class="form-control" value="Fixed Flat Rs 1.00 per Receipt" readonly style="font-weight:bold; color:var(--accent);">
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top:10px;">
+                <label class="form-label">Receipt Disclaimer / Terms:</label>
+                <textarea id="settingDisclaimer" class="form-control" rows="2"></textarea>
+              </div>
+
+              <div style="margin-top:12px;">
+                <button type="submit" class="btn btn-primary">Save Pharmacy Settings</button>
+              </div>
+            </form>
+
+            <hr style="border:0; border-top:1px solid var(--border-color); margin:16px 0;">
+
+            <div class="panel-title" style="font-size:1rem;">💾 SQLite Backup, Restore & Factory Reset</div>
+            <div style="display:flex; gap:12px; margin-top:10px;">
+              <button class="btn btn-secondary" id="btnBackupDb">📤 Create Local Backup (.db)</button>
+              <button class="btn btn-secondary" id="btnRestoreDb">📥 Restore Backup (.db)</button>
+              <button class="btn btn-danger" id="btnOpenFactoryResetModal" style="margin-left:auto;">
+                ⚠️ Factory Reset & Wipe Data
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+
+  <!-- MODALS -->
+
+  <!-- 1. Dedicated Payment & Checkout Modal -->
+  <div class="modal-overlay" id="modalCheckoutPayment">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem; font-weight:800; color:var(--accent);">⚡ Select Payment Method & Tender Cash</h3>
+        <button type="button" class="modal-close" id="closeCheckoutModal">✕</button>
+      </div>
+
+      <form id="checkoutPaymentForm">
+        <div style="background:var(--input-bg); padding:12px; border-radius:var(--radius-md); text-align:center; margin-bottom:12px;">
+          <div style="font-size:0.85rem; color:var(--text-muted);">Total Payable Amount</div>
+          <div style="font-size:2rem; font-weight:800; color:var(--accent);" id="modalPayableTotalDisplay">Rs 0.00</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Payment Method:</label>
+          <select id="cartPaymentMethod" class="form-control" style="font-weight:700; font-size:1rem; padding:8px;">
+            <option value="CASH">CASH</option>
+            <option value="CARD">CARD / POS</option>
+            <option value="MOBILE WALLET">MOBILE WALLET</option>
+            <option value="CREDIT">CREDIT (KHATA)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;" id="tenderCashGroup">
+          <label class="form-label">Tendered Cash Received (Rs):</label>
+          <input type="number" id="cartPaidInput" class="form-control" style="font-weight:800; font-size:1.2rem; padding:8px;" placeholder="0.00" step="0.01">
+
+          <!-- Quick Cash Tender Denomination Buttons -->
+          <div style="display:flex; gap:6px; margin-top:8px;" id="quickCashRow">
+            <button type="button" class="btn btn-secondary" style="padding:4px 6px; font-size:0.75rem; flex:1;" id="btnCashExact">Exact Cash</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 6px; font-size:0.75rem; flex:1;" onclick="setQuickCash(100)">Rs 100</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 6px; font-size:0.75rem; flex:1;" onclick="setQuickCash(500)">Rs 500</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 6px; font-size:0.75rem; flex:1;" onclick="setQuickCash(1000)">Rs 1000</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 6px; font-size:0.75rem; flex:1;" onclick="setQuickCash(5000)">Rs 5000</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:700; background:var(--input-bg); padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:16px;" id="changeReturnRow">
+          <span>Change Return:</span>
+          <span id="summaryChange" style="color:var(--warning); font-size:1.2rem;">Rs 0.00</span>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="cancelCheckoutModal">Cancel</button>
+          <button type="submit" class="btn btn-accent" style="font-weight:800; font-size:1rem; padding:8px 16px;">
+            ⚡ Confirm & Print Receipt
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 2. Prescription Viewer Modal -->
+  <div class="modal-overlay" id="modalPrescriptionViewer">
+    <div class="modal-content" style="max-width:650px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem; font-weight:700;" id="rxModalInvoiceTitle">📷 Prescription Image Copy</h3>
+        <button type="button" class="modal-close">✕</button>
+      </div>
+
+      <div style="text-align:center; padding:10px; background:var(--input-bg); border-radius:var(--radius-md); max-height:450px; overflow-y:auto;">
+        <img id="prescriptionImageElement" src="" alt="Prescription Attachment" style="max-width:100%; border-radius:6px; border:1px solid var(--border-color);">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button type="button" class="btn btn-secondary modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 3. Factory Reset Confirmation Modal -->
+  <div class="modal-overlay" id="modalFactoryResetConfirm">
+    <div class="modal-content" style="max-width:420px; text-align:center;">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem; font-weight:800; color:var(--danger);">⚠️ Confirm Factory Reset</h3>
+        <button type="button" class="modal-close">✕</button>
+      </div>
+
+      <div style="background:hsla(354, 85%, 54%, 0.15); border:1px solid var(--danger); padding:12px; border-radius:var(--radius-md); font-size:0.85rem; color:var(--text-main);">
+        This action will permanently WIPE all products, sales history, customer debt records, and store settings!
+      </div>
+
+      <div class="form-group" style="margin-top:12px; text-align:left;">
+        <label class="form-label">Type <strong>RESET</strong> to confirm:</label>
+        <input type="text" id="resetConfirmInput" class="form-control" placeholder="RESET" autofocus style="text-transform:uppercase; font-weight:800; letter-spacing:2px; text-align:center;">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnExecuteFactoryReset" style="font-weight:800;">⚠️ Wipe & Factory Reset</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 4. PIN Authentication Modal -->
+  <div class="modal-overlay active" id="modalPinAuth">
+    <div class="modal-content" style="max-width:360px; text-align:center;">
+      <h2 style="font-size:1.3rem; font-weight:800;">🔒 MediDesk PIN Authentication</h2>
+      <p style="font-size:0.85rem; color:var(--text-muted);">Enter 4-Digit Security PIN to Unlock Terminal</p>
+
+      <div class="pin-pad-container">
+        <div class="pin-display" id="pinDots">
+          <div class="pin-dot"></div>
+          <div class="pin-dot"></div>
+          <div class="pin-dot"></div>
+          <div class="pin-dot"></div>
+        </div>
+
+        <div class="pin-grid">
+          <button class="pin-key" data-key="1">1</button>
+          <button class="pin-key" data-key="2">2</button>
+          <button class="pin-key" data-key="3">3</button>
+          <button class="pin-key" data-key="4">4</button>
+          <button class="pin-key" data-key="5">5</button>
+          <button class="pin-key" data-key="6">6</button>
+          <button class="pin-key" data-key="7">7</button>
+          <button class="pin-key" data-key="8">8</button>
+          <button class="pin-key" data-key="9">9</button>
+          <button class="pin-key" data-key="CLEAR" style="font-size:0.85rem; color:var(--warning);">CLR</button>
+          <button class="pin-key" data-key="0">0</button>
+          <button class="pin-key" data-key="BACK" style="font-size:0.85rem; color:var(--danger);">⌫</button>
+        </div>
+
+        <div style="font-size:0.75rem; color:var(--text-dim); margin-top:8px;">
+          Default Seed PINs: Admin: <strong>1234</strong> | Pharmacist: <strong>5678</strong> | Cashier: <strong>0000</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 5. Thermal Receipt Print Preview Modal -->
+  <div class="modal-overlay" id="modalReceiptPreview">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 style="font-size:1rem; font-weight:700;">80mm Thermal Receipt Preview</h3>
+        <button type="button" class="modal-close closeReceiptModal">✕</button>
+      </div>
+
+      <div id="receiptContainer" class="receipt-preview-box printable-area">
+        <!-- Rendered thermal receipt html -->
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button type="button" class="btn btn-secondary closeReceiptModal">Close</button>
+        <button type="button" class="btn btn-accent" id="btnPrintReceiptNow">🖨️ Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 6. A4 Document Print Preview Modal (Ledger, PO, Quote) -->
+  <div class="modal-overlay" id="modalA4Preview">
+    <div class="modal-content" style="max-width:800px;">
+      <div class="modal-header">
+        <h3 style="font-size:1rem; font-weight:700;" id="a4ModalTitle">A4 Document Preview</h3>
+        <button type="button" class="modal-close closeA4Modal">✕</button>
+      </div>
+
+      <div id="a4DocumentContainer" class="printable-area" style="background:white; color:black; padding:30px; border-radius:4px; font-family:Arial, sans-serif; font-size:13px; line-height:1.4;">
+        <!-- Rendered A4 Document -->
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button type="button" class="btn btn-secondary closeA4Modal">Close</button>
+        <button type="button" class="btn btn-accent" id="btnPrintA4Now">🖨️ Print A4 PDF</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 7. Add/Edit Product Modal with Auto Barcode Generator -->
+  <div class="modal-overlay" id="modalAddProduct">
+    <div class="modal-content" style="max-width:550px;">
+      <div class="modal-header">
+        <h3 style="font-size:1rem; font-weight:700;" id="modalProductTitleText">➕ Add New Product</h3>
+        <button type="button" class="modal-close" id="closeAddProduct">✕</button>
+      </div>
+
+      <form id="addProductForm">
+        <input type="hidden" id="editProductId" value="">
+        <div class="form-row">
+          <div class="form-group" style="flex:2;">
+            <label class="form-label">Barcode:</label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="prodBarcode" class="form-control" required placeholder="Scan or Click Auto Gen">
+              <button type="button" class="btn btn-accent" id="btnAutoGenerateBarcode" style="padding:4px 8px; font-size:0.75rem; white-space:nowrap;">
+                ⚡ Auto Gen
+              </button>
+            </div>
+          </div>
+          <div class="form-group" style="flex:3;">
+            <label class="form-label">Product Title:</label>
+            <input type="text" id="prodTitle" class="form-control" required placeholder="e.g. Augmentin 625mg">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label class="form-label">Generic Name <span style="font-weight:normal; color:var(--text-muted);">(Optional)</span>:</label>
+            <input type="text" id="prodGeneric" class="form-control" placeholder="e.g. Co-Amoxiclav (Optional)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category:</label>
+            <div style="display:flex; gap:4px;">
+              <select id="prodCategory" class="form-control" required style="flex:1;"></select>
+              <button type="button" class="btn btn-secondary" onclick="openSupplierCategoryModal()" style="padding:2px 6px; font-size:0.75rem;" title="Add / Manage Categories">➕</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label class="form-label">Supplier:</label>
+            <div style="display:flex; gap:4px;">
+              <select id="prodSupplier" class="form-control" required style="flex:1;"></select>
+              <button type="button" class="btn btn-secondary" onclick="openSupplierCategoryModal()" style="padding:2px 6px; font-size:0.75rem;" title="Add / Manage Suppliers">➕</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pack Size (Singles per Pack):</label>
+            <input type="number" id="prodPackSize" class="form-control" value="10" min="1" required>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label class="form-label">Expiry Date:</label>
+            <input type="date" id="prodExpiryDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Min Stock Level Warning:</label>
+            <input type="number" id="prodMinStock" class="form-control" value="5" min="1" required>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label class="form-label">Packs Stock Quantity:</label>
+            <input type="number" id="prodPackQty" class="form-control" value="10" min="0" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Single Units Loose Quantity:</label>
+            <input type="number" id="prodSingleQty" class="form-control" value="0" min="0" required>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label class="form-label">Sale Price / Pack (Rs):</label>
+            <input type="number" id="prodSalePrice" class="form-control" placeholder="240.00" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Single Unit Price (Rs) <span style="font-weight:normal; color:var(--accent);">(Auto)</span>:</label>
+            <input type="number" id="prodSinglePrice" class="form-control" placeholder="24.00" step="0.01" required readonly style="background:var(--input-bg); opacity:0.8;">
+          </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:16px;">
+          <label><input type="checkbox" id="prodAllowNegative"> Allow Negative Stock (Stock Override)</label>
+          <label><input type="checkbox" id="prodPrescriptionReq"> Prescription Required</label>
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="cancelAddProduct">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 8. Record Payment Modal (Khata) -->
+  <div class="modal-overlay" id="modalRecordPayment">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 style="font-size:1rem; font-weight:700;">💵 Record Credit Payment</h3>
+        <button type="button" class="modal-close" id="closePaymentModal">✕</button>
+      </div>
+
+      <form id="paymentForm">
+        <input type="hidden" id="payCustomerId">
+        <div class="form-group">
+          <label class="form-label">Customer Name:</label>
+          <input type="text" id="payCustomerName" class="form-control" readonly>
+        </div>
+
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">Current Outstanding Debt:</label>
+          <input type="text" id="payCurrentDebt" class="form-control" readonly style="font-weight:700; color:var(--danger);">
+        </div>
+
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">Amount Cash Received (Rs):</label>
+          <input type="number" id="payAmountInput" class="form-control" placeholder="0.00" step="0.01" required>
+        </div>
+
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">Notes / Payment Reference:</label>
+          <input type="text" id="payNotesInput" class="form-control" placeholder="e.g. Cash received at counter">
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="cancelPaymentModal">Cancel</button>
+          <button type="submit" class="btn btn-accent">Submit Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 9. Void Sale Modal -->
+  <div class="modal-overlay" id="modalVoidSale">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 style="font-size:1rem; font-weight:700;">🚫 Void Sale Transaction</h3>
+        <button type="button" class="modal-close" id="closeVoidModal">✕</button>
+      </div>
+
+      <form id="voidForm">
+        <input type="hidden" id="voidSaleId">
+        <div class="form-group">
+          <label class="form-label">Invoice Number:</label>
+          <input type="text" id="voidInvoiceNo" class="form-control" readonly style="font-weight:700;">
+        </div>
+
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">Reason for Voiding:</label>
+          <textarea id="voidReasonInput" class="form-control" rows="3" placeholder="e.g. Customer returned items / Wrong barcode scanned" required></textarea>
+        </div>
+
+        <div style="font-size:0.75rem; color:var(--warning); margin-top:8px;">
+          ⚠️ Voiding will restore allocated stock back into product inventory and write an audit record.
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="cancelVoidModal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Confirm Void</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 10. Manage Suppliers & Categories Modal -->
+  <div class="modal-overlay" id="modalManageSuppliers">
+    <div class="modal-content" style="max-width:620px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem; font-weight:700;" id="supModalTitle">🚚 Supplier & Category Directory</h3>
+        <button type="button" class="modal-close">✕</button>
+      </div>
+
+      <!-- Section A: Add/Edit Supplier Form -->
+      <div style="background:var(--input-bg); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+        <div style="font-size:0.9rem; font-weight:700; margin-bottom:8px; color:var(--accent);" id="supFormHeader">➕ Register / Edit Supplier</div>
+        <form id="addSupplierForm">
+          <input type="hidden" id="editSupplierId" value="">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Supplier Company Name:</label>
+              <input type="text" id="supNameInput" class="form-control" placeholder="e.g. Pfizer Pharma Ltd" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contact Person:</label>
+              <input type="text" id="supContactInput" class="form-control" placeholder="e.g. Mr. Tariq (Sales Rep)">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:8px;">
+            <div class="form-group">
+              <label class="form-label">Phone / Contact Number:</label>
+              <input type="text" id="supPhoneInput" class="form-control" placeholder="+92 300 1234567">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Office Address:</label>
+              <input type="text" id="supAddressInput" class="form-control" placeholder="e.g. Lahore Depot">
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button type="button" class="btn btn-secondary" id="btnCancelEditSupplier" style="display:none;">Cancel Edit</button>
+            <button type="submit" class="btn btn-accent" id="btnSaveSupplier" style="flex:1; font-weight:700;">
+              💾 Save Supplier
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Section B: Registered Suppliers Table with Edit Button -->
+      <div style="margin-top:8px;">
+        <div style="font-size:0.85rem; font-weight:700; margin-bottom:6px;">Registered Suppliers List:</div>
+        <div class="table-container" style="max-height:140px; overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Supplier Company</th>
+                <th>Contact Rep</th>
+                <th>Phone</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="suppliersListModalBody">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <hr style="border:0; border-top:1px solid var(--border-color); margin:12px 0;">
+
+      <!-- Section C: Add/Edit Category Form & List -->
+      <div style="background:var(--input-bg); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+        <div style="font-size:0.9rem; font-weight:700; margin-bottom:8px; color:var(--primary);" id="catFormHeader">🏷️ Add / Edit Medicine Category</div>
+        <form id="addCategoryForm" style="display:flex; gap:8px;">
+          <input type="hidden" id="editCategoryId" value="">
+          <input type="text" id="catNameInput" class="form-control" placeholder="e.g. Antibiotics / Injections" required style="flex:1;">
+          <button type="button" class="btn btn-secondary" id="btnCancelEditCategory" style="display:none;">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveCategory" style="font-weight:700; white-space:nowrap;">
+            ➕ Save Category
+          </button>
+        </form>
+
+        <div style="margin-top:10px;">
+          <div style="font-size:0.8rem; font-weight:700; margin-bottom:4px;">Registered Categories List:</div>
+          <div class="table-container" style="max-height:120px; overflow-y:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Category Name</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="categoriesListModalBody">
+                <!-- JS Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+        <button type="button" class="btn btn-secondary modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Application Frontend JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
