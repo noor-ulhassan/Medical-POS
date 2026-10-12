@@ -1,0 +1,176 @@
+@import '@fontsource/atkinson-hyperlegible-next/latin-400.css';
+@import '@fontsource/atkinson-hyperlegible-next/latin-600.css';
+@import '@fontsource/atkinson-hyperlegible-next/latin-700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Dispensary palette. Values are "R G B" so Tailwind can apply opacity.
+ *   teal   brand + primary actions (the pharmacy green, toned down)
+ *   foil   borders and dividers (blister-pack silver)
+ *   amber  prescription-only and warnings
+ *   red    expired, out of stock, destructive
+ */
+@layer base {
+  :root {
+    --paper: 246 248 247;
+    --surface: 255 255 255;
+    --sunken: 239 243 241;
+    --foil: 220 227 224;
+    --foil-strong: 197 207 203;
+    --ink: 21 35 31;
+    --ink-2: 70 87 81;
+    --ink-3: 112 128 122;
+    --teal: 11 110 95;
+    --teal-hover: 8 90 78;
+    --teal-soft: 226 241 237;
+    --teal-ink: 9 88 76;
+    --teal-on: 255 255 255;
+    --amber: 168 106 18;
+    --amber-soft: 251 241 222;
+    --amber-ink: 122 76 8;
+    --red: 183 58 43;
+    --red-hover: 154 45 33;
+    --red-soft: 251 233 230;
+    --red-ink: 140 40 28;
+    --red-on: 255 255 255;
+    --shadow: 16 32 28;
+    color-scheme: light;
+  }
+
+  [data-theme='dark'] {
+    --paper: 13 20 18;
+    --surface: 20 30 27;
+    --sunken: 16 25 22;
+    --foil: 38 52 47;
+    --foil-strong: 54 70 64;
+    --ink: 228 238 234;
+    --ink-2: 169 186 180;
+    --ink-3: 125 143 137;
+    --teal: 63 180 156;
+    --teal-hover: 86 196 173;
+    --teal-soft: 23 52 46;
+    --teal-ink: 127 214 195;
+    --teal-on: 6 37 32;
+    --amber: 224 166 70;
+    --amber-soft: 52 40 18;
+    --amber-ink: 238 196 120;
+    --red: 239 123 107;
+    --red-hover: 245 148 134;
+    --red-soft: 58 28 24;
+    --red-ink: 246 160 148;
+    --red-on: 40 12 8;
+    --shadow: 0 0 0;
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-paper font-sans text-base text-ink antialiased;
+    overflow: hidden;
+  }
+
+  /* Money, quantities and dates line up in columns. */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--teal));
+    outline-offset: 2px;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  ::selection {
+    background: rgb(var(--teal) / 0.2);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--foil-strong));
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  kbd {
+    @apply inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-foil bg-sunken px-1 font-sans text-[11px] font-semibold leading-none text-ink-3;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  .control {
+    @apply h-9 w-full rounded-control border border-foil-strong bg-surface px-3 text-base text-ink placeholder:text-ink-3
+      transition-colors hover:border-ink-3 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/25
+      disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-3 read-only:bg-sunken;
+  }
+  select.control {
+    @apply cursor-pointer appearance-none bg-no-repeat pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23708079' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 10px center;
+  }
+  textarea.control {
+    @apply h-auto py-2;
+  }
+}
+
+/* Printing: only the receipt / A4 document being previewed is printed. */
+@media print {
+  @page {
+    margin: 8mm;
+  }
+  body {
+    overflow: visible;
+    background: white;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .printable-area,
+  .printable-area * {
+    visibility: visible;
+  }
+  .printable-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+}

@@ -1,13 +1,19 @@
 {
   "name": "medidesk-pos",
-  "version": "1.1.0",
-  "description": "Production-ready, offline-first Desktop POS & Inventory Management software for retail pharmacies",
-  "main": "src/main.js",
+  "version": "2.0.0",
+  "description": "Offline desktop POS and inventory management for retail pharmacies",
+  "main": "src/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder --win --ia32 --x64",
-    "build:win32": "electron-builder --win nsis --ia32",
-    "build:win64": "electron-builder --win nsis --x64"
+    "start": "npm run build:ui && electron .",
+    "dev": "node scripts/electron.js --dev",
+    "build:ui": "vite build --config vite.config.mjs",
+    "smoke": "node scripts/electron.js --smoke",
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test",
+    "build": "npm run build:ui && electron-builder --win --ia32 --x64",
+    "build:win32": "npm run build:ui && electron-builder --win nsis --ia32",
+    "build:win64": "npm run build:ui && electron-builder --win nsis --x64"
   },
   "keywords": [
     "pos",
@@ -16,18 +22,45 @@
     "sqlite",
     "inventory"
   ],
-  "author": "Syed Bilal",
+  "author": "Noor ul Hassan <noorulhassan01.dev@gmail.com>",
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "sql.js": "^1.12.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@fontsource/atkinson-hyperlegible-next": "^5.3.0",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.6.1",
     "electron": "22.3.27",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "lucide-react": "^0.577.0",
+    "postcss": "^8.5.29",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "3.4",
+    "vite": "^5.4.21"
   },
   "build": {
-    "appId": "com.syedbilal.medideskpos",
+    "appId": "com.noorulhassan.medideskpos",
     "productName": "MediDesk POS",
+    "files": [
+      "src/main/**/*",
+      "src/shared/**/*",
+      "src/preload.js",
+      "build/renderer/**/*",
+      "package.json",
+      "!node_modules/sql.js/dist/{sql-asm*,*-debug*,*-browser*,worker.*}",
+      "!node_modules/sql.js/.devcontainer/**"
+    ],
     "win": {
       "icon": "icon.png",
       "target": [

@@ -1,14 +1,17 @@
+'use strict';
+
+/*
+ * The only bridge between the UI and the main process. The renderer can call
+ * named operations (validated and permission-checked in the main process) and
+ * listen for warnings; it cannot run SQL or touch the file system.
+ */
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('api', {
-  query: (sql, params = []) => ipcRenderer.invoke('db-query', { sql, params }),
-  get: (sql, params = []) => ipcRenderer.invoke('db-get', { sql, params }),
-  run: (sql, params = []) => ipcRenderer.invoke('db-run', { sql, params }),
-  transaction: (statements = []) => ipcRenderer.invoke('db-transaction', { statements }),
-  savePrescription: (fileData) => ipcRenderer.invoke('save-prescription', fileData),
-  saveLogo: (fileData) => ipcRenderer.invoke('save-logo', fileData),
-  backupDatabase: () => ipcRenderer.invoke('backup-db'),
-  restoreDatabase: () => ipcRenderer.invoke('restore-db'),
-  factoryReset: () => ipcRenderer.invoke('factory-reset'),
-  print: () => ipcRenderer.invoke('print-document')
+contextBridge.exposeInMainWorld('medidesk', {
+  call: (method, payload) => ipcRenderer.invoke('rpc', method, payload),
+  onWarning: (listener) => {
+    const handler = (_event, payload) => listener(payload);
+    ipcRenderer.on('app:warning', handler);
+    return () => ipcRenderer.removeListener('app:warning', handler);
+  }
 });

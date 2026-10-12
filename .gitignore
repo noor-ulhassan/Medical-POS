@@ -34,3 +34,10 @@ Desktop.ini
 .env.*.local
 *.pem
 *.key
+
+# Local development data (npm run dev)
+.devdata/
+coverage/
+
+# Built UI (npm run build:ui)
+build/
