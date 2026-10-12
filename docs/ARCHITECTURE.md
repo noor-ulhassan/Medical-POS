@@ -10,11 +10,11 @@
 │ print/          receipt + A4 documents (ledger, PO, quotation, stock history)  │
 │ lib/api.js      call('method', payload) → preload → main                       │
 └──────────────────────────────┬─────────────────────────────────────────────────┘
-                               │ window.medidesk.call('sales.checkout', {...})
+                               │ window.noorpos.call('sales.checkout', {...})
 ┌──────────────────────────────▼──── preload.js ────────────────────────────────┐
 │ exposes ONE function (call) + a warning listener. No SQL, no fs.              │
 └──────────────────────────────┬────────────────────────────────────────────────┘
-                               │ ipcMain.handle('rpc')  (caller must be app://medidesk)
+                               │ ipcMain.handle('rpc')  (caller must be app://noorpos)
 ┌──────────────────────────────▼──────── Main process ──────────────────────────┐
 │ ipc/dispatcher.js  session check → PIN-change check → permission check        │
 │ ipc/routes.js      method name → service call (the complete API surface)      │
@@ -22,7 +22,7 @@
 │ db/Database.js     sql.js wrapper: transactions, atomic persistence           │
 │ db/migrations/     versioned schema changes (PRAGMA user_version)             │
 │ app-context.js     composition root: startup, recovery, restore, reset        │
-│ protocol.js        serves build/renderer/ at app://medidesk/                  │
+│ protocol.js        serves build/renderer/ at app://noorpos/                  │
 └───────────────────────────────────────────────────────────────────────────────┘
 src/shared/   pricing.js (money, units, totals) + permissions.js (role matrix),
               required by the main process and bundled into the UI, so the
@@ -62,18 +62,20 @@ The app must run on 32-bit Windows 7, which pins Electron to 22 (the last versio
 
 ## Electron hardening
 
-- `contextIsolation`, `sandbox`, no `nodeIntegration`. The UI is served from a custom `app://medidesk/` protocol that only exposes `src/renderer` and `src/shared`.
+- `contextIsolation`, `sandbox`, no `nodeIntegration`. The UI is served from a custom `app://noorpos/` protocol that only exposes `src/renderer` and `src/shared`.
 - Strict CSP (`script-src 'self'`, no inline scripts or event handlers). No remote content, navigation and new windows are blocked, and there is no application menu or devtools in production.
 - Single-instance lock (two instances would overwrite each other's database writes).
-- Hardware acceleration is off by default for old GPU drivers. Set `MEDIDESK_GPU=1` to enable it.
+- Data lives in `%LOCALAPPDATA%\NoorPharmacyPOS`, not Documents: Windows "Controlled folder access" blocks unknown apps from writing to Documents, and OneDrive often syncs it. `src/main/legacy-data.js` adopts data left in Documents by earlier releases on first start.
+- `--reset-admin-pin` (or `npm run reset-pin`) issues a one-time admin PIN after a backup, for when no admin can log in.
+- Hardware acceleration is off by default for old GPU drivers. Set `NOORPOS_GPU=1` to enable it.
 
 ## Environment variables (development / support)
 
 | Variable | Effect |
 | --- | --- |
-| `MEDIDESK_DATA_DIR` | Use another data folder instead of `Documents\MediDeskPOS` |
-| `MEDIDESK_USER_DATA_DIR` | Chromium profile folder (keeps dev runs separate) |
-| `MEDIDESK_DEMO_DATA=1` | Add sample products to an empty database |
-| `MEDIDESK_DEV=1` | Devtools and menu |
-| `MEDIDESK_SMOKE=1` / `MEDIDESK_SMOKE_SCENARIO` | Used by `npm run smoke` |
-| `MEDIDESK_GPU=1` | Enable hardware acceleration |
+| `NOORPOS_DATA_DIR` | Use another data folder instead of `%LOCALAPPDATA%\NoorPharmacyPOS` |
+| `NOORPOS_USER_DATA_DIR` | Chromium profile folder (keeps dev runs separate) |
+| `NOORPOS_DEMO_DATA=1` | Add sample products to an empty database |
+| `NOORPOS_DEV=1` | Devtools and menu |
+| `NOORPOS_SMOKE=1` / `NOORPOS_SMOKE_SCENARIO` | Used by `npm run smoke` |
+| `NOORPOS_GPU=1` | Enable hardware acceleration |

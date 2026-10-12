@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Baseline: the table structure shipped in MediDesk POS v1.1.0 (store-specific
+ * Baseline: the table structure shipped in Noor Pharmacy POS v1.1.0 (store-specific
  * column defaults replaced with neutral ones). Existing v1.1 databases already
  * contain these tables (CREATE ... IF NOT EXISTS is a no-op); fresh databases
  * are created through the same path so there is only one schema history.

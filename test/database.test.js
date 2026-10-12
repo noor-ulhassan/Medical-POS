@@ -12,7 +12,7 @@ const { AppContext, QuitRequested } = require('../src/main/app-context');
 const { verifyPin } = require('../src/main/lib/pin');
 const { LATEST_VERSION } = require('../src/main/db/migrations');
 
-const dbFile = (dir) => path.join(dir, 'medidesk_pos.db');
+const dbFile = (dir) => path.join(dir, 'noor_pharmacy_pos.db');
 const backupsIn = (dir) => fs.readdirSync(path.join(dir, 'Backups'));
 
 test('every committed write is on disk immediately', async () => {
@@ -38,7 +38,7 @@ test('"start fresh" keeps the damaged file aside', async () => {
   fs.writeFileSync(dbFile(dir), 'garbage');
   const ctx = new AppContext({ dataDir: dir, decide: async (kind) => (kind === 'corrupt' ? 'startFresh' : 'quit') });
   await ctx.start();
-  assert.ok(fs.readdirSync(dir).some((f) => f.startsWith('medidesk_pos.corrupt-')));
+  assert.ok(fs.readdirSync(dir).some((f) => f.startsWith('noor_pharmacy_pos.corrupt-')));
 });
 
 test('"restore backup" recovers the latest valid backup', async () => {
@@ -62,7 +62,7 @@ test('v1.1 databases are upgraded in place without losing data', async () => {
   const db = ctx.db;
 
   assert.equal(db.value('PRAGMA user_version;'), LATEST_VERSION);
-  assert.ok(backupsIn(dir).some((f) => f.startsWith('medidesk_pre-migration-v2_')), 'original file backed up first');
+  assert.ok(backupsIn(dir).some((f) => f.startsWith('noorpos_pre-migration-v2_')), 'original file backed up first');
 
   // Stock converted from packs + loose singles to base units.
   assert.equal(db.value('SELECT stock_units FROM products WHERE id = 1;'), 25 * 10 + 5);
@@ -130,8 +130,49 @@ test('factory reset requires confirmation and keeps a backup', async () => {
 
 test('one automatic backup per day, older ones pruned', async () => {
   const app = await createTestApp();
-  const autos = () => backupsIn(app.dataDir).filter((f) => f.startsWith('medidesk_auto_'));
+  const autos = () => backupsIn(app.dataDir).filter((f) => f.startsWith('noorpos_auto_'));
   assert.equal(autos().length, 1);
   app.ctx.backup.autoDaily();
   assert.equal(autos().length, 1);
+});
+
+test('data from previous releases is adopted once, never overwriting current data', async () => {
+  const { adoptPreviousInstall } = require('../src/main/legacy-data');
+  const { DB_FILE_NAME } = require('../src/main/app-context');
+  const documentsDir = tempDir();
+  const dataDir = path.join(tempDir(), 'LocalAppData', 'NoorPharmacyPOS');
+
+  // Oldest layout: different folder and database file name, in Documents.
+  const previous = path.join(documentsDir, 'MediDeskPOS');
+  fs.mkdirSync(path.join(previous, 'Backups'), { recursive: true });
+  await writeV11Database(path.join(previous, 'medidesk_pos.db'));
+
+  const result = adoptPreviousInstall({ documentsDir, dataDir, dbFileName: DB_FILE_NAME });
+  assert.equal(result.action, 'moved');
+  assert.ok(fs.existsSync(path.join(dataDir, DB_FILE_NAME)));
+  assert.ok(fs.existsSync(path.join(dataDir, 'Backups')));
+
+  // The adopted database opens and upgrades like any other.
+  const ctx = new AppContext({ dataDir });
+  await ctx.start();
+  assert.equal(ctx.services.settings.get().store_name, 'Al-Shifa Pharmacy');
+  ctx.shutdown();
+
+  // Once the current folder exists, older folders are never touched again.
+  fs.mkdirSync(path.join(documentsDir, 'NoorPharmacyPOS'));
+  assert.equal(adoptPreviousInstall({ documentsDir, dataDir, dbFileName: DB_FILE_NAME }), null);
+  assert.ok(fs.existsSync(path.join(documentsDir, 'NoorPharmacyPOS')));
+});
+
+test('the newer Documents folder is preferred over the oldest one', () => {
+  const { adoptPreviousInstall } = require('../src/main/legacy-data');
+  const { DB_FILE_NAME } = require('../src/main/app-context');
+  const documentsDir = tempDir();
+  const dataDir = path.join(tempDir(), 'NoorPharmacyPOS');
+  fs.mkdirSync(path.join(documentsDir, 'MediDeskPOS'));
+  fs.mkdirSync(path.join(documentsDir, 'NoorPharmacyPOS'));
+  fs.writeFileSync(path.join(documentsDir, 'NoorPharmacyPOS', DB_FILE_NAME), 'newer');
+  const result = adoptPreviousInstall({ documentsDir, dataDir, dbFileName: DB_FILE_NAME });
+  assert.ok(result.from.endsWith('NoorPharmacyPOS'));
+  assert.equal(fs.readFileSync(path.join(dataDir, DB_FILE_NAME), 'utf8'), 'newer');
 });

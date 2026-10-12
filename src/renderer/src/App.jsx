@@ -49,7 +49,7 @@ function writePreference(key, value) {
 }
 
 function initialTheme() {
-  const saved = readPreference('medidesk_theme', null);
+  const saved = readPreference('noorpos_theme', null);
   if (saved === 'light' || saved === 'dark') return saved;
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
@@ -78,7 +78,7 @@ export function App() {
   const { user, setUser, view, go, loadAll, loadAppInfo, loadSettings, setSaveProblem } = app;
   const [booted, setBooted] = useState(false);
   const [theme, setTheme] = useState(initialTheme);
-  const [collapsed, setCollapsed] = useState(() => readPreference('medidesk_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
+  const [collapsed, setCollapsed] = useState(() => readPreference('noorpos_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
-    document.title = `${app.settings.store_name || 'MediDesk'} POS`;
+    document.title = app.settings.store_name ? `${app.settings.store_name} POS` : 'Noor Pharmacy POS';
   }, [app.settings.store_name]);
 
   const lock = useCallback(() => {
@@ -142,8 +142,8 @@ export function App() {
   );
 
   useEffect(() => {
-    if (!window.medidesk.onWarning) return undefined;
-    return window.medidesk.onWarning(({ message }) => {
+    if (!window.noorpos.onWarning) return undefined;
+    return window.noorpos.onWarning(({ message }) => {
       setSaveProblem(message);
       toast(message, 'error', { sticky: true });
     });
@@ -214,7 +214,7 @@ export function App() {
             collapsed={collapsed}
             onToggleCollapsed={() => {
               setCollapsed((c) => {
-                writePreference('medidesk_sidebar_collapsed', String(!c));
+                writePreference('noorpos_sidebar_collapsed', String(!c));
                 return !c;
               });
             }}
@@ -222,7 +222,7 @@ export function App() {
             onToggleTheme={() => {
               const next = theme === 'dark' ? 'light' : 'dark';
               setTheme(next);
-              writePreference('medidesk_theme', next);
+              writePreference('noorpos_theme', next);
             }}
             onLock={lock}
             onChangePin={() => setPinDialog({ forced: false })}

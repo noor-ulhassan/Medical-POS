@@ -25,10 +25,12 @@ class QuitRequested extends Error {
   }
 }
 
+const DB_FILE_NAME = 'noor_pharmacy_pos.db';
+
 function storagePaths(dataDir) {
   return {
     dataDir,
-    dbPath: path.join(dataDir, 'medidesk_pos.db'),
+    dbPath: path.join(dataDir, DB_FILE_NAME),
     backupsDir: path.join(dataDir, 'Backups'),
     prescriptionsDir: path.join(dataDir, 'Prescriptions')
   };
@@ -127,7 +129,7 @@ class AppContext {
   moveAside(reason) {
     const { dbPath } = this.paths;
     if (!fs.existsSync(dbPath)) return null;
-    const target = path.join(path.dirname(dbPath), `medidesk_pos.${reason}-${timestampForFile()}.db`);
+    const target = path.join(path.dirname(dbPath), `noor_pharmacy_pos.${reason}-${timestampForFile()}.db`);
     fs.renameSync(dbPath, target);
     return target;
   }
@@ -180,4 +182,4 @@ class AppContext {
   }
 }
 
-module.exports = { AppContext, QuitRequested, storagePaths };
+module.exports = { AppContext, QuitRequested, storagePaths, DB_FILE_NAME };

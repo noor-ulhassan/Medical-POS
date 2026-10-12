@@ -10,7 +10,7 @@ const { hashPin } = require('../src/main/lib/pin');
 const { nowIso } = require('../src/main/lib/dates');
 
 function tempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'medidesk-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'noorpos-test-'));
 }
 
 const silentLogger = { error() {}, log() {}, warn() {} };

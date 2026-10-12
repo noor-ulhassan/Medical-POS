@@ -14,7 +14,7 @@ const AUTO_BACKUPS_TO_KEEP = 14;
 function createBackupService({ getDb, backupsDir }) {
   function writeBackup(label, buffer) {
     ensureDir(backupsDir);
-    const fileName = `medidesk_${label}_${timestampForFile()}.db`;
+    const fileName = `noorpos_${label}_${timestampForFile()}.db`;
     const filePath = path.join(backupsDir, fileName);
     fs.writeFileSync(filePath, buffer);
     return { fileName, filePath };
@@ -33,7 +33,7 @@ function createBackupService({ getDb, backupsDir }) {
       .sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt));
   }
 
-  /** Throws unless the file is a healthy MediDesk database this version can open. Returns its bytes. */
+  /** Throws unless the file is a healthy Noor Pharmacy POS database this version can open. Returns its bytes. */
   async function validateFile(filePath) {
     let buffer;
     try {
@@ -51,7 +51,7 @@ function createBackupService({ getDb, backupsDir }) {
       assertSupported(db);
       const tables = db.all("SELECT name FROM sqlite_master WHERE type = 'table';").map((t) => t.name);
       const missing = REQUIRED_TABLES.filter((t) => !tables.includes(t));
-      if (missing.length) throw validationError(`The selected file is not a MediDesk backup (missing: ${missing.join(', ')})`);
+      if (missing.length) throw validationError(`The selected file is not a Noor Pharmacy POS backup (missing: ${missing.join(', ')})`);
     } catch (err) {
       if (err.code) throw err;
       throw validationError(err.message);
@@ -79,13 +79,13 @@ function createBackupService({ getDb, backupsDir }) {
     autoDaily() {
       ensureDir(backupsDir);
       const today = localDateString();
-      const autos = list().filter((b) => b.fileName.startsWith('medidesk_auto_'));
+      const autos = list().filter((b) => b.fileName.startsWith('noorpos_auto_'));
       let created = null;
       if (!autos.some((b) => b.modifiedAt && localDateString(new Date(b.modifiedAt)) === today)) {
         created = writeBackup('auto', getDb().export());
       }
       list()
-        .filter((b) => b.fileName.startsWith('medidesk_auto_'))
+        .filter((b) => b.fileName.startsWith('noorpos_auto_'))
         .slice(AUTO_BACKUPS_TO_KEEP)
         .forEach((b) => fs.unlinkSync(b.filePath));
       return created;

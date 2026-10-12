@@ -62,18 +62,28 @@ export function LockScreen({ onSession }) {
         <div className="flex flex-col items-center text-center">
           <img src="./icon.png" alt="" className="size-14 rounded-xl" />
           <h1 id="pinStoreName" className="mt-4 text-xl font-bold text-ink">
-            {settings.store_name || 'MediDesk POS'}
+            {settings.store_name || 'Noor Pharmacy POS'}
           </h1>
-          <p className="mt-1 text-base text-ink-2">Enter your PIN to start</p>
+          <p className="mt-1 text-base text-ink-2">Enter your PIN and press Unlock</p>
         </div>
 
-        <div key={shakeKey} className={cx('mt-6 flex h-4 justify-center gap-3', shakeKey > 0 && 'animate-shake')} id="pinDots" aria-live="polite" aria-label={`${pin.length} digits entered`}>
-          {Array.from({ length: Math.max(4, pin.length) }, (_, i) => (
-            <span
-              key={i}
-              className={cx('size-3.5 rounded-full border-2 transition-colors', i < pin.length ? 'border-teal bg-teal' : 'border-foil-strong')}
-            />
-          ))}
+        {/* Only typed digits are shown, so the box never suggests a fixed length (PINs are 4 to 6 digits). */}
+        <div
+          key={shakeKey}
+          id="pinDots"
+          aria-live="polite"
+          aria-label={pin.length ? `${pin.length} digits entered` : 'No digits entered'}
+          className={cx(
+            'mt-6 flex h-12 items-center justify-center gap-3 rounded-panel border bg-sunken',
+            error ? 'border-red/60' : pin.length ? 'border-teal' : 'border-foil',
+            shakeKey > 0 && 'animate-shake'
+          )}
+        >
+          {pin.length === 0 ? (
+            <span className="text-sm text-ink-3">Enter 4 to 6 digits</span>
+          ) : (
+            Array.from({ length: pin.length }, (_, i) => <span key={i} className="size-3 rounded-full bg-teal" />)
+          )}
         </div>
         <p id="pinError" role="alert" className="mt-3 min-h-[20px] text-center text-sm font-semibold text-red-ink">
           {error}
@@ -100,6 +110,16 @@ export function LockScreen({ onSession }) {
         <Button variant="primary" size="lg" block className="mt-4" id="btnPinSubmit" onClick={submit} disabled={pin.length < 4}>
           Unlock
         </Button>
+
+        {!appInfo.firstRun && (
+          <details className="mt-4 text-center text-sm text-ink-2">
+            <summary className="cursor-pointer list-none font-semibold text-ink-2 hover:text-ink">Forgot your PIN?</summary>
+            <p className="mt-2 text-left text-ink-2">
+              An admin can give you a new one in Settings, under Staff and PINs. If no admin can log in, close the app and start it again with{' '}
+              <code className="rounded bg-sunken px-1 text-xs">--reset-admin-pin</code> to get a temporary admin PIN.
+            </p>
+          </details>
+        )}
 
         {appInfo.firstRun && (
           <p id="pinFirstRunHint" className="mt-4 rounded-control bg-teal-soft px-3 py-2.5 text-center text-sm text-teal-ink">

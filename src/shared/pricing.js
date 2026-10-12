@@ -1,6 +1,6 @@
 /**
  * Pure money / stock / totals helpers shared by the main process (CommonJS)
- * and the renderer (exposed as window.MediDeskPricing).
+ * and the renderer (exposed as window.NoorPosPricing).
  *
  * All money is integer cents. Stock is tracked as integer base units
  * (single tablets); packs are derived from pack_size.
@@ -9,7 +9,7 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
   } else {
-    root.MediDeskPricing = factory();
+    root.NoorPosPricing = factory();
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';

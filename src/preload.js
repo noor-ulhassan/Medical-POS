@@ -7,7 +7,7 @@
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('medidesk', {
+contextBridge.exposeInMainWorld('noorpos', {
   call: (method, payload) => ipcRenderer.invoke('rpc', method, payload),
   onWarning: (listener) => {
     const handler = (_event, payload) => listener(payload);

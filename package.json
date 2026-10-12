@@ -1,10 +1,11 @@
 {
-  "name": "medidesk-pos",
+  "name": "noor-pharmacy-pos",
   "version": "2.0.0",
   "description": "Offline desktop POS and inventory management for retail pharmacies",
   "main": "src/main/index.js",
   "scripts": {
     "start": "npm run build:ui && electron .",
+    "reset-pin": "npm run build:ui && electron . --reset-admin-pin",
     "dev": "node scripts/electron.js --dev",
     "build:ui": "vite build --config vite.config.mjs",
     "smoke": "node scripts/electron.js --smoke",
@@ -50,8 +51,8 @@
     "vite": "^5.4.21"
   },
   "build": {
-    "appId": "com.noorulhassan.medideskpos",
-    "productName": "MediDesk POS",
+    "appId": "com.noorulhassan.noorpharmacypos",
+    "productName": "Noor Pharmacy POS",
     "files": [
       "src/main/**/*",
       "src/shared/**/*",

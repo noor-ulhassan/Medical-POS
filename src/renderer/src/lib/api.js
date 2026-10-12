@@ -1,5 +1,5 @@
 /**
- * Client for the main-process API (preload exposes window.medidesk.call).
+ * Client for the main-process API (preload exposes window.noorpos.call).
  * Returns data or throws ApiError; session problems are broadcast so the
  * lock screen can react.
  */
@@ -21,7 +21,7 @@ export function onSessionProblem(listener) {
 }
 
 export async function call(method, payload) {
-  const res = await window.medidesk.call(method, payload);
+  const res = await window.noorpos.call(method, payload);
   if (res && res.ok) return res.data;
   const error = (res && res.error) || { code: 'INTERNAL', message: 'No response from the application' };
   if ((error.code === 'UNAUTHENTICATED' && method !== 'auth.login') || error.code === 'PIN_CHANGE_REQUIRED') {

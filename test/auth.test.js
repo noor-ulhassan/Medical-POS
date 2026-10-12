@@ -74,3 +74,17 @@ test('user management keeps PINs unique and protects the last admin', async () =
   assert.ok(audit.some((a) => a.action === 'users.create'));
   assert.ok(!JSON.stringify(audit).includes('4826'), 'PINs never reach the audit log');
 });
+
+test('admin PIN recovery issues a temporary PIN that must be changed', async () => {
+  const app = await createTestApp();
+  await loginAs(app, 'Admin');
+  ok(await app.call('auth.logout'));
+  for (let i = 0; i < 5; i++) await app.call('auth.login', { pin: '9999' });
+  const { user, pin } = app.ctx.services.auth.recoverAdminPin();
+  assert.equal(user.role, 'Admin');
+  assert.match(pin, /^\d{6}$/);
+  const session = ok(await app.call('auth.login', { pin }));
+  assert.equal(session.mustChangePin, true, 'lockout cleared and change forced');
+  const audit = app.ctx.services.audit.list();
+  assert.ok(audit.some((a) => a.action === 'users.reset_pin' && a.user_name === 'PIN recovery'));
+});

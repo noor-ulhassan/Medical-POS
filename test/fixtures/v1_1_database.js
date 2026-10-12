@@ -5,7 +5,7 @@ const { loadSqlJs } = require('../../src/main/db/Database');
 const { V1_1_SCHEMA } = require('../../src/main/db/migrations/001_baseline');
 
 /**
- * Build a database file exactly as MediDesk v1.1.0 would have left it:
+ * Build a database file exactly as version 1.1.0 of the app would have left it:
  * original schema, original seed rows (plaintext PINs, pack/single stock),
  * plus a recorded sale and a parked cart in the old JSON format.
  */

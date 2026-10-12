@@ -69,7 +69,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, on
         {!collapsed && (
           <div className="min-w-0">
             <div className="truncate text-md font-bold leading-tight text-ink" id="displayStoreName">
-              {settings.store_name || 'MediDesk POS'}
+              {settings.store_name || 'Noor Pharmacy POS'}
             </div>
             <div className="truncate text-xs text-ink-3" id="displayStoreSub">
               {settings.store_address || 'Pharmacy point of sale'}

@@ -5,13 +5,13 @@ const { protocol } = require('electron');
 const { isInside } = require('./lib/fsutil');
 
 const SCHEME = 'app';
-const HOST = 'medidesk';
+const HOST = 'noorpos';
 const APP_ORIGIN = `${SCHEME}://${HOST}`;
 /** The built React UI (`npm run build:ui`, see vite.config.mjs). */
 const UI_DIR = path.join(__dirname, '..', '..', 'build', 'renderer');
 
 /**
- * The UI is served from app://medidesk/ instead of file:// so it has a real
+ * The UI is served from app://noorpos/ instead of file:// so it has a real
  * origin (CSP 'self', ES modules and localStorage all behave normally) and
  * can only ever load files from the built UI folder.
  */

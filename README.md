@@ -1,4 +1,4 @@
-# MediDesk POS
+# Noor Pharmacy POS
 
 Offline desktop point-of-sale and inventory software for small retail pharmacies, built with Electron, React, Tailwind CSS and SQLite (sql.js). Runs on Windows 7–11, 32- and 64-bit.
 
@@ -33,15 +33,29 @@ Download the installer from this repository's **Releases** page and run it.
 
 ### Where data lives
 
-Everything is stored in `Documents\MediDeskPOS\`:
+Everything is stored in `%LOCALAPPDATA%\NoorPharmacyPOS\` (open it from **Settings → Backup and restore → Open data folder**):
 
 ```
-medidesk_pos.db     the database
+noor_pharmacy_pos.db     the database
 Backups\            automatic and manual backups (.db)
 Prescriptions\      attached prescription images
 ```
 
 Copy the `Backups` folder to a USB drive or cloud folder regularly. To restore, use **Settings → Restore From Backup**.
+
+### Why not the Documents folder?
+
+Windows "Controlled folder access" (ransomware protection) blocks apps from saving in Documents, and on many PCs Documents is synced by OneDrive, which can lock or duplicate a database file while the shop is selling. The local app-data folder has neither problem. Backups are still worth copying to a USB drive or cloud folder every week.
+
+### Forgot the admin PIN?
+
+Any admin can reset another user's PIN under **Settings → Staff and PINs**. If no admin can log in, close the app and start it once with `--reset-admin-pin`:
+
+```
+"%LOCALAPPDATA%\Programs\noor-pharmacy-pos\Noor Pharmacy POS.exe" --reset-admin-pin
+```
+
+(from source: `npm run reset-pin`). A backup is made, a temporary PIN for the first admin is shown once, and it must be changed at login.
 
 ### Keyboard shortcuts
 
@@ -58,7 +72,7 @@ Copy the `Backups` folder to a USB drive or cloud folder regularly. To restore, 
 
 ## Upgrading from 1.x
 
-The first start of 2.0 upgrades the database in place. The original file is copied to `Backups\medidesk_pre-migration-v2_*.db` first.
+The first start of 2.0 moves the previous release's data from the Documents folder into `%LOCALAPPDATA%\NoorPharmacyPOS` (if Windows does not allow the move it is copied instead, leaving the original untouched) and upgrades the database in place. The original database file is copied to `Backups\noorpos_pre-migration-v2_*.db` first.
 
 - PINs are now stored hashed. Users who still had a published default PIN (`1234`, `5678`, `0000`) must choose a new one at their next login.
 - Stock is now tracked in units (tablets); packs and loose units are calculated from it.

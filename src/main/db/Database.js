@@ -18,7 +18,7 @@ function loadSqlJs() {
 
 class DatabaseCorruptError extends Error {
   constructor(filePath, cause) {
-    super(`The database file is damaged or is not a MediDesk database: ${filePath}`);
+    super(`The database file is damaged or is not a Noor Pharmacy POS database: ${filePath}`);
     this.name = 'DatabaseCorruptError';
     this.filePath = filePath;
     this.cause = cause;

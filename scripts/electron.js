@@ -32,19 +32,19 @@ if (build.status !== 0) process.exit(build.status || 1);
 
 const children = [];
 if (mode === '--dev') {
-  env.MEDIDESK_DEV = '1';
-  env.MEDIDESK_DEMO_DATA = '1';
-  env.MEDIDESK_DATA_DIR = env.MEDIDESK_DATA_DIR || path.join(root, '.devdata');
-  env.MEDIDESK_USER_DATA_DIR = path.join(env.MEDIDESK_DATA_DIR, 'chromium-profile');
+  env.NOORPOS_DEV = '1';
+  env.NOORPOS_DEMO_DATA = '1';
+  env.NOORPOS_DATA_DIR = env.NOORPOS_DATA_DIR || path.join(root, '.devdata');
+  env.NOORPOS_USER_DATA_DIR = path.join(env.NOORPOS_DATA_DIR, 'chromium-profile');
   // Rebuild on save; reload the window (Ctrl+R) to see changes.
   children.push(spawn(process.execPath, [vite, ...viteArgs, '--watch', '--logLevel', 'warn'], { cwd: root, stdio: 'inherit' }));
 } else {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'medidesk-smoke-'));
-  env.MEDIDESK_SMOKE = '1';
-  env.MEDIDESK_DEMO_DATA = '1';
-  env.MEDIDESK_DATA_DIR = path.join(tmp, 'data');
-  env.MEDIDESK_USER_DATA_DIR = path.join(tmp, 'profile');
-  env.MEDIDESK_SMOKE_SCENARIO = path.join(__dirname, 'smoke-scenario.js');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'noorpos-smoke-'));
+  env.NOORPOS_SMOKE = '1';
+  env.NOORPOS_DEMO_DATA = '1';
+  env.NOORPOS_DATA_DIR = path.join(tmp, 'data');
+  env.NOORPOS_USER_DATA_DIR = path.join(tmp, 'profile');
+  env.NOORPOS_SMOKE_SCENARIO = path.join(__dirname, 'smoke-scenario.js');
 }
 
 delete env.ELECTRON_RUN_AS_NODE;

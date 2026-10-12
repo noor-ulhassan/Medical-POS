@@ -189,7 +189,7 @@
     button('[role="tablist"]', 'Staff').click();
     await waitFor('users', () => text('#usersTableBody').includes('Administrator'));
     button('[role="tablist"]', 'Backup').click();
-    await waitFor('backups', () => text('#backupsTableBody').includes('medidesk_auto_'));
+    await waitFor('backups', () => text('#backupsTableBody').includes('noorpos_auto_'));
     button('[role="tablist"]', 'Activity').click();
     await waitFor('audit', () => text('#auditTableBody').includes('sales.void'));
   });

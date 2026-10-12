@@ -1,13 +1,13 @@
 /**
  * Role -> permission matrix. Enforced in the main process for every IPC call;
  * the renderer uses the same table only to hide controls the user cannot use.
- * Exposed to the renderer as window.MediDeskPermissions.
+ * Exposed to the renderer as window.NoorPosPermissions.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
   } else {
-    root.MediDeskPermissions = factory();
+    root.NoorPosPermissions = factory();
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';

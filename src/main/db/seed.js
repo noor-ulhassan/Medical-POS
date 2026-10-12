@@ -32,7 +32,7 @@ function ensureEssentialRows(db) {
   });
 }
 
-/** Optional sample catalogue for demos and development (MEDIDESK_DEMO_DATA=1). */
+/** Optional sample catalogue for demos and development (NOORPOS_DEMO_DATA=1). */
 function seedDemoData(db) {
   if (db.value('SELECT COUNT(*) FROM products;') > 0) return false;
   const expiry = (days) => localDateString(addDays(new Date(), days));

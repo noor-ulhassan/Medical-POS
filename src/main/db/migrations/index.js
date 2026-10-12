@@ -6,15 +6,15 @@ const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
 /** Database created by a pre-1.1 build (batch-based schema) that cannot be upgraded in place. */
 class LegacySchemaError extends Error {
   constructor() {
-    super('This database was created by an old, incompatible MediDesk version (batch-based inventory).');
+    super('This database was created by an old, incompatible version of this app (batch-based inventory).');
     this.name = 'LegacySchemaError';
   }
 }
 
-/** Database written by a newer MediDesk version than this one. */
+/** Database written by a newer version of this app. */
 class NewerSchemaError extends Error {
   constructor(version) {
-    super(`This database was created by a newer MediDesk version (schema ${version}). Please update the app.`);
+    super(`This database was created by a newer version of Noor Pharmacy POS (schema ${version}). Please update the app.`);
     this.name = 'NewerSchemaError';
     this.version = version;
   }

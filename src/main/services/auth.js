@@ -1,8 +1,9 @@
 'use strict';
 
+const crypto = require('crypto');
 const v = require('../lib/validate');
 const { AppError, ErrorCodes, validationError, notFound, conflict } = require('../lib/errors');
-const { hashPin, verifyPin, assertAcceptablePin, PIN_PATTERN } = require('../lib/pin');
+const { hashPin, verifyPin, assertAcceptablePin, isWeakPin, PIN_PATTERN } = require('../lib/pin');
 const { nowIso } = require('../lib/dates');
 const { ROLES, permissionsFor } = require('../../shared/permissions');
 const { recordAudit } = require('./audit');
@@ -151,6 +152,28 @@ function createAuthService(db, { now = () => Date.now() } = {}) {
         recordAudit(db, actor, 'users.update', { userId: id, name, role, isActive });
       });
       return toPublicUser(getUserRow(id));
+    },
+
+    /**
+     * Last-resort recovery when no admin can log in: give the first admin a
+     * random temporary PIN that must be changed at login. Only reachable by
+     * starting the app with --reset-admin-pin on the computer itself, which
+     * already implies access to the data folder.
+     */
+    recoverAdminPin() {
+      const admin = db.get("SELECT * FROM users WHERE role = 'Admin' ORDER BY is_active DESC, id LIMIT 1;");
+      if (!admin) throw notFound('No admin account exists');
+      let pin;
+      do {
+        pin = String(crypto.randomInt(100000, 1000000));
+      } while (isWeakPin(pin) || findActiveUserByPin(pin, { excludeUserId: admin.id }));
+      db.transaction(() => {
+        db.run('UPDATE users SET pin_hash = ?, must_change_pin = 1, is_active = 1 WHERE id = ?;', [hashPin(pin), admin.id]);
+        recordAudit(db, { id: null, name: 'PIN recovery' }, 'users.reset_pin', { userId: admin.id, via: 'recovery' });
+      });
+      failedAttempts = 0;
+      lockedUntil = 0;
+      return { user: toPublicUser(getUserRow(admin.id)), pin };
     },
 
     resetUserPin(actor, input) {
