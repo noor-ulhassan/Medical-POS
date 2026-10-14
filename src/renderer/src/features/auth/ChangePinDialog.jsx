@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useToast } from '../../ui/Toast.jsx';
@@ -11,6 +11,11 @@ export function ChangePinDialog({ open, forced, onClose, onChanged, onLock }) {
   const { toast, guard } = useToast();
   const [values, setValues] = useState({ currentPin: '', newPin: '', confirmPin: '' });
   const set = (name) => (e) => setValues((v) => ({ ...v, [name]: e.target.value }));
+
+  // Start empty each time: PINs typed before the dialog was closed must not reappear.
+  useEffect(() => {
+    if (open) setValues({ currentPin: '', newPin: '', confirmPin: '' });
+  }, [open]);
 
   const submit = guard(async (e) => {
     e.preventDefault();
@@ -47,7 +52,7 @@ export function ChangePinDialog({ open, forced, onClose, onChanged, onLock }) {
           </Field>
         </ModalBody>
         <ModalFooter>
-          <Button onClick={onLock}>Lock instead</Button>
+          {forced ? <Button onClick={onLock}>Lock instead</Button> : <Button onClick={onClose}>Cancel</Button>}
           <Button type="submit" variant="primary">
             Save new PIN
           </Button>

@@ -10,13 +10,16 @@ import { cx } from '../../ui/cx.js';
 
 const LIMIT = 200;
 // Columns follow the list's own width (container query), not the window: the cart and sidebar take varying space.
-const COLS = 'grid grid-cols-[minmax(0,1fr)_92px_104px_136px] @[860px]:grid-cols-[minmax(0,1fr)_112px_96px_88px_96px_136px] items-center gap-x-3 @[860px]:gap-x-4';
+// Under 540px (e.g. 1024px window with the menu expanded) the fixed columns leave no room for the name, so the
+// medicine gets its own line and stock, price and the add buttons sit on a second line below it.
+const COLS =
+  'grid grid-cols-[minmax(0,1fr)_104px_136px] @[540px]:grid-cols-[minmax(0,1fr)_92px_104px_136px] @[860px]:grid-cols-[minmax(0,1fr)_112px_96px_88px_96px_136px] items-center gap-x-3 gap-y-2 @[860px]:gap-x-4';
 
 function StockCell({ product }) {
   const out = isOutOfStock(product);
   const low = !out && isLowStock(product);
   return (
-    <div className="num text-right leading-tight">
+    <div className="num text-left leading-tight @[540px]:text-right">
       {out ? (
         <Pill tone="red">Out of stock</Pill>
       ) : (
@@ -161,7 +164,16 @@ export function Catalog() {
         </Select>
       </div>
 
-      <div className="scrollbar-none flex gap-2 overflow-x-auto px-6 pt-3" role="group" aria-label="Category" id="posCategoryChips">
+      <div
+        className="flex shrink-0 gap-2 overflow-x-auto px-6 pt-3"
+        role="group"
+        aria-label="Category"
+        id="posCategoryChips"
+        // Categories that do not fit stay reachable with an ordinary mouse wheel.
+        onWheel={(e) => {
+          if (e.deltaY && !e.deltaX) e.currentTarget.scrollLeft += e.deltaY;
+        }}
+      >
         {[{ id: 'ALL', name: 'All medicines' }, ...categories].map((c) => {
           const value = String(c.id);
           const on = category === value;
@@ -189,7 +201,7 @@ export function Catalog() {
         <div className={cx(COLS, 'border-b border-foil bg-sunken px-4 py-2 text-xs font-semibold text-ink-2')} aria-hidden="true">
           <span>Medicine</span>
           <span className="hidden @[860px]:block">Expiry</span>
-          <span className="text-right">In stock</span>
+          <span className="hidden text-right @[540px]:block">In stock</span>
           <span className="text-right">Unit price</span>
           <span className="hidden text-right @[860px]:block">Pack price</span>
           <span />
@@ -220,7 +232,7 @@ export function Catalog() {
                     out && 'is-out'
                   )}
                 >
-                  <div className="min-w-0">
+                  <div className="col-span-3 min-w-0 @[540px]:col-span-1">
                     <div className="flex items-center gap-2">
                       <span className={cx('truncate text-base font-semibold', out ? 'text-ink-2' : 'text-ink')} title={p.title}>{p.title}</span>
                       {p.is_prescription_required ? <RxPill /> : null}

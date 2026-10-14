@@ -95,7 +95,7 @@ export function QuotationView() {
           <tbody id="quoteItemsBody">
             {rows.map((r) => (
               <Tr key={r.key}>
-                <Td className="min-w-[280px]">
+                <Td className="min-w-[220px]">
                   <select className="control" aria-label="Medicine" value={r.productId} onChange={(e) => update(r.key, { productId: e.target.value })}>
                     <option value="">Choose a medicine</option>
                     {products.map((p) => (
@@ -106,16 +106,16 @@ export function QuotationView() {
                   </select>
                 </Td>
                 <Td className="w-[140px]">
-                  <select className="control" aria-label="Sold as" value={r.unitType} onChange={(e) => update(r.key, { unitType: e.target.value })}>
+                  <select className="control min-w-[88px]" aria-label="Sold as" value={r.unitType} onChange={(e) => update(r.key, { unitType: e.target.value })}>
                     <option value="SINGLE">Unit</option>
                     <option value="PACK">Pack</option>
                   </select>
                 </Td>
                 <Td className="w-[120px]">
-                  <input type="number" min="1" aria-label="Quantity" className="control num text-right" value={r.quantity} onChange={(e) => update(r.key, { quantity: e.target.value })} />
+                  <input type="number" min="1" aria-label="Quantity" className="control num min-w-[64px] text-right" value={r.quantity} onChange={(e) => update(r.key, { quantity: e.target.value })} />
                 </Td>
                 <Td className="w-[160px]">
-                  <input type="number" min="0" step="0.01" aria-label="Price each" placeholder="0.00" className="control num text-right" value={r.price} onChange={(e) => update(r.key, { price: e.target.value })} />
+                  <input type="number" min="0" step="0.01" aria-label="Price each" placeholder="0.00" className="control num min-w-[88px] text-right" value={r.price} onChange={(e) => update(r.key, { price: e.target.value })} />
                 </Td>
                 <Td num className="w-[140px] font-semibold">
                   {money(lineCents(r))}

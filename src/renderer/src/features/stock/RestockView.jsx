@@ -108,7 +108,7 @@ export function RestockView() {
                       <div className="text-sm text-ink-3">{p.pack_size} units per pack</div>
                     </Td>
                     <Td muted>{p.supplier_name || '—'}</Td>
-                    <Td num className={isOutOfStock(p) ? 'font-bold text-red-ink' : 'font-semibold text-amber-ink'}>
+                    <Td num className={isOutOfStock(p) ? 'font-bold text-red-ink' : isLowStock(p) ? 'font-semibold text-amber-ink' : 'font-semibold'}>
                       {p.stock_packs}
                     </Td>
                     <Td num muted>{p.min_stock_level}</Td>
