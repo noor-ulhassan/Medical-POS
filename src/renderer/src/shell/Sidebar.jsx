@@ -15,7 +15,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Database,
-  TriangleAlert
+  TriangleAlert,
+  CircleHelp
 } from 'lucide-react';
 import { useApp } from '../state/AppState.jsx';
 import { cx } from '../ui/cx.js';
@@ -25,38 +26,38 @@ const GROUPS = [
     label: 'Counter',
     items: [
       { id: 'posView', label: 'Sell', icon: ShoppingCart, permission: 'pos.sell', kbd: 'F1' },
-      { id: 'salesView', label: 'Sales history', icon: ReceiptText, permission: 'sales.view' },
-      { id: 'quotationView', label: 'Quotations', icon: FileText, permission: 'quotes.create' }
+      { id: 'salesView', label: 'Past sales', icon: ReceiptText, permission: 'sales.view' },
+      { id: 'quotationView', label: 'Price quotation', icon: FileText, permission: 'quotes.create' }
     ]
   },
   {
     label: 'Stock',
     items: [
-      { id: 'inventoryView', label: 'Products', icon: Package, permission: 'products.view', badge: 'lowStock' },
-      { id: 'expiryView', label: 'Expiry', icon: CalendarClock, permission: 'products.view', badge: 'expiring' },
-      { id: 'ordersView', label: 'Restock', icon: ClipboardList, permission: 'restock.view' },
+      { id: 'inventoryView', label: 'Medicines & stock', icon: Package, permission: 'products.view', badge: 'lowStock' },
+      { id: 'expiryView', label: 'Expiring soon', icon: CalendarClock, permission: 'products.view', badge: 'expiring' },
+      { id: 'ordersView', label: 'Order from supplier', icon: ClipboardList, permission: 'restock.view' },
       { id: 'suppliersView', label: 'Suppliers', icon: Truck, permission: 'catalog.manage' }
     ]
   },
   {
     label: 'Customers',
-    items: [{ id: 'khataView', label: 'Khata accounts', icon: NotebookPen, permission: 'customers.view' }]
+    items: [{ id: 'khataView', label: 'Khata (credit)', icon: NotebookPen, permission: 'customers.view' }]
   },
   {
     label: 'Store',
     items: [
-      { id: 'dashboardView', label: 'Dashboard', icon: ChartColumn, permission: 'reports.view' },
+      { id: 'dashboardView', label: "Today's report", icon: ChartColumn, permission: 'reports.view' },
       { id: 'settingsView', label: 'Settings', icon: Settings, permission: 'settings.manage' }
     ]
   }
 ];
 
 const BADGE_TITLES = {
-  lowStock: (n) => `${n} products at or below their minimum stock`,
-  expiring: (n) => `${n} products expiring within 6 months`
+  lowStock: (n) => `${n} medicines are running low`,
+  expiring: (n) => `${n} medicines expire within 6 months (or have expired)`
 };
 
-export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, onLock, onChangePin }) {
+export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, onLock, onChangePin, onHelp }) {
   const { user, settings, view, go, can, alerts, saveProblem } = useApp();
 
   return (
@@ -102,7 +103,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, on
                     title={collapsed ? item.label : undefined}
                     aria-current={active ? 'page' : undefined}
                     className={cx(
-                      'nav-item relative flex h-8 w-full items-center gap-3 rounded-control text-base font-semibold transition-colors',
+                      'nav-item relative flex h-9 w-full items-center gap-3 rounded-control text-base font-semibold transition-colors',
                       collapsed ? 'justify-center' : 'px-2.5',
                       active ? 'bg-teal-soft text-teal-ink' : 'text-ink-2 hover:bg-sunken hover:text-ink'
                     )}
@@ -133,6 +134,19 @@ export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, on
       </nav>
 
       <div className="shrink-0 border-t border-foil p-2.5">
+        <button
+          type="button"
+          id="btnHelp"
+          onClick={onHelp}
+          title="How do I…?"
+          className={cx(
+            'mb-1.5 flex h-9 w-full items-center gap-3 rounded-control bg-amber-soft text-base font-semibold text-amber-ink hover:brightness-95',
+            collapsed ? 'justify-center' : 'px-2.5'
+          )}
+        >
+          <CircleHelp className="size-[18px] shrink-0" aria-hidden="true" />
+          {!collapsed && <span className="flex-1 text-left">Help: how do I…?</span>}
+        </button>
         <button
           type="button"
           id="btnUserMenu"

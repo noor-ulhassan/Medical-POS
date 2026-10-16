@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased (branch ux/non-technical-owner)
+
+Fixes that protect money and stock, and a simpler interface for an owner who is not used to computers.
+
+### Money and stock correctness
+- Fixed: the payment method stayed selected from the previous sale, so a cash sale straight after a card sale could be recorded as card (cash drawer would not match). Every checkout now starts at Cash.
+- Fixed: pressing Enter twice quickly, or holding F2, could submit the same sale twice. Checkout is now locked while a sale is being saved.
+- Fixed: expired medicine could be sold. It is now refused at the till and in the main process, with a message saying what to do.
+- Fixed: "Sell these items again" silently replaced a sale being rung up. It now asks first.
+- Fixed: the daily automatic backup only ran when the app was started, so a shop that never closes the app got no backups. It is now checked every hour.
+- New: Receive stock. When a delivery arrives you enter only the packs received; they are added to the current stock (previously you had to type the new total, which was easy to get wrong). Optionally updates the shelf expiry date and cost price. Recorded in stock history and the activity log.
+- New products no longer get a made-up expiry date one year ahead; the date printed on the pack must be entered.
+- Editing a product's stock now shows exactly how the stock will change before saving.
+- Cash checkout: cannot complete when the cash received is short; quick-cash buttons now suggest amounts above the total; khata sales over the limit are explained before submitting.
+
+### Easier for the owner
+- Today's report: money taken today by cash, card, wallet and khata, khata payments received, cancelled sales, and the cash that should be in the drawer.
+- Help: a "How do I…?" window with step-by-step guides for everyday tasks, shown according to the user's role.
+- Plain words: Past sales, Medicines & stock, Expiring soon, Order from supplier, Khata (credit), Today's report; "Void" is now "Cancel sale" and the dialog says exactly how much money to give back.
+- Barcode scans are no longer lost after clicking with the mouse: typing on the Sell screen goes to the search box.
+- Held sales show the customer, number of items and who held them instead of a code.
+- Receipts show "Khata (credit)" / "Mobile wallet" instead of internal codes.
+- Closing the window asks for confirmation (an unfinished sale would be lost).
+- Larger menu buttons; the lock screen's "Forgot your PIN?" no longer asks the owner to use the command line.
+
 ## 2.0.0
 
 A rewrite of the internals focused on data safety, correctness and security. Existing 1.x databases are upgraded automatically (a backup of the original file is made first).

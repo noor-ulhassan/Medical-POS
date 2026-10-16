@@ -69,6 +69,7 @@ function createRoutes(ctx, platform) {
     'products.remove': { permission: 'products.manage', handler: (p, { user }) => s().products.remove(user, p) },
     'products.generateBarcode': { permission: 'products.manage', handler: () => s().products.generateBarcode() },
     'products.discardStock': { permission: 'stock.adjust', handler: (p, { user }) => s().products.discardStock(user, p) },
+    'products.receiveStock': { permission: 'stock.adjust', handler: (p, { user }) => s().products.receiveStock(user, p) },
     'products.stockHistory': { permission: 'products.view', handler: (p) => s().products.stockHistory(p) },
 
     // --- customers -----------------------------------------------------

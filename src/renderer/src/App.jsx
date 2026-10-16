@@ -5,6 +5,7 @@ import { useCart } from './state/Cart.jsx';
 import { useToast } from './ui/Toast.jsx';
 import { isAnyModalOpen } from './ui/Modal.jsx';
 import { Sidebar } from './shell/Sidebar.jsx';
+import { HelpDialog } from './shell/HelpDialog.jsx';
 import { LockScreen } from './features/auth/LockScreen.jsx';
 import { ChangePinDialog } from './features/auth/ChangePinDialog.jsx';
 import { PosView } from './features/pos/PosView.jsx';
@@ -80,6 +81,7 @@ export function App() {
   const [theme, setTheme] = useState(initialTheme);
   const [collapsed, setCollapsed] = useState(() => readPreference('noorpos_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -226,11 +228,13 @@ export function App() {
             }}
             onLock={lock}
             onChangePin={() => setPinDialog({ forced: false })}
+            onHelp={() => setHelpOpen(true)}
           />
           <main className="min-w-0 flex-1 overflow-hidden">
             <Screen key={view} />
           </main>
           <PaymentDialog />
+          <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
         </div>
       ) : (
         !user && <LockScreen onSession={acceptSession} />

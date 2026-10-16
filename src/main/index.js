@@ -152,6 +152,23 @@ function createWindow() {
   if (!isDev) Menu.setApplicationMenu(null);
   mainWindow.maximize();
   mainWindow.once('ready-to-show', () => mainWindow.show());
+
+  // A shop PC is often closed by accident (the X is easy to hit). Completed
+  // sales are already saved, but a sale still being rung up would be lost.
+  mainWindow.on('close', (event) => {
+    if (isSmokeTest || isDev) return;
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: 'question',
+      title: 'Close Noor Pharmacy POS?',
+      message: 'Close Noor Pharmacy POS?',
+      detail: 'All completed sales are already saved. A sale you have not finished yet will be lost.',
+      buttons: ['Keep working', 'Close the app'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true
+    });
+    if (choice === 0) event.preventDefault();
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -245,6 +262,17 @@ async function main() {
   });
 
   createWindow();
+
+  // Shops leave the app open for days, so the daily backup cannot rely on a
+  // restart. autoDaily() is a no-op when today's backup already exists.
+  setInterval(() => {
+    try {
+      if (ctx.db) ctx.backup.autoDaily();
+    } catch (err) {
+      console.error('[backup] automatic daily backup failed:', err);
+      notifyRenderer('app:warning', { message: `Automatic backup failed (${err.code || err.message}). Use Settings, Backup now.` });
+    }
+  }, 60 * 60 * 1000);
 
   app.on('second-instance', () => {
     if (mainWindow) {

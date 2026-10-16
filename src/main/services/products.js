@@ -163,6 +163,34 @@ function createProductsService(db) {
       });
     },
 
+    /**
+     * A delivery arrived: add the received packs/units to whatever is already
+     * in stock (relative, so nobody has to work out the new total by hand),
+     * and optionally update the shelf expiry date and the cost price.
+     */
+    receiveStock(actor, input) {
+      const data = v.object(input);
+      const id = v.id(data.id, 'Product');
+      const blank = (x) => x === undefined || x === null || x === '';
+      const packs = v.integer(blank(data.packs) ? 0 : data.packs, 'Packs received', { min: 0, max: 1e6 });
+      const singles = v.integer(blank(data.singles) ? 0 : data.singles, 'Loose units received', { min: 0, max: 1e7 });
+      const expiryDate = v.date(data.expiryDate, 'Expiry date', { required: false });
+      const costPriceCents = blank(data.costPriceCents) ? null : v.cents(data.costPriceCents, 'Cost price per pack');
+      const product = get(id);
+      if (!product.is_active) throw validationError('This product has been removed and cannot receive stock');
+      const units = packs * product.pack_size + singles;
+      if (units <= 0) throw validationError('Enter how many packs (or loose units) arrived');
+
+      db.transaction(() => {
+        const what = `${packs} pack(s)${singles ? ` + ${singles} loose unit(s)` : ''}`;
+        adjustStock(db, actor, id, units, `Stock received: ${what}`);
+        if (expiryDate) db.run('UPDATE products SET expiry_date = ? WHERE id = ?;', [expiryDate, id]);
+        if (costPriceCents !== null) db.run('UPDATE products SET cost_price_cents = ? WHERE id = ?;', [costPriceCents, id]);
+        recordAudit(db, actor, 'products.receive_stock', { id, title: product.title, units, expiryDate, costPriceCents });
+      });
+      return get(id);
+    },
+
     /** Write off all remaining stock (e.g. expired medicine). */
     discardStock(actor, input) {
       const data = v.object(input);

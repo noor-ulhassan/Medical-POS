@@ -28,8 +28,18 @@ function normalizeStoredCart(json) {
 
 function createParkedService(db) {
   return {
+    /** Held carts with who they belong to and how many lines they have, so staff can tell them apart. */
     list() {
-      return db.all('SELECT id, tab_key, cashier_id, customer_id, total_cents, created_at FROM parked_orders ORDER BY id DESC;');
+      return db
+        .all(
+          `SELECT po.id, po.tab_key, po.cashier_id, po.customer_id, po.total_cents, po.created_at, po.cart_json,
+             c.name AS customer_name, u.name AS cashier_name
+           FROM parked_orders po
+           LEFT JOIN customers c ON c.id = po.customer_id
+           LEFT JOIN users u ON u.id = po.cashier_id
+           ORDER BY po.id DESC;`
+        )
+        .map(({ cart_json: cartJson, ...row }) => ({ ...row, item_count: normalizeStoredCart(cartJson).lines.length }));
     },
 
     park(actor, input) {

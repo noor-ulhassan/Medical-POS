@@ -134,6 +134,19 @@
     await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
   });
 
+  await step('payment method starts at cash for every sale (never carried over)', async () => {
+    $('#productGrid [data-product-id]:not(.is-out)').click();
+    await waitFor('item in cart', () => text('#cartItemCountBadge') === '1');
+    $('#btnOpenCheckoutModal').click();
+    await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
+    if (!$('input[name="paymentMethod"][value="CASH"]').checked) throw new Error('payment method carried over from the previous sale');
+    $('#modalCheckoutPayment button[aria-label="Close"]').click();
+    $('#btnClearCart').click();
+    await waitFor('confirm', () => exists('modalConfirm'));
+    $('#confirmYes').click();
+    await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
+  });
+
   const views = ['dashboardView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
   for (const view of views) {
     await step(`navigate to ${view}`, async () => {
@@ -155,7 +168,7 @@
     await waitFor('void dialog', () => exists('modalVoidSale'));
     type(field('voidForm', 'reason'), 'Smoke test');
     $('#voidForm').requestSubmit();
-    await waitFor('voided badge', () => text('#salesTableBody').includes('Voided'));
+    await waitFor('voided badge', () => text('#salesTableBody').includes('Cancelled'));
   });
 
   await step('add a product', async () => {

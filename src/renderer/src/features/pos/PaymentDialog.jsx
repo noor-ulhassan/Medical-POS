@@ -18,7 +18,19 @@ const METHODS = [
   { value: 'CREDIT', label: 'Khata', icon: NotebookPen }
 ];
 
-const QUICK_CASH = [500, 1000, 5000];
+const NOTES = [10, 20, 50, 100, 500, 1000, 5000];
+
+/** Amounts a customer is likely to hand over: the next few notes/round sums at or above the total (in rupees). */
+function quickCashAmounts(totalCents) {
+  const total = Math.ceil(totalCents / 100);
+  const options = new Set();
+  for (const step of [10, 50, 100, 500, 1000, 5000]) {
+    const rounded = Math.ceil(total / step) * step;
+    if (rounded > total) options.add(rounded);
+  }
+  for (const note of NOTES) if (note > total) options.add(note);
+  return [...options].sort((a, b) => a - b).slice(0, 4);
+}
 
 export function PaymentDialog() {
   const { customerById, loadProducts, loadCustomers, refreshAlerts } = useApp();
@@ -29,14 +41,20 @@ export function PaymentDialog() {
   const [method, setMethod] = useState('CASH');
   const [paid, setPaid] = useState('');
   const [busy, setBusy] = useState(false);
+  // State updates are asynchronous, so a ref is what actually stops a double
+  // Enter / held-down F2 from charging the same sale twice.
+  const inFlight = useRef(false);
   const paidRef = useRef(null);
   const total = cart.totals.totalCents;
   const customer = customerById(cart.customerId);
   const open = cart.paymentOpen;
 
-  // Each time the dialog opens, default to the exact amount (selected, ready to overtype).
+  // Each time the dialog opens: cash, exact amount (selected, ready to overtype).
+  // The method must not carry over from the previous sale, or a cash sale
+  // straight after a card sale would be recorded as card.
   useEffect(() => {
     if (!open) return undefined;
+    setMethod('CASH');
     setPaid(centsToInput(total));
     const t = setTimeout(() => paidRef.current?.select(), 60);
     return () => clearTimeout(t);
@@ -47,11 +65,21 @@ export function PaymentDialog() {
   const change = method === 'CASH' && !Number.isNaN(paidCents) && paidCents >= total ? paidCents - total : 0;
   const short = method === 'CASH' && !Number.isNaN(paidCents) && paidCents > 0 && paidCents < total ? total - paidCents : 0;
   const walkInCredit = method === 'CREDIT' && cart.customerId === WALK_IN_ID;
+  const overLimit = method === 'CREDIT' && !walkInCredit && customer && customer.current_debt_cents + total > customer.credit_limit_cents;
 
   const submit = guard(async () => {
-    if (busy || cart.itemCount === 0) return;
+    if (inFlight.current || busy || cart.itemCount === 0) return;
     if (method === 'CREDIT' && cart.customerId === WALK_IN_ID) {
       toast('Walk-in customers cannot buy on khata. Choose a registered customer first.', 'error');
+      return;
+    }
+    if (short) {
+      toast(`Cash received is ${money(short)} less than the amount due.`, 'error');
+      paidRef.current?.select();
+      return;
+    }
+    if (overLimit) {
+      toast(`This sale would take ${customer.name} over their khata limit of ${money(customer.credit_limit_cents)}.`, 'error');
       return;
     }
     const needsRx = cart.priced.filter((l) => l.product.is_prescription_required);
@@ -63,6 +91,8 @@ export function PaymentDialog() {
       });
       if (!proceed) return;
     }
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     try {
       const sale = await call('sales.checkout', {
@@ -79,6 +109,7 @@ export function PaymentDialog() {
       await Promise.all([loadProducts(), loadCustomers()]);
       refreshAlerts();
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   });
@@ -143,17 +174,17 @@ export function PaymentDialog() {
                 onChange={(e) => setPaid(e.target.value)}
                 className="control num !h-12 text-right !text-xl font-bold"
               />
-              <div className="flex gap-2">
-                <button type="button" data-cash="exact" onClick={() => setPaid(centsToInput(total))} className="h-8 rounded-full border border-foil-strong px-3.5 text-sm font-semibold text-ink-2 hover:border-teal hover:text-teal-ink">
+              <div className="flex flex-wrap gap-2">
+                <button type="button" data-cash="exact" onClick={() => setPaid(centsToInput(total))} className="h-9 rounded-full border border-foil-strong px-3.5 text-sm font-semibold text-ink-2 hover:border-teal hover:text-teal-ink">
                   Exact amount
                 </button>
-                {QUICK_CASH.map((n) => (
+                {quickCashAmounts(total).map((n) => (
                   <button
                     key={n}
                     type="button"
                     data-cash={n}
                     onClick={() => setPaid(n.toFixed(2))}
-                    className="num h-8 rounded-full border border-foil-strong px-3.5 text-sm font-semibold text-ink-2 hover:border-teal hover:text-teal-ink"
+                    className="num h-9 rounded-full border border-foil-strong px-3.5 text-sm font-semibold text-ink-2 hover:border-teal hover:text-teal-ink"
                   >
                     Rs {n.toLocaleString()}
                   </button>
@@ -176,10 +207,11 @@ export function PaymentDialog() {
               </div>
             ) : (
               customer && (
-                <div className="rounded-panel bg-sunken px-4 py-3 text-sm text-ink-2">
+                <div className={cx('rounded-panel px-4 py-3 text-sm', overLimit ? 'bg-red-soft text-red-ink' : 'bg-sunken text-ink-2')}>
                   <span className="num">{money(total)}</span> will be added to {customer.name}'s khata. Balance after this sale:{' '}
-                  <strong className={cx('num', balanceAfter > customer.credit_limit_cents ? 'text-red-ink' : 'text-ink')}>{money(balanceAfter)}</strong> of{' '}
+                  <strong className={cx('num', overLimit ? 'text-red-ink' : 'text-ink')}>{money(balanceAfter)}</strong> of{' '}
                   <span className="num">{money(customer.credit_limit_cents)}</span> limit.
+                  {overLimit && <div className="mt-1 font-semibold">This is over the limit. Take part of it in cash, or raise the limit in Khata.</div>}
                 </div>
               )
             ))}
@@ -192,8 +224,8 @@ export function PaymentDialog() {
         </ModalBody>
         <ModalFooter>
           <Button onClick={() => cart.setPaymentOpen(false)}>Cancel</Button>
-          <Button type="submit" variant="primary" size="lg" icon={Check} id="btnConfirmCheckout" disabled={busy}>
-            Complete sale
+          <Button type="submit" variant="primary" size="lg" icon={Check} id="btnConfirmCheckout" disabled={busy || Boolean(short)}>
+            {busy ? 'Saving…' : 'Complete sale'}
           </Button>
         </ModalFooter>
       </form>

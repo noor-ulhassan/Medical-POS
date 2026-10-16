@@ -15,6 +15,8 @@ const DocumentsContext = createContext(null);
 
 export const SOFTWARE_CREDIT = 'Software by Noor ul Hassan (noorulhassan01.dev@gmail.com)';
 
+const PAYMENT_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wallet', CREDIT: 'Khata (credit)' };
+
 export function DocumentsProvider({ children }) {
   const { guard } = useToast();
   const [receipt, setReceipt] = useState(null);
@@ -90,10 +92,10 @@ export function Receipt({ sale }) {
         <div>Cashier: {sale.cashier_name}</div>
         <div>Customer: {sale.customer_name}</div>
         <div>
-          Paid by: <strong>{sale.payment_method}</strong>
+          Paid by: <strong>{PAYMENT_LABELS[sale.payment_method] || sale.payment_method}</strong>
         </div>
         {sale.prescription_path && <div>Prescription on file</div>}
-        {sale.status === 'VOIDED' && <div className="pt-1 text-center font-bold">*** VOIDED ***</div>}
+        {sale.status === 'VOIDED' && <div className="pt-1 text-center font-bold">*** CANCELLED / VOID ***</div>}
       </div>
       <Rule />
       <table className="w-full border-collapse">

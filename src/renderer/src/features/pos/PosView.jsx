@@ -5,7 +5,7 @@ import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { Modal, ModalBody } from '../../ui/Modal.jsx';
 import { Button } from '../../ui/Button.jsx';
-import { money, dateTime } from '../../lib/format.js';
+import { money, dateTime, plural } from '../../lib/format.js';
 import { Catalog } from './Catalog.jsx';
 import { Cart } from './Cart.jsx';
 
@@ -35,7 +35,7 @@ export function PosView() {
       discount: cart.discount
     });
     cart.clear();
-    toast(`Sale held as ${tabKey}`);
+    toast(`Sale put on hold (${tabKey}). Open "Held sales" to finish it later.`);
   });
 
   const showHeld = guard(async () => {
@@ -67,10 +67,13 @@ export function PosView() {
           <div id="parkedList" className="flex flex-col gap-2">
             {held?.map((p) => (
               <div key={p.id} className="flex items-center justify-between gap-3 rounded-panel border border-foil px-4 py-3">
-                <div>
-                  <div className="font-semibold text-ink">{p.tab_key}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-ink">
+                    {p.customer_name || 'Walk-in Customer'} <span className="font-normal text-ink-3">· {plural(p.item_count || 0, 'item')}</span>
+                  </div>
                   <div className="num text-sm text-ink-3">
                     {money(p.total_cents)}, held {dateTime(p.created_at)}
+                    {p.cashier_name ? ` by ${p.cashier_name}` : ''}
                   </div>
                 </div>
                 <Button size="sm" variant="primary" data-resume={p.id} onClick={() => resume(p.id)}>

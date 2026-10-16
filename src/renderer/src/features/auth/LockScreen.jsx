@@ -115,8 +115,11 @@ export function LockScreen({ onSession }) {
           <details className="mt-4 text-center text-sm text-ink-2">
             <summary className="cursor-pointer list-none font-semibold text-ink-2 hover:text-ink">Forgot your PIN?</summary>
             <p className="mt-2 text-left text-ink-2">
-              An admin can give you a new one in Settings, under Staff and PINs. If no admin can log in, close the app and start it again with{' '}
-              <code className="rounded bg-sunken px-1 text-xs">--reset-admin-pin</code> to get a temporary admin PIN.
+              Ask the shop owner: they can give you a new PIN in Settings, under Staff and PINs.
+            </p>
+            <p className="mt-2 text-left text-xs text-ink-3">
+              If the owner's PIN is lost too, call the person who installed this software. (For them: start the app with{' '}
+              <code className="rounded bg-sunken px-1">--reset-admin-pin</code>.)
             </p>
           </details>
         )}

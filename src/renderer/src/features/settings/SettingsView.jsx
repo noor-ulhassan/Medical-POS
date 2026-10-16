@@ -356,6 +356,7 @@ const ACTION_LABELS = {
   'settings.update': 'Changed store settings',
   'products.create': 'Added product',
   'products.price_change': 'Changed a price',
+  'products.receive_stock': 'Received stock',
   'products.archive': 'Archived product',
   'products.delete': 'Removed product',
   'categories.create': 'Added category',
@@ -364,7 +365,7 @@ const ACTION_LABELS = {
   'suppliers.update': 'Edited supplier',
   'customers.create': 'Added customer',
   'customers.update': 'Edited customer',
-  'sales.void': 'Voided a sale',
+  'sales.void': 'Cancelled a sale',
   'sales.attach_prescription': 'Attached a prescription',
   'system.restore': 'Restored a backup',
   'system.factory_reset': 'Factory reset'

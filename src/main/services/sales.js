@@ -2,7 +2,7 @@
 
 const v = require('../lib/validate');
 const { AppError, ErrorCodes, notFound, conflict, validationError } = require('../lib/errors');
-const { nowIso } = require('../lib/dates');
+const { nowIso, localDateString } = require('../lib/dates');
 const { UNIT_TYPES, DISCOUNT_TYPES, lineUnits, unitPriceCents, computeTotals } = require('../../shared/pricing');
 const { WALK_IN_CUSTOMER_ID } = require('../db/seed');
 const { postLedgerEntry } = require('./customers');
@@ -60,9 +60,18 @@ function createSalesService(db, { files }) {
    */
   function priceLines(lines) {
     const unitsByProduct = new Map();
+    const today = localDateString();
     const priced = lines.map((line) => {
       const product = db.get('SELECT * FROM products WHERE id = ? AND is_active = 1;', [line.productId]);
       if (!product) throw notFound('A product in the cart no longer exists. Refresh and try again.');
+      // Expired medicine must never be sold. Medicine expiring today can still be sold today.
+      if (product.expiry_date && product.expiry_date < today) {
+        throw new AppError(
+          ErrorCodes.EXPIRED,
+          `"${product.title}" expired on ${product.expiry_date} and cannot be sold. ` +
+            'If you have newer stock, update its expiry date under Medicines & stock.'
+        );
+      }
       const units = lineUnits(line.unitType, line.quantity, product.pack_size);
       unitsByProduct.set(product.id, (unitsByProduct.get(product.id) || 0) + units);
       return { ...line, product, units, priceCents: unitPriceCents(product, line.unitType) };

@@ -42,8 +42,46 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         if (bucket) bucket.totalCents += sale.total_cents;
       }
 
+      // End-of-day picture: what each payment method brought in today and the
+      // cash that should be in the drawer. Sales made today and voided today
+      // are excluded by status; cash sales from earlier days that were voided
+      // today were refunded from today's drawer, so they are subtracted.
+      const todayByMethod = db.all(
+        `SELECT payment_method, COUNT(*) AS count, COALESCE(SUM(total_cents), 0) AS total_cents
+         FROM sales WHERE status = 'COMPLETED' AND created_at >= ? AND created_at < ?
+         GROUP BY payment_method;`,
+        [today.start, today.end]
+      );
+      const todayKhataPaymentsCents = db.value(
+        "SELECT COALESCE(SUM(credit_cents), 0) FROM customer_ledger WHERE type = 'PAYMENT_RECEIVED' AND created_at >= ? AND created_at < ?;",
+        [today.start, today.end]
+      );
+      const todayVoids = db.get(
+        `SELECT COUNT(*) AS count, COALESCE(SUM(s.total_cents), 0) AS total_cents
+         FROM void_sales v JOIN sales s ON s.id = v.sale_id
+         WHERE v.voided_at >= ? AND v.voided_at < ?;`,
+        [today.start, today.end]
+      );
+      const todayCashRefundsCents = db.value(
+        `SELECT COALESCE(SUM(s.total_cents), 0)
+         FROM void_sales v JOIN sales s ON s.id = v.sale_id
+         WHERE s.payment_method = 'CASH' AND v.voided_at >= ? AND v.voided_at < ? AND s.created_at < ?;`,
+        [today.start, today.end, today.start]
+      );
+      const cashSales = todayByMethod.find((m) => m.payment_method === 'CASH');
+      const todayCashSalesCents = cashSales ? cashSales.total_cents : 0;
+
       const alerts = this.alertCounts();
       return {
+        today: {
+          byMethod: todayByMethod,
+          cashSalesCents: todayCashSalesCents,
+          khataPaymentsCents: todayKhataPaymentsCents,
+          cashRefundsCents: todayCashRefundsCents,
+          expectedCashCents: todayCashSalesCents + todayKhataPaymentsCents - todayCashRefundsCents,
+          voidCount: todayVoids.count,
+          voidTotalCents: todayVoids.total_cents
+        },
         totalRevenueCents: all.total,
         totalInvoices: all.count,
         todayRevenueCents: todays.total,

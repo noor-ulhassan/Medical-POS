@@ -4,6 +4,7 @@ import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
+import { useConfirm } from '../../ui/Confirm.jsx';
 import { useDocuments } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
@@ -24,26 +25,38 @@ function VoidDialog({ sale, onClose, onVoided }) {
     e.preventDefault();
     const voided = await call('sales.void', { id: sale.id, reason });
     onClose();
-    toast(`Invoice ${voided.invoice_no} voided. Items are back in stock.`);
+    toast(`Sale ${voided.invoice_no} cancelled. Items are back in stock.`);
     await onVoided();
   });
 
+  // Tell the person at the counter exactly what happens to the money.
+  const refund = !sale
+    ? ''
+    : sale.payment_method === 'CREDIT'
+      ? `${money(sale.total_cents)} will be taken off ${sale.customer_name}'s khata.`
+      : sale.payment_method === 'CASH'
+        ? `Give ${money(sale.total_cents)} cash back to the customer.`
+        : `Refund ${money(sale.total_cents)} to the customer (${METHOD_LABELS[sale.payment_method] || sale.payment_method}).`;
+
   return (
-    <Modal open={Boolean(sale)} onClose={onClose} title={`Void sale ${sale?.invoice_no || ''}`} id="modalVoidSale" size="sm">
+    <Modal open={Boolean(sale)} onClose={onClose} title={`Cancel sale ${sale?.invoice_no || ''}`} description="Use this when a customer returns the items or the sale was made by mistake." id="modalVoidSale" size="sm">
       <form id="voidForm" onSubmit={submit} className="contents">
         <ModalBody>
+          {sale && (
+            <div className="rounded-panel bg-amber-soft px-4 py-3 text-base font-semibold text-amber-ink">{refund}</div>
+          )}
           <div className="flex gap-3 rounded-panel bg-sunken px-4 py-3 text-sm text-ink-2">
             <Info className="size-5 shrink-0 text-ink-3" aria-hidden="true" />
-            <span>The items go back into stock, any khata charge is reversed, and the void is recorded with your name.</span>
+            <span>All the items go back into stock and the sale is marked as cancelled, with your name. This cannot be undone.</span>
           </div>
-          <Field label="Reason">
+          <Field label="Why is this sale being cancelled?">
             <Textarea name="reason" rows={3} maxLength={250} required value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Customer returned the items" />
           </Field>
         </ModalBody>
         <ModalFooter>
-          <Button onClick={onClose}>Keep sale</Button>
+          <Button onClick={onClose}>Don't cancel</Button>
           <Button type="submit" variant="danger">
-            Void sale
+            Cancel this sale
           </Button>
         </ModalFooter>
       </form>
@@ -55,6 +68,7 @@ export function SalesView() {
   const { can, go, loadProducts, loadCustomers, refreshAlerts } = useApp();
   const cart = useCart();
   const { toast, guard } = useToast();
+  const confirm = useConfirm();
   const { showReceipt } = useDocuments();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -89,6 +103,16 @@ export function SalesView() {
   const reprint = guard(async (id) => showReceipt(await call('sales.get', { id })));
 
   const sellAgain = guard(async (id) => {
+    if (
+      cart.itemCount > 0 &&
+      !(await confirm({
+        title: 'Replace the current sale?',
+        message: `There are ${cart.itemCount} item(s) in the sale you are ringing up now. They will be removed and replaced with this invoice's items.`,
+        confirmText: 'Replace'
+      }))
+    ) {
+      return;
+    }
     const sale = await call('sales.get', { id });
     const { added, skipped } = cart.load(
       sale.items.map((i) => ({ productId: i.product_id, unitType: i.unit_type, quantity: i.quantity })),
@@ -119,7 +143,7 @@ export function SalesView() {
   const rows = result?.rows || [];
   return (
     <Page id="salesView">
-      <PageHeader title="Sales history" description="Reprint receipts, attach prescriptions, sell the same items again or void a sale." actions={<Button icon={RefreshCw} onClick={load}>Refresh</Button>} />
+      <PageHeader title="Sales history" description="Every sale made on this computer. Reprint a receipt, attach a prescription, or cancel a sale when items are returned." actions={<Button icon={RefreshCw} onClick={load}>Refresh</Button>} />
       <SearchInput id="salesSearchInput" icon={Search} value={search} onChange={setSearch} placeholder="Search by invoice number or customer" className="w-[360px]" />
       <input ref={fileRef} type="file" accept="image/*" className="hidden" id="invoiceRxFileInput" onChange={attachRx} />
       <div className="overflow-hidden rounded-panel border border-foil bg-surface">
@@ -156,7 +180,7 @@ export function SalesView() {
                     <Td num className={voided ? 'line-through' : 'font-semibold text-ink'}>
                       {money(s.total_cents)}
                     </Td>
-                    <Td>{voided ? <Pill tone="red">Voided</Pill> : <Pill tone="teal">Completed</Pill>}</Td>
+                    <Td>{voided ? <Pill tone="red">Cancelled</Pill> : <Pill tone="teal">Completed</Pill>}</Td>
                     <Td>
                       {s.prescription_path ? (
                         <div className="flex items-center gap-1">
@@ -171,11 +195,17 @@ export function SalesView() {
                         </Button>
                       )}
                     </Td>
-                    <Td className="w-[140px]">
+                    <Td className="w-[300px]">
                       <RowActions>
-                        <IconButton icon={Printer} label="Reprint receipt" size="sm" data-reprint={s.id} onClick={() => reprint(s.id)} />
+                        <Button size="sm" variant="ghost" icon={Printer} data-reprint={s.id} onClick={() => reprint(s.id)}>
+                          Receipt
+                        </Button>
                         {can('pos.sell') && <IconButton icon={RotateCcw} label="Sell these items again" size="sm" data-reorder={s.id} onClick={() => sellAgain(s.id)} />}
-                        {!voided && can('sales.void') && <IconButton icon={Ban} label="Void sale" size="sm" tone="danger" data-void={s.id} onClick={() => setVoiding(s)} />}
+                        {!voided && can('sales.void') && (
+                          <Button size="sm" variant="danger-ghost" icon={Ban} data-void={s.id} onClick={() => setVoiding(s)}>
+                            Cancel sale
+                          </Button>
+                        )}
                       </RowActions>
                     </Td>
                   </Tr>

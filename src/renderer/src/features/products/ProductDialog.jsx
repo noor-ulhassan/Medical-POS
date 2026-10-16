@@ -6,7 +6,7 @@ import { useToast } from '../../ui/Toast.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
 import { Field, Input, Select, Checkbox, Fieldset } from '../../ui/Field.jsx';
-import { toCents, centsToInput, addDaysIso, money } from '../../lib/format.js';
+import { toCents, centsToInput, money, plural } from '../../lib/format.js';
 import { CatalogQuickDialog } from '../catalog/Catalog.jsx';
 
 function initialValues(product) {
@@ -20,7 +20,8 @@ function initialValues(product) {
       categoryId: '',
       supplierId: '',
       packSize: '10',
-      expiryDate: addDaysIso(365),
+      // Never pre-fill: a made-up date would hide the real expiry printed on the pack.
+      expiryDate: '',
       minStockLevel: '5',
       stockPacks: '0',
       stockSingles: '0',
@@ -174,7 +175,7 @@ export function ProductDialog({ product, onClose }) {
                     {addCatalog}
                   </div>
                 </Field>
-                <Field label="Expiry date">
+                <Field label="Expiry date" help="As printed on the pack. Leave empty only if it never expires.">
                   <Input type="date" name="expiryDate" value={v.expiryDate} onChange={set('expiryDate')} />
                 </Field>
                 <div className="flex flex-col justify-end gap-2.5 pb-1">
@@ -200,6 +201,12 @@ export function ProductDialog({ product, onClose }) {
                 </Field>
               </div>
               <p className="num mt-2 text-sm text-ink-3">{Number.isFinite(totalUnits) ? `${totalUnits} units in stock in total.` : ''}</p>
+              {!isNew && Number.isFinite(totalUnits) && totalUnits !== Number(v.originalStockUnits) && (
+                <p className="num mt-1 rounded-control bg-amber-soft px-3 py-2 text-sm font-semibold text-amber-ink">
+                  Stock will change by {totalUnits > Number(v.originalStockUnits) ? '+' : ''}
+                  {plural(totalUnits - Number(v.originalStockUnits), 'unit')} (from {v.originalStockUnits} to {totalUnits}). To add a new delivery, use Receive stock instead.
+                </p>
+              )}
             </Fieldset>
 
             <Fieldset legend="Prices">
