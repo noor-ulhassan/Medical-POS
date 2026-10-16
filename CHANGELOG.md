@@ -16,6 +16,8 @@ Fixes that protect money and stock, and a simpler interface for an owner who is 
 - Cash checkout: cannot complete when the cash received is short; quick-cash buttons now suggest amounts above the total; khata sales over the limit are explained before submitting.
 
 ### Easier for the owner
+- Start-up and PIN screens use the shop photo as their background (also behind the first-start "choose your PIN" step).
+- PINs: any 4 to 6 digits are accepted, including simple ones such as 1234 or 0000, and the current PIN may be kept when asked to change it. PINs must still differ between staff, because the PIN identifies who is logging in.
 - Today's report: money taken today by cash, card, wallet and khata, khata payments received, cancelled sales, and the cash that should be in the drawer.
 - Help: a "How do I…?" window with step-by-step guides for everyday tasks, shown according to the user's role.
 - Plain words: Past sales, Medicines & stock, Expiring soon, Order from supplier, Khata (credit), Today's report; "Void" is now "Cancel sale" and the dialog says exactly how much money to give back.

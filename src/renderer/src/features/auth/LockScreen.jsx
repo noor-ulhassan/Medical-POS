@@ -57,8 +57,8 @@ export function LockScreen({ onSession }) {
   }, [press, submit]);
 
   return (
-    <div id="modalPinAuth" className="flex h-full items-center justify-center bg-paper p-6" role="dialog" aria-modal="true" aria-labelledby="pinStoreName">
-      <div className="w-full max-w-[360px] rounded-dialog border border-foil bg-surface px-8 pb-7 pt-8 shadow-dialog">
+    <div id="modalPinAuth" className="start-backdrop scrollbar-none flex h-full flex-col items-center overflow-y-auto p-6" role="dialog" aria-modal="true" aria-labelledby="pinStoreName">
+      <div className="my-auto w-full max-w-[360px] shrink-0 rounded-dialog border border-foil bg-surface px-8 pb-7 pt-8 shadow-dialog">
         <div className="flex flex-col items-center text-center">
           <img src="./icon.png" alt="" className="size-14 rounded-xl" />
           <h1 id="pinStoreName" className="mt-4 text-xl font-bold text-ink">

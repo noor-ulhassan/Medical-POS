@@ -154,6 +154,14 @@
   textarea.control {
     @apply h-auto py-2;
   }
+  /* Start-up, PIN and first-start screens: the shop photo, lightly shaded so the card stands out. */
+  .start-backdrop {
+    background-color: rgb(var(--paper));
+    background-image: linear-gradient(rgb(15 23 42 / 0.28), rgb(15 23 42 / 0.28)), url('/startup-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
 }
 
 /* Printing: only the receipt / A4 document being previewed is printed. */

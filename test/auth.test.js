@@ -19,14 +19,28 @@ test('fresh install: default admin must change PIN before doing anything', async
   assert.equal(user.mustChangePin, true);
   assert.equal((await app.call('products.list')).error.code, 'PIN_CHANGE_REQUIRED');
 
-  assert.equal((await app.call('auth.changeOwnPin', { currentPin: '1234', newPin: '0000' })).error.code, 'VALIDATION');
-  const changed = ok(await app.call('auth.changeOwnPin', { currentPin: '1234', newPin: '7391' }));
+  assert.equal((await app.call('auth.changeOwnPin', { currentPin: '9999', newPin: '1111' })).error.code, 'VALIDATION');
+  assert.equal((await app.call('auth.changeOwnPin', { currentPin: '1234', newPin: '12' })).error.code, 'VALIDATION');
+  const changed = ok(await app.call('auth.changeOwnPin', { currentPin: '1234', newPin: '1111' }));
   assert.equal(changed.mustChangePin, false);
   assert.ok((await app.call('products.list')).ok);
 
   ok(await app.call('auth.logout'));
   assert.equal((await app.call('auth.login', { pin: '1234' })).error.code, 'UNAUTHENTICATED');
-  assert.ok((await app.call('auth.login', { pin: '7391' })).ok);
+  assert.ok((await app.call('auth.login', { pin: '1111' })).ok);
+});
+
+test('simple PINs are allowed, including keeping 1234 at first start', async () => {
+  const app = await createTestApp();
+  ok(await app.call('auth.login', { pin: '1234' }));
+  const kept = ok(await app.call('auth.changeOwnPin', { currentPin: '1234', newPin: '1234' }));
+  assert.equal(kept.mustChangePin, false);
+  assert.ok((await app.call('products.list')).ok);
+
+  const cashier = ok(await app.call('users.create', { name: 'Simple', role: 'Cashier', pin: '0000' }));
+  ok(await app.call('users.resetPin', { id: cashier.id, pin: '4321' }));
+  // PINs still identify the user at login, so two people cannot share one.
+  assert.equal((await app.call('users.create', { name: 'Same', role: 'Cashier', pin: '1234' })).error.code, 'CONFLICT');
 });
 
 test('roles are enforced in the main process', async () => {

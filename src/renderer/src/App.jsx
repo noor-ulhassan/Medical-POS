@@ -6,6 +6,7 @@ import { useToast } from './ui/Toast.jsx';
 import { isAnyModalOpen } from './ui/Modal.jsx';
 import { Sidebar } from './shell/Sidebar.jsx';
 import { HelpDialog } from './shell/HelpDialog.jsx';
+import { StartupScreen } from './shell/StartupScreen.jsx';
 import { LockScreen } from './features/auth/LockScreen.jsx';
 import { ChangePinDialog } from './features/auth/ChangePinDialog.jsx';
 import { PosView } from './features/pos/PosView.jsx';
@@ -204,7 +205,7 @@ export function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [ready, go, cart, toast, lock]);
 
-  if (!booted) return <div className="h-full bg-paper" />;
+  if (!booted) return <StartupScreen />;
 
   const Screen = SCREENS[view] || PosView;
 
@@ -239,7 +240,7 @@ export function App() {
       ) : (
         !user && <LockScreen onSession={acceptSession} />
       )}
-      {user && user.mustChangePin && <div className="h-full bg-paper" />}
+      {user && user.mustChangePin && <div className="start-backdrop h-full" />}
       <ChangePinDialog
         open={Boolean(pinDialog) && Boolean(user)}
         forced={Boolean(pinDialog?.forced)}
