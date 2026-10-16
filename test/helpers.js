@@ -25,7 +25,7 @@ async function createTestApp({ dataDir = tempDir(), decide, platform = {} } = {}
   return { ctx, call, dataDir, db: () => ctx.db, services: () => ctx.services };
 }
 
-/** Insert a user directly (bypassing the weak-PIN rules) for tests. */
+/** Insert a user directly (bypassing validation) for tests. */
 function addUser(ctx, { name, role, pin, mustChangePin = false }) {
   return ctx.db.transaction(
     () =>

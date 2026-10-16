@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { call } from '../lib/api.js';
 import { money, dateTime, shortDate } from '../lib/format.js';
 import { useApp } from '../state/AppState.jsx';
 import { useToast } from '../ui/Toast.jsx';
+import { readPrefs } from '../lib/prefs.js';
 import { Modal, ModalBody, ModalFooter } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
 
@@ -15,14 +16,39 @@ const DocumentsContext = createContext(null);
 
 export const SOFTWARE_CREDIT = 'Software by Noor ul Hassan (noorulhassan01.dev@gmail.com)';
 
+const PAYMENT_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wallet', CREDIT: 'Khata (credit)' };
+
 export function DocumentsProvider({ children }) {
-  const { guard } = useToast();
+  const { guard, toast } = useToast();
   const [receipt, setReceipt] = useState(null);
   const [doc, setDoc] = useState(null);
+  const [printWhenShown, setPrintWhenShown] = useState(null); // sale id to print as soon as its receipt is on screen
 
-  const showReceipt = useCallback((sale) => setReceipt(sale), []);
+  /** `autoPrint`: print straight away (the "print after every sale" setting on this computer). */
+  const showReceipt = useCallback((sale, { autoPrint = false } = {}) => {
+    setReceipt(sale);
+    setPrintWhenShown(autoPrint ? sale.id : null);
+  }, []);
   const showDocument = useCallback((title, content) => setDoc({ title, content }), []);
-  const print = guard(() => call('app.print'));
+
+  // A print that fails (no printer, printer offline) must not go unnoticed at the counter.
+  const print = guard(async () => {
+    const res = await call('app.print', { silent: readPrefs().silentPrint });
+    if (res && res.printed === false && res.reason && !/cancel/i.test(res.reason)) {
+      toast(`Nothing was printed (${res.reason}). Check that the printer is on and connected, then press Print again.`, 'error', { sticky: true });
+    }
+  });
+
+  useEffect(() => {
+    if (!receipt || printWhenShown !== receipt.id) return undefined;
+    // Let the receipt render first: printing prints what is on screen.
+    const t = setTimeout(() => {
+      setPrintWhenShown(null);
+      print();
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipt, printWhenShown]);
 
   return (
     <DocumentsContext.Provider value={{ showReceipt, showDocument }}>
@@ -90,10 +116,10 @@ export function Receipt({ sale }) {
         <div>Cashier: {sale.cashier_name}</div>
         <div>Customer: {sale.customer_name}</div>
         <div>
-          Paid by: <strong>{sale.payment_method}</strong>
+          Paid by: <strong>{PAYMENT_LABELS[sale.payment_method] || sale.payment_method}</strong>
         </div>
         {sale.prescription_path && <div>Prescription on file</div>}
-        {sale.status === 'VOIDED' && <div className="pt-1 text-center font-bold">*** VOIDED ***</div>}
+        {sale.status === 'VOIDED' && <div className="pt-1 text-center font-bold">*** CANCELLED / VOID ***</div>}
       </div>
       <Rule />
       <table className="w-full border-collapse">
@@ -130,6 +156,9 @@ export function Receipt({ sale }) {
           <Row label="Cash received" value={money(sale.paid_cents)} />
           <Row label="Change" value={money(sale.change_cents)} />
         </>
+      )}
+      {sale.payment_method === 'CREDIT' && sale.khata_balance_after_cents !== null && sale.khata_balance_after_cents !== undefined && (
+        <Row label="Khata balance after this sale" value={money(sale.khata_balance_after_cents)} />
       )}
       <Rule />
       <div className="text-center text-[11px]">
@@ -252,8 +281,7 @@ export function PurchaseOrder({ supplier, items, reference }) {
   );
 }
 
-export function Quotation({ customerName, customerPhone, rows, validUntil, reference }) {
-  const total = rows.reduce((sum, r) => sum + r.priceCents * r.quantity, 0);
+export function Quotation({ customerName, customerPhone, rows, validUntil, reference, totals }) {
   return (
     <>
       <DocHeader title="Price quotation" lines={[`Reference: ${reference}`, `Valid until: ${shortDate(validUntil)}`]} />
@@ -274,7 +302,22 @@ export function Quotation({ customerName, customerPhone, rows, validUntil, refer
           </tr>
         ))}
       </DocTable>
-      <div className="num mt-4 text-right text-[15px] font-bold">Total {money(total)}</div>
+      <div className="num mt-4 ml-auto w-72 space-y-1 text-right text-[13px]">
+        <div className="flex justify-between">
+          <span>Subtotal</span>
+          <span>{money(totals.subtotalCents)}</span>
+        </div>
+        {totals.taxCents > 0 && (
+          <div className="flex justify-between">
+            <span>Tax and fees</span>
+            <span>{money(totals.taxCents)}</span>
+          </div>
+        )}
+        <div className="flex justify-between border-t border-black pt-1 text-[15px] font-bold">
+          <span>Total</span>
+          <span>{money(totals.totalCents)}</span>
+        </div>
+      </div>
     </>
   );
 }

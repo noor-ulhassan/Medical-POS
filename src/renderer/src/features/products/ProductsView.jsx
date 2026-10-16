@@ -1,17 +1,100 @@
-import { useMemo, useState } from 'react';
-import { Plus, Pencil, History, Trash2, Search, PackageOpen } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, History, Trash2, Search, PackageOpen, PackagePlus } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { useDocuments, StockHistory } from '../../print/Documents.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
+import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
+import { Field, Input } from '../../ui/Field.jsx';
 import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, Pagination, paginate } from '../../ui/Table.jsx';
-import { money, isLowStock, isOutOfStock } from '../../lib/format.js';
+import { money, isLowStock, isOutOfStock, splitUnits, toCents, centsToInput } from '../../lib/format.js';
 import { ProductDialog } from './ProductDialog.jsx';
 
 const PAGE_SIZE = 25;
+
+const stockText = (units, packSize) => {
+  const { packs, singles } = splitUnits(units, packSize);
+  return `${packs} ${packs === 1 ? 'pack' : 'packs'}${singles ? ` + ${singles} loose` : ''}`;
+};
+
+/** A delivery arrived: add packs to what is already there, so nobody has to work out the new total. */
+function ReceiveStockDialog({ product, onClose }) {
+  const { loadProducts, refreshAlerts } = useApp();
+  const { toast, guard } = useToast();
+  const [v, setV] = useState({ packs: '', singles: '', expiryDate: '', costPrice: '' });
+
+  useEffect(() => {
+    if (!product) return;
+    setV({ packs: '', singles: '', expiryDate: product.expiry_date || '', costPrice: centsToInput(product.cost_price_cents) });
+  }, [product]);
+
+  const set = (name) => (e) => setV((cur) => ({ ...cur, [name]: e.target.value }));
+  const packs = Math.max(0, Math.trunc(Number(v.packs) || 0));
+  const singles = Math.max(0, Math.trunc(Number(v.singles) || 0));
+  const added = product ? packs * product.pack_size + singles : 0;
+
+  const submit = guard(async (e) => {
+    e.preventDefault();
+    if (added <= 0) throw new Error('Enter how many packs arrived');
+    const cost = v.costPrice === '' ? null : toCents(v.costPrice);
+    if (cost !== null && (Number.isNaN(cost) || cost < 0)) throw new Error('Cost per pack is not a valid amount');
+    const saved = await call('products.receiveStock', {
+      id: product.id,
+      packs,
+      singles,
+      expiryDate: v.expiryDate || null,
+      costPriceCents: cost
+    });
+    onClose();
+    toast(`${saved.title}: ${stockText(added, saved.pack_size)} added. Now in stock: ${stockText(saved.stock_units, saved.pack_size)}.`);
+    await loadProducts();
+    refreshAlerts();
+  });
+
+  return (
+    <Modal open={Boolean(product)} onClose={onClose} title="Receive stock" description={product ? product.title : ''} id="modalReceiveStock" size="sm">
+      <form id="receiveStockForm" onSubmit={submit} className="contents">
+        {product && (
+          <ModalBody>
+            <div className="flex items-center justify-between rounded-panel bg-sunken px-4 py-3">
+              <div>
+                <div className="text-sm text-ink-3">In stock now</div>
+                <div className="num font-semibold text-ink">{stockText(product.stock_units, product.pack_size)}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-ink-3">After this delivery</div>
+                <div className="num text-lg font-bold text-teal-ink">{stockText(product.stock_units + added, product.pack_size)}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Packs received" help={`${product.pack_size} units in each pack.`}>
+                <Input numeric type="number" name="packs" min={0} step={1} value={v.packs} onChange={set('packs')} className="!h-12 !text-xl font-bold" data-autofocus />
+              </Field>
+              <Field label="Extra loose units" help="Usually 0.">
+                <Input numeric type="number" name="singles" min={0} step={1} value={v.singles} onChange={set('singles')} />
+              </Field>
+            </div>
+            <Field label="Expiry date on the shelf" help="Change it to the new date only if no older packs with an earlier date are left.">
+              <Input type="date" name="expiryDate" value={v.expiryDate} onChange={set('expiryDate')} />
+            </Field>
+            <Field label="Cost per pack (Rs)" help="What the supplier charged for one pack this time.">
+              <Input numeric type="number" name="costPrice" min={0} step="0.01" value={v.costPrice} onChange={set('costPrice')} />
+            </Field>
+          </ModalBody>
+        )}
+        <ModalFooter>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" icon={PackagePlus} disabled={added <= 0}>
+            Add to stock
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
+  );
+}
 
 export function ProductsView() {
   const { products, can, productById, loadProducts, refreshAlerts } = useApp();
@@ -22,7 +105,9 @@ export function ProductsView() {
   const [stock, setStock] = useState('ALL');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null); // null | 'new' | product
+  const [receiving, setReceiving] = useState(null);
   const manage = can('products.manage');
+  const canReceive = can('stock.adjust');
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -55,8 +140,8 @@ export function ProductsView() {
   return (
     <Page id="inventoryView">
       <PageHeader
-        title="Products"
-        description="Prices, stock and expiry for everything you sell."
+        title="Medicines & stock"
+        description="Everything you sell, with prices, stock and expiry. When a delivery arrives, press Receive on that medicine."
         actions={
           manage && (
             <Button variant="primary" icon={Plus} id="btnOpenAddProduct" onClick={() => setEditing('new')}>
@@ -145,8 +230,13 @@ export function ProductsView() {
                     </Td>
                     <Td num>{money(p.single_price_cents)}</Td>
                     <Td num>{money(p.sale_price_cents)}</Td>
-                    <Td className="w-[120px]">
+                    <Td className="w-[240px]">
                       <RowActions>
+                        {canReceive && (
+                          <Button size="sm" variant="secondary" icon={PackagePlus} data-receive={p.id} onClick={() => setReceiving(p)}>
+                            Receive
+                          </Button>
+                        )}
                         {manage && <IconButton icon={Pencil} label={`Edit ${p.title}`} size="sm" data-edit={p.id} onClick={() => setEditing(p)} />}
                         <IconButton icon={History} label="Stock history" size="sm" data-history={p.id} onClick={() => history(p)} />
                         {manage && <IconButton icon={Trash2} label={`Remove ${p.title}`} size="sm" tone="danger" data-remove={p.id} onClick={() => remove(p.id)} />}
@@ -162,6 +252,7 @@ export function ProductsView() {
       </div>
 
       <ProductDialog product={editing} onClose={() => setEditing(null)} />
+      <ReceiveStockDialog product={receiving} onClose={() => setReceiving(null)} />
     </Page>
   );
 }

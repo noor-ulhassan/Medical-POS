@@ -9,6 +9,7 @@ export function ConfirmProvider({ children }) {
   const [request, setRequest] = useState(null);
   const resolver = useRef(null);
   const yesRef = useRef(null);
+  const cancelRef = useRef(null);
 
   const confirm = useCallback((options) => {
     if (resolver.current) resolver.current(false);
@@ -28,12 +29,15 @@ export function ConfirmProvider({ children }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      <Modal open={Boolean(request)} onClose={() => finish(false)} title={request?.title} id="modalConfirm" size="sm" role="alertdialog" initialFocus={yesRef}>
+      {/* For destructive questions the safe answer has focus, so a stray Enter (or a barcode scanner's Enter) cannot clear or delete anything. */}
+      <Modal open={Boolean(request)} onClose={() => finish(false)} title={request?.title} id="modalConfirm" size="sm" role="alertdialog" initialFocus={request?.danger ? cancelRef : yesRef}>
         <ModalBody>
           <p className="whitespace-pre-line text-base leading-relaxed text-ink-2">{request?.message}</p>
         </ModalBody>
         <ModalFooter>
-          <Button onClick={() => finish(false)}>Cancel</Button>
+          <Button ref={cancelRef} onClick={() => finish(false)}>
+            Cancel
+          </Button>
           <Button ref={yesRef} id="confirmYes" variant={request?.danger ? 'danger' : 'primary'} onClick={() => finish(true)}>
             {request?.confirmText}
           </Button>

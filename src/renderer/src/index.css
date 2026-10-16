@@ -38,6 +38,12 @@
     --red-on: 255 255 255;
     --shadow: 16 32 28;
     color-scheme: light;
+    /* Chart series (validated for colour-blind separation on this surface):
+       1 net sales, 2 gross profit, 3 net profit, 4 expenses. */
+    --chart-1: #2a78d6;
+    --chart-2: #1baf7a;
+    --chart-3: #eb6834;
+    --chart-4: #6250d6;
   }
 
   [data-theme='dark'] {
@@ -64,6 +70,10 @@
     --red-on: 40 12 8;
     --shadow: 0 0 0;
     color-scheme: dark;
+    --chart-1: #3987e5;
+    --chart-2: #199e70;
+    --chart-3: #d95926;
+    --chart-4: #9085e9;
   }
 
   html,
@@ -153,6 +163,14 @@
   }
   textarea.control {
     @apply h-auto py-2;
+  }
+  /* Start-up, PIN and first-start screens: the shop photo, lightly shaded so the card stands out. */
+  .start-backdrop {
+    background-color: rgb(var(--paper));
+    background-image: linear-gradient(rgb(15 23 42 / 0.28), rgb(15 23 42 / 0.28)), url('/startup-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
 }
 

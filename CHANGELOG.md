@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased (branch ux/non-technical-owner)
+
+Fixes that protect money and stock, and a simpler interface for an owner who is not used to computers.
+
+### Money and stock correctness
+- Fixed: the payment method stayed selected from the previous sale, so a cash sale straight after a card sale could be recorded as card (cash drawer would not match). Every checkout now starts at Cash.
+- Fixed: pressing Enter twice quickly, or holding F2, could submit the same sale twice. Checkout is now locked while a sale is being saved.
+- Fixed: expired medicine could be sold. It is now refused at the till and in the main process, with a message saying what to do.
+- Fixed: "Sell these items again" silently replaced a sale being rung up. It now asks first.
+- Fixed: the daily automatic backup only ran when the app was started, so a shop that never closes the app got no backups. It is now checked every hour.
+- New: Receive stock. When a delivery arrives you enter only the packs received; they are added to the current stock (previously you had to type the new total, which was easy to get wrong). Optionally updates the shelf expiry date and cost price. Recorded in stock history and the activity log.
+- New products no longer get a made-up expiry date one year ahead; the date printed on the pack must be entered.
+- Editing a product's stock now shows exactly how the stock will change before saving.
+- Cash checkout: cannot complete when the cash received is short; quick-cash buttons now suggest amounts above the total; khata sales over the limit are explained before submitting.
+
+### Easier on any shop computer
+- Dates are day/month/year everywhere, including date boxes (Windows in English (US) showed 10/16/2026, so an expiry typed as 05/06/2027 was saved as 6 May). Times are 12-hour.
+- Text size: the Aa button at the bottom of the menu, or Ctrl + / Ctrl - / Ctrl 0, makes everything larger (Normal, Large, Larger); remembered on the computer. The menu folds to icons by itself when space is short.
+- Settings, This computer: print the receipt automatically after every sale, and print straight to the default printer without the print window. A print that fails now says so instead of failing silently.
+- The quantity on a cart line can be typed (30 tablets no longer takes 29 clicks), with the same stock check as the + button.
+- Fixed: scrolling the mouse wheel over a focused number box (cash received, prices) changed its value.
+- Fixed: a stray Enter (or a barcode scanner's Enter) on a "Clear this sale?" or "Delete?" question confirmed it; the safe answer now has focus.
+- Fixed: quotations left out sales tax and the receipt fee, so the quote was lower than the bill; they now use the same calculation as the till.
+- Khata receipts show the customer's balance right after the sale.
+
+### Profit, expenses and reports
+- New Profit & loss screen: net sales, cost of medicines sold, gross profit and margin, markup, expenses, expired stock written off and net profit, for today, the last 7 days, this or last month, the last 3 months, this year or any dates. Charts (Recharts) for sales and profit over time and expenses by type, gross profit by category, the most profitable medicines, a profit and loss statement whose lines always add up, and a per-day/per-month table.
+- Every sale now records the cost of each line at the moment of sale, so later cost changes never rewrite past profit. Sales made before this version, or of medicines with no cost price, are never guessed: they are left out of profit and the screen says how many and how much.
+- New Expenses screen: rent, salaries, bills and other running costs by category, with "paid from the cash drawer" (subtracted from the expected cash on Today's report). Deleting keeps the record, marked deleted, in the activity log. Supplier payments for medicines are deliberately not an expense category (their cost is already counted).
+- Expired stock write-offs are valued at cost and shown as a loss.
+- Today's report no longer cuts off large amounts.
+- The app always opens in light mode; dark mode can be switched on for the session.
+- Database upgraded to version 3 (a backup of the file is made first).
+
+### Easier for the owner
+- Start-up and PIN screens use the shop photo as their background (also behind the first-start "choose your PIN" step).
+- PINs: any 4 to 6 digits are accepted, including simple ones such as 1234 or 0000, and the current PIN may be kept when asked to change it. PINs must still differ between staff, because the PIN identifies who is logging in.
+- Today's report: money taken today by cash, card, wallet and khata, khata payments received, cancelled sales, and the cash that should be in the drawer.
+- Help: a "How do I…?" window with step-by-step guides for everyday tasks, shown according to the user's role.
+- Plain words: Past sales, Medicines & stock, Expiring soon, Order from supplier, Khata (credit), Today's report; "Void" is now "Cancel sale" and the dialog says exactly how much money to give back.
+- Barcode scans are no longer lost after clicking with the mouse: typing on the Sell screen goes to the search box.
+- Held sales show the customer, number of items and who held them instead of a code.
+- Receipts show "Khata (credit)" / "Mobile wallet" instead of internal codes.
+- Closing the window asks for confirmation (an unfinished sale would be lost).
+- Larger menu buttons; the lock screen's "Forgot your PIN?" no longer asks the owner to use the command line.
+
 ## 2.0.0
 
 A rewrite of the internals focused on data safety, correctness and security. Existing 1.x databases are upgraded automatically (a backup of the original file is made first).

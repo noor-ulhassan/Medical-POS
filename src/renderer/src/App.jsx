@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { call, onSessionProblem } from './lib/api.js';
+import { readPrefs, writePrefs, zoomFactor, TEXT_SIZES } from './lib/prefs.js';
 import { useApp } from './state/AppState.jsx';
 import { useCart } from './state/Cart.jsx';
 import { useToast } from './ui/Toast.jsx';
 import { isAnyModalOpen } from './ui/Modal.jsx';
 import { Sidebar } from './shell/Sidebar.jsx';
+import { HelpDialog } from './shell/HelpDialog.jsx';
+import { StartupScreen } from './shell/StartupScreen.jsx';
 import { LockScreen } from './features/auth/LockScreen.jsx';
 import { ChangePinDialog } from './features/auth/ChangePinDialog.jsx';
 import { PosView } from './features/pos/PosView.jsx';
@@ -18,10 +21,14 @@ import { ExpiryView } from './features/stock/ExpiryView.jsx';
 import { QuotationView } from './features/quotes/QuotationView.jsx';
 import { SalesView } from './features/sales/SalesView.jsx';
 import { SettingsView } from './features/settings/SettingsView.jsx';
+import { ProfitView } from './features/profit/ProfitView.jsx';
+import { ExpensesView } from './features/expenses/ExpensesView.jsx';
 
 const SCREENS = {
   posView: PosView,
   dashboardView: DashboardView,
+  profitView: ProfitView,
+  expensesView: ExpensesView,
   inventoryView: ProductsView,
   suppliersView: SuppliersView,
   khataView: KhataView,
@@ -40,6 +47,14 @@ function readPreference(key, fallback) {
   }
 }
 
+function removePreference(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (_) {
+    /* preferences are optional */
+  }
+}
+
 function writePreference(key, value) {
   try {
     localStorage.setItem(key, value);
@@ -48,11 +63,6 @@ function writePreference(key, value) {
   }
 }
 
-function initialTheme() {
-  const saved = readPreference('noorpos_theme', null);
-  if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
 
 /** Enter in a form field moves to the next field; on the last field the form submits as usual. */
 function moveToNextField(e) {
@@ -77,9 +87,56 @@ export function App() {
   const { toast, guard } = useToast();
   const { user, setUser, view, go, loadAll, loadAppInfo, loadSettings, setSaveProblem } = app;
   const [booted, setBooted] = useState(false);
-  const [theme, setTheme] = useState(initialTheme);
-  const [collapsed, setCollapsed] = useState(() => readPreference('noorpos_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
+  // Always opens in light mode; dark mode can be switched on for the current session.
+  const [theme, setTheme] = useState('light');
+  // The menu folds to icons by itself when the window (or enlarged text) leaves too little room,
+  // unless someone has folded or opened it by hand.
+  const [collapsedChoice, setCollapsedChoice] = useState(() => readPreference('noorpos_sidebar_collapsed', null));
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 1200);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 1200);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const collapsed = collapsedChoice === null ? narrow : collapsedChoice === 'true';
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [textSize, setTextSize] = useState(() => readPrefs().textSize);
+
+  // Text size is real browser zoom, applied by the main process and remembered on this computer.
+  const firstTextSize = useRef(true);
+  useEffect(() => {
+    // A new text size changes how much fits, so the menu goes back to folding by itself.
+    if (firstTextSize.current) firstTextSize.current = false;
+    else {
+      setCollapsedChoice(null);
+      removePreference('noorpos_sidebar_collapsed');
+    }
+    writePrefs({ textSize });
+    call('app.setZoom', { factor: zoomFactor(textSize) }).catch((err) => console.error('Could not set text size', err));
+  }, [textSize]);
+
+  const stepTextSize = useCallback((step) => {
+    setTextSize((current) => {
+      const i = TEXT_SIZES.findIndex((t) => t.value === current);
+      const next = step === 0 ? 0 : Math.min(Math.max(i + step, 0), TEXT_SIZES.length - 1);
+      return TEXT_SIZES[next].value;
+    });
+  }, []);
+
+  // Ctrl + / Ctrl - / Ctrl 0 change the text size everywhere, also on the lock screen.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!e.ctrlKey || e.altKey) return;
+      if (e.key === '+' || e.key === '=') stepTextSize(1);
+      else if (e.key === '-' || e.key === '_') stepTextSize(-1);
+      else if (e.key === '0') stepTextSize(0);
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [stepTextSize]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -202,7 +259,7 @@ export function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [ready, go, cart, toast, lock]);
 
-  if (!booted) return <div className="h-full bg-paper" />;
+  if (!booted) return <StartupScreen />;
 
   const Screen = SCREENS[view] || PosView;
 
@@ -213,29 +270,33 @@ export function App() {
           <Sidebar
             collapsed={collapsed}
             onToggleCollapsed={() => {
-              setCollapsed((c) => {
-                writePreference('noorpos_sidebar_collapsed', String(!c));
-                return !c;
-              });
+              const next = String(!collapsed);
+              writePreference('noorpos_sidebar_collapsed', next);
+              setCollapsedChoice(next);
             }}
             theme={theme}
             onToggleTheme={() => {
-              const next = theme === 'dark' ? 'light' : 'dark';
-              setTheme(next);
-              writePreference('noorpos_theme', next);
+              setTheme(theme === 'dark' ? 'light' : 'dark');
             }}
             onLock={lock}
             onChangePin={() => setPinDialog({ forced: false })}
+            onHelp={() => setHelpOpen(true)}
+            textSize={textSize}
+            onCycleTextSize={() =>
+              // Step from the current value, so quick repeated clicks each count.
+              setTextSize((current) => TEXT_SIZES[(TEXT_SIZES.findIndex((t) => t.value === current) + 1) % TEXT_SIZES.length].value)
+            }
           />
           <main className="min-w-0 flex-1 overflow-hidden">
             <Screen key={view} />
           </main>
           <PaymentDialog />
+          <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
         </div>
       ) : (
         !user && <LockScreen onSession={acceptSession} />
       )}
-      {user && user.mustChangePin && <div className="h-full bg-paper" />}
+      {user && user.mustChangePin && <div className="start-backdrop h-full" />}
       <ChangePinDialog
         open={Boolean(pinDialog) && Boolean(user)}
         forced={Boolean(pinDialog?.forced)}

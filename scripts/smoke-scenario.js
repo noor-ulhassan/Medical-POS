@@ -105,6 +105,15 @@
     type(input, '');
   });
 
+  await step('quantity can be typed in the sale', async () => {
+    const qty = $('#cartItemsList [data-cart-qty]');
+    const before = text('#summaryTotal');
+    qty.focus();
+    type(qty, '3');
+    qty.blur();
+    await waitFor('quantity applied', () => $('#cartItemsList [data-cart-qty]').value === '3' && text('#summaryTotal') !== before);
+  });
+
   await step('checkout prints a receipt with a sequential invoice', async () => {
     $('#btnOpenCheckoutModal').click();
     await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
@@ -134,7 +143,35 @@
     await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
   });
 
-  const views = ['dashboardView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
+  await step('payment method starts at cash for every sale (never carried over)', async () => {
+    $('#productGrid [data-product-id]:not(.is-out)').click();
+    await waitFor('item in cart', () => text('#cartItemCountBadge') === '1');
+    $('#btnOpenCheckoutModal').click();
+    await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
+    if (!$('input[name="paymentMethod"][value="CASH"]').checked) throw new Error('payment method carried over from the previous sale');
+    $('#modalCheckoutPayment button[aria-label="Close"]').click();
+    $('#btnClearCart').click();
+    await waitFor('confirm', () => exists('modalConfirm'));
+    await waitFor('safe answer focused', () => document.activeElement && document.activeElement.textContent.trim() === 'Cancel');
+    $('#confirmYes').click();
+    await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
+  });
+
+  await step('dates are day/month/year', async () => {
+    const locale = new Intl.DateTimeFormat().resolvedOptions().locale;
+    if (!locale.startsWith('en-GB')) throw new Error(`locale is ${locale}`);
+  });
+
+  await step('text size button makes everything bigger and back', async () => {
+    const before = window.devicePixelRatio;
+    $('#textSizeBtn').click();
+    await waitFor('zoomed in', () => window.devicePixelRatio > before);
+    $('#textSizeBtn').click();
+    $('#textSizeBtn').click();
+    await waitFor('back to normal', () => Math.abs(window.devicePixelRatio - before) < 0.01);
+  });
+
+  const views = ['dashboardView', 'profitView', 'expensesView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
   for (const view of views) {
     await step(`navigate to ${view}`, async () => {
       nav(view);
@@ -155,7 +192,7 @@
     await waitFor('void dialog', () => exists('modalVoidSale'));
     type(field('voidForm', 'reason'), 'Smoke test');
     $('#voidForm').requestSubmit();
-    await waitFor('voided badge', () => text('#salesTableBody').includes('Voided'));
+    await waitFor('voided badge', () => text('#salesTableBody').includes('Cancelled'));
   });
 
   await step('add a product', async () => {
@@ -181,6 +218,25 @@
     type(field('customerForm', 'name'), 'Smoke Customer');
     $('#customerForm').requestSubmit();
     await waitFor('customer row', () => text('#customerTableBody').includes('Smoke Customer'));
+  });
+
+  await step('app opens in light mode', async () => {
+    if (document.documentElement.dataset.theme !== 'light') throw new Error(`theme is ${document.documentElement.dataset.theme}`);
+  });
+
+  await step('record an expense, then see it in Profit & loss', async () => {
+    nav('expensesView');
+    await waitFor('expense form', () => exists('expenseForm'));
+    type(field('expenseForm', 'category'), 'RENT');
+    type(field('expenseForm', 'amount'), '1234.50');
+    type(field('expenseForm', 'note'), 'Smoke rent');
+    $('#expenseForm').requestSubmit();
+    await waitFor('expense listed', () => text('#expensesTableBody').includes('Smoke rent'));
+    if (!text('#expensesMonthTotal').includes('1,234.50')) throw new Error(`month total is ${text('#expensesMonthTotal')}`);
+    nav('profitView');
+    await waitFor('profit statement', () => exists('profitStatement'));
+    await waitFor('expense in the statement', () => text('#profitStatement').includes('1,234.50'));
+    await waitFor('net profit shown', () => text('#profitNetProfit').includes('Rs'));
   });
 
   await step('settings tabs: staff, backups and activity log', async () => {

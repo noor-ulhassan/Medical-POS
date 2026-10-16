@@ -31,6 +31,7 @@
     'customers.manage': MANAGERS,
     'customers.payment': MANAGERS,
     'reports.view': MANAGERS,
+    'expenses.manage': MANAGERS,
     'restock.view': MANAGERS,
     'quotes.create': ALL,
     'settings.manage': ADMIN,

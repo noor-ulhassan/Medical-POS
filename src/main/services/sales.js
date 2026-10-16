@@ -2,8 +2,8 @@
 
 const v = require('../lib/validate');
 const { AppError, ErrorCodes, notFound, conflict, validationError } = require('../lib/errors');
-const { nowIso } = require('../lib/dates');
-const { UNIT_TYPES, DISCOUNT_TYPES, lineUnits, unitPriceCents, computeTotals } = require('../../shared/pricing');
+const { nowIso, localDateString } = require('../lib/dates');
+const { UNIT_TYPES, DISCOUNT_TYPES, lineUnits, unitPriceCents, costOfUnitsCents, computeTotals } = require('../../shared/pricing');
 const { WALK_IN_CUSTOMER_ID } = require('../db/seed');
 const { postLedgerEntry } = require('./customers');
 const { recordAudit } = require('./audit');
@@ -40,6 +40,12 @@ function createSalesService(db, { files }) {
     if (!sale) throw notFound('Invoice not found');
     sale.items = db.all('SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id;', [id]);
     sale.void = db.get('SELECT * FROM void_sales WHERE sale_id = ? ORDER BY id DESC LIMIT 1;', [id]);
+    // For khata sales: what the customer owed right after this sale (printed on the receipt).
+    const entry =
+      sale.payment_method === 'CREDIT'
+        ? db.get("SELECT balance_after_cents FROM customer_ledger WHERE sale_id = ? AND type = 'SALE_CREDIT' ORDER BY id LIMIT 1;", [id])
+        : null;
+    sale.khata_balance_after_cents = entry ? entry.balance_after_cents : null;
     return sale;
   }
 
@@ -60,12 +66,23 @@ function createSalesService(db, { files }) {
    */
   function priceLines(lines) {
     const unitsByProduct = new Map();
+    const today = localDateString();
     const priced = lines.map((line) => {
       const product = db.get('SELECT * FROM products WHERE id = ? AND is_active = 1;', [line.productId]);
       if (!product) throw notFound('A product in the cart no longer exists. Refresh and try again.');
+      // Expired medicine must never be sold. Medicine expiring today can still be sold today.
+      if (product.expiry_date && product.expiry_date < today) {
+        throw new AppError(
+          ErrorCodes.EXPIRED,
+          `"${product.title}" expired on ${product.expiry_date} and cannot be sold. ` +
+            'If you have newer stock, update its expiry date under Medicines & stock.'
+        );
+      }
       const units = lineUnits(line.unitType, line.quantity, product.pack_size);
       unitsByProduct.set(product.id, (unitsByProduct.get(product.id) || 0) + units);
-      return { ...line, product, units, priceCents: unitPriceCents(product, line.unitType) };
+      // Cost is captured now, at the price paid for this stock, so later cost changes never rewrite past profit.
+      const costCents = costOfUnitsCents(product.cost_price_cents, units, product.pack_size);
+      return { ...line, product, units, priceCents: unitPriceCents(product, line.unitType), costCents };
     });
 
     for (const [productId, units] of unitsByProduct) {
@@ -159,9 +176,12 @@ function createSalesService(db, { files }) {
 
         for (const line of priced) {
           db.run(
-            `INSERT INTO sale_items (sale_id, product_id, product_title, unit_type, quantity, price_cents, total_cents, base_units)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-            [id, line.productId, line.product.title, line.unitType, line.quantity, line.priceCents, line.priceCents * line.quantity, line.units]
+            `INSERT INTO sale_items (sale_id, product_id, product_title, unit_type, quantity, price_cents, total_cents, base_units, cost_cents)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              id, line.productId, line.product.title, line.unitType, line.quantity, line.priceCents, line.priceCents * line.quantity,
+              line.units, line.costCents
+            ]
           );
           // Relative update: concurrent changes and multiple lines of the same product all count.
           db.run('UPDATE products SET stock_units = stock_units - ? WHERE id = ?;', [line.units, line.productId]);

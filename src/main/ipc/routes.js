@@ -48,7 +48,16 @@ function createRoutes(ctx, platform) {
     'app.info': { public: true, handler: () => ({ ...platform.appInfo(), firstRun: s().auth.isFirstRun() }) },
     'settings.get': { public: true, handler: () => s().settings.get() },
     'settings.update': { permission: 'settings.manage', handler: (p, { user }) => s().settings.update(user, p) },
-    'app.print': { handler: () => platform.print() },
+    'app.print': { handler: (p) => platform.print({ silent: v.boolean(v.object(p).silent) }) },
+    // Text size for this computer; also used on the lock screen, so it needs no session.
+    'app.setZoom': {
+      public: true,
+      handler: (p) => {
+        const factor = v.number(v.object(p).factor, 'Text size');
+        if (![1, 1.15, 1.3].includes(factor)) throw validationError('Unknown text size');
+        return platform.setZoom ? platform.setZoom(factor) : { factor };
+      }
+    },
 
     // --- users ---------------------------------------------------------
     'users.list': { permission: 'users.manage', handler: () => s().auth.listUsers() },
@@ -69,6 +78,7 @@ function createRoutes(ctx, platform) {
     'products.remove': { permission: 'products.manage', handler: (p, { user }) => s().products.remove(user, p) },
     'products.generateBarcode': { permission: 'products.manage', handler: () => s().products.generateBarcode() },
     'products.discardStock': { permission: 'stock.adjust', handler: (p, { user }) => s().products.discardStock(user, p) },
+    'products.receiveStock': { permission: 'stock.adjust', handler: (p, { user }) => s().products.receiveStock(user, p) },
     'products.stockHistory': { permission: 'products.view', handler: (p) => s().products.stockHistory(p) },
 
     // --- customers -----------------------------------------------------
@@ -96,6 +106,12 @@ function createRoutes(ctx, platform) {
     'reports.dashboard': { permission: 'reports.view', handler: () => s().reports.dashboard() },
     'reports.alerts': { permission: 'products.view', handler: () => s().reports.alertCounts() },
     'reports.expiry': { permission: 'products.view', handler: () => s().reports.expiry() },
+    'reports.profit': { permission: 'reports.view', handler: (p) => s().reports.profit(p) },
+
+    // --- expenses ------------------------------------------------------
+    'expenses.list': { permission: 'expenses.manage', handler: (p) => s().expenses.list(p) },
+    'expenses.create': { permission: 'expenses.manage', handler: (p, { user }) => s().expenses.create(user, p) },
+    'expenses.remove': { permission: 'expenses.manage', handler: (p, { user }) => s().expenses.remove(user, p) },
 
     // --- system --------------------------------------------------------
     'system.backup': {

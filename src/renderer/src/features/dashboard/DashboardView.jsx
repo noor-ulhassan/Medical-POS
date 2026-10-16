@@ -15,13 +15,73 @@ function Stat({ label, value, note, id, noteId, tone }) {
   return (
     <div className="min-w-0 bg-surface px-6 py-5">
       <div className="text-sm font-semibold text-ink-2">{label}</div>
-      <div id={id} className={cx('num mt-1.5 truncate text-2xl font-bold tracking-[-0.02em]', tone === 'danger' ? 'text-red-ink' : 'text-ink')}>
+      <div id={id} className={cx('num mt-1.5 break-words text-2xl font-bold tracking-[-0.02em]', tone === 'danger' ? 'text-red-ink' : 'text-ink')}>
         {value}
       </div>
       <div id={noteId} className="mt-1 text-sm text-ink-3">
         {note}
       </div>
     </div>
+  );
+}
+
+
+/** End-of-day cash check in plain words: what came in today and what should be in the drawer. */
+function TodayCash({ today }) {
+  if (!today) return null;
+  const by = (m) => today.byMethod.find((x) => x.payment_method === m) || { count: 0, total_cents: 0 };
+  const rows = [
+    { label: 'Cash sales', method: 'CASH' },
+    { label: 'Card', method: 'CARD' },
+    { label: 'Mobile wallet', method: 'MOBILE WALLET' },
+    { label: 'On khata (not paid yet)', method: 'CREDIT' }
+  ];
+  return (
+    <Panel title="Today's money">
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <dl id="dashTodayByMethod" className="divide-y divide-foil text-base">
+          {rows.map((r) => {
+            const m = by(r.method);
+            return (
+              <div key={r.method} className="flex items-baseline justify-between py-2">
+                <dt className="text-ink-2">
+                  {r.label} <span className="text-sm text-ink-3">({plural(m.count, 'sale')})</span>
+                </dt>
+                <dd className="num font-semibold text-ink">{money(m.total_cents)}</dd>
+              </div>
+            );
+          })}
+          <div className="flex items-baseline justify-between py-2">
+            <dt className="text-ink-2">Khata payments received</dt>
+            <dd className="num font-semibold text-ink">{money(today.khataPaymentsCents)}</dd>
+          </div>
+          {today.drawerExpensesCents > 0 && (
+            <div className="flex items-baseline justify-between py-2">
+              <dt className="text-ink-2">Expenses paid from the drawer</dt>
+              <dd className="num font-semibold text-ink">{money(today.drawerExpensesCents)}</dd>
+            </div>
+          )}
+          {today.voidCount > 0 && (
+            <div className="flex items-baseline justify-between py-2">
+              <dt className="text-ink-2">Cancelled sales today ({today.voidCount})</dt>
+              <dd className="num font-semibold text-red-ink">{money(today.voidTotalCents)}</dd>
+            </div>
+          )}
+        </dl>
+        <div className="flex flex-col justify-center rounded-panel bg-teal-soft px-6 py-5 text-teal-ink">
+          <div className="text-base font-semibold">Cash that should be in the drawer</div>
+          <div id="dashExpectedCash" className="num mt-1 text-3xl font-bold tracking-[-0.02em]">
+            {money(today.expectedCashCents)}
+          </div>
+          <p className="mt-2 text-sm">
+            Cash sales {money(today.cashSalesCents)} + khata payments {money(today.khataPaymentsCents)}
+            {today.cashRefundsCents > 0 ? ` − cash given back ${money(today.cashRefundsCents)}` : ''}
+            {today.drawerExpensesCents > 0 ? ` − expenses paid from the drawer ${money(today.drawerExpensesCents)}` : ''}. Add the cash you started the day with, then count
+            the drawer.
+          </p>
+        </div>
+      </div>
+    </Panel>
   );
 }
 
@@ -42,8 +102,8 @@ export function DashboardView() {
   return (
     <Page id="dashboardView">
       <PageHeader
-        title="Dashboard"
-        description="Sales and stock at a glance."
+        title="Today's report"
+        description="How the shop is doing today, what customers owe, and what needs your attention."
         actions={
           <Button icon={RefreshCw} id="btnRefreshDashboard" onClick={load}>
             Refresh
@@ -57,6 +117,8 @@ export function DashboardView() {
         <Stat label="Owed on khata" id="dashCustomerDebt" value={money(d?.outstandingDebtCents)} note="Outstanding customer balances" />
         <Stat label="Products needing attention" id="dashRiskAlerts" value={d ? d.riskCount : 0} note="Low stock or expiring within 6 months" tone={d?.riskCount ? 'danger' : undefined} />
       </div>
+
+      <TodayCash today={d?.today} />
 
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         <Panel title="Last 7 days">
@@ -79,7 +141,7 @@ export function DashboardView() {
           </div>
         </Panel>
 
-        <Panel title="How customers paid">
+        <Panel title="How customers paid (all time)">
           <div id="chartPaymentDistribution" className="flex h-[220px] flex-col justify-center gap-4">
             {d && d.paymentBreakdown.length === 0 && <EmptyState icon={ChartColumn} title="No sales yet" className="py-4" />}
             {d?.paymentBreakdown.map((p) => {

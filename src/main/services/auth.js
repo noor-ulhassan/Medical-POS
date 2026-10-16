@@ -92,7 +92,6 @@ function createAuthService(db, { now = () => Date.now() } = {}) {
       const row = getUserRow(actor.id);
       if (!verifyPin(String(currentPin || ''), row.pin_hash)) throw validationError('Current PIN is incorrect');
       assertAcceptablePin(newPin);
-      if (newPin === currentPin) throw validationError('The new PIN must be different from the current one');
       assertPinAvailable(newPin, actor.id);
       db.transaction(() => {
         db.run('UPDATE users SET pin_hash = ?, must_change_pin = 0 WHERE id = ?;', [hashPin(newPin), actor.id]);

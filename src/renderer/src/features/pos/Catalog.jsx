@@ -4,6 +4,7 @@ import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { Select } from '../../ui/Field.jsx';
+import { isAnyModalOpen } from '../../ui/Modal.jsx';
 import { ExpiryPill, Pill, RxPill, EmptyState } from '../../ui/display.jsx';
 import { money, isLowStock, isOutOfStock } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
@@ -71,6 +72,28 @@ export function Catalog() {
     return () => clearTimeout(t);
   }, []);
 
+  // A barcode scanner types like a keyboard. If the cashier last clicked a
+  // button or the list, the scan would be lost, so stray typing on this
+  // screen is sent to the search box (Chromium delivers the key to the newly
+  // focused field).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1 || e.key === ' ') return;
+      const el = document.activeElement;
+      if (el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)) return;
+      if (isAnyModalOpen()) return;
+      inputRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, []);
+
+  /** Add from a click, then put the cursor back in the search box ready for the next scan. */
+  const addByClick = (product, unitType) => {
+    cart.add(product, unitType);
+    inputRef.current?.focus();
+  };
+
   const matches = useMemo(
     () =>
       products.filter((p) => {
@@ -106,7 +129,9 @@ export function Catalog() {
       setSearch('');
       setQuery('');
     } else if (candidates.length === 0) {
-      toast(`No product matches "${search.trim()}"`, 'error');
+      toast(`No medicine matches "${search.trim()}". Check the spelling or add it under Medicines & stock.`, 'error');
+    } else {
+      toast(`${candidates.length} medicines match. Click the right one, or use the arrow keys and press Enter.`, 'info');
     }
   }
 
@@ -223,7 +248,7 @@ export function Catalog() {
                   role="option"
                   aria-selected={index === active}
                   onClick={(e) => {
-                    if (!e.target.closest('button')) cart.add(p, 'SINGLE');
+                    if (!e.target.closest('button')) addByClick(p, 'SINGLE');
                   }}
                   className={cx(
                     COLS,
@@ -256,7 +281,7 @@ export function Catalog() {
                   <div className="flex justify-end gap-1.5">
                     <button
                       type="button"
-                      onClick={() => cart.add(p, 'SINGLE')}
+                      onClick={() => addByClick(p, 'SINGLE')}
                       className="inline-flex h-8 items-center gap-1 rounded-control border border-foil-strong bg-surface px-2.5 text-sm font-semibold text-ink hover:border-teal hover:text-teal-ink"
                       title={`Add one unit (${money(p.single_price_cents)})`}
                     >
@@ -265,7 +290,7 @@ export function Catalog() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => cart.add(p, 'PACK')}
+                      onClick={() => addByClick(p, 'PACK')}
                       className="inline-flex h-8 items-center gap-1 rounded-control border border-foil-strong bg-surface px-2.5 text-sm font-semibold text-ink hover:border-teal hover:text-teal-ink"
                       title={`Add one pack of ${p.pack_size} (${money(p.sale_price_cents)})`}
                     >
@@ -280,15 +305,16 @@ export function Catalog() {
         </div>
       </div>
 
-      <div className="flex items-center gap-5 px-6 py-2.5 text-xs text-ink-3">
-        <span className="flex items-center gap-1">
+      <div className="flex items-center gap-5 whitespace-nowrap px-6 py-2.5 text-xs text-ink-3">
+        {/* Keyboard tips only where they fit on one line (they are also in Help). */}
+        <span className="hidden items-center gap-1 xl:flex">
           <kbd>↑</kbd>
           <kbd>↓</kbd> choose
         </span>
-        <span className="flex items-center gap-1">
+        <span className="hidden items-center gap-1 xl:flex">
           <kbd>Enter</kbd> add a unit
         </span>
-        <span className="flex items-center gap-1">
+        <span className="hidden items-center gap-1 xl:flex">
           <kbd>Shift</kbd>+<kbd>Enter</kbd> add a pack
         </span>
         <span className="num ml-auto">

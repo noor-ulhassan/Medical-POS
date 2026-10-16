@@ -62,7 +62,7 @@ test('v1.1 databases are upgraded in place without losing data', async () => {
   const db = ctx.db;
 
   assert.equal(db.value('PRAGMA user_version;'), LATEST_VERSION);
-  assert.ok(backupsIn(dir).some((f) => f.startsWith('noorpos_pre-migration-v2_')), 'original file backed up first');
+  assert.ok(backupsIn(dir).some((f) => f.startsWith(`noorpos_pre-migration-v${LATEST_VERSION}_`)), 'original file backed up first');
 
   // Stock converted from packs + loose singles to base units.
   assert.equal(db.value('SELECT stock_units FROM products WHERE id = 1;'), 25 * 10 + 5);
