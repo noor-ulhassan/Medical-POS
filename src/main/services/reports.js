@@ -1,8 +1,30 @@
 'use strict';
 
-const { localDateString, localDayRange, startOfLocalDay, addDays, daysUntil } = require('../lib/dates');
+const v = require('../lib/validate');
+const { validationError } = require('../lib/errors');
+const { localDateString, localDayRange, localDatesRange, startOfLocalDay, addDays, daysUntil } = require('../lib/dates');
 
 const EXPIRY_WARNING_DAYS = 180;
+/** Periods up to this many days are charted per day; longer ones per month. */
+const DAILY_BUCKET_MAX_DAYS = 62;
+const MAX_REPORT_DAYS = 3700;
+
+/** Next calendar date as YYYY-MM-DD (pure calendar arithmetic, no time zones involved). */
+function nextYmd(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+function daysInclusive(fromYmd, toYmd) {
+  const toUtc = (ymd) => {
+    const [y, m, d] = ymd.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((toUtc(toYmd) - toUtc(fromYmd)) / 86400000) + 1;
+}
+
+/** n / d as a percentage, or null when there is nothing to divide by. */
+const percent = (n, d) => (d > 0 ? (n / d) * 100 : null);
 /** floor(stock_units / pack_size) <= min_stock_level, without integer-division pitfalls. */
 const LOW_STOCK_SQL = 'stock_units < (min_stock_level + 1) * pack_size';
 
@@ -70,6 +92,11 @@ function createReportsService(db, { now = () => new Date() } = {}) {
       );
       const cashSales = todayByMethod.find((m) => m.payment_method === 'CASH');
       const todayCashSalesCents = cashSales ? cashSales.total_cents : 0;
+      // Expenses paid out of the drawer today (rent, tea...) left the drawer too.
+      const todayDrawerExpensesCents = db.value(
+        'SELECT COALESCE(SUM(amount_cents), 0) FROM expenses WHERE deleted_at IS NULL AND paid_from_drawer = 1 AND expense_date = ?;',
+        [localDateString(now())]
+      );
 
       const alerts = this.alertCounts();
       return {
@@ -78,7 +105,8 @@ function createReportsService(db, { now = () => new Date() } = {}) {
           cashSalesCents: todayCashSalesCents,
           khataPaymentsCents: todayKhataPaymentsCents,
           cashRefundsCents: todayCashRefundsCents,
-          expectedCashCents: todayCashSalesCents + todayKhataPaymentsCents - todayCashRefundsCents,
+          drawerExpensesCents: todayDrawerExpensesCents,
+          expectedCashCents: todayCashSalesCents + todayKhataPaymentsCents - todayCashRefundsCents - todayDrawerExpensesCents,
           voidCount: todayVoids.count,
           voidTotalCents: todayVoids.total_cents
         },
@@ -109,6 +137,194 @@ function createReportsService(db, { now = () => new Date() } = {}) {
            WHERE p.is_active = 1 AND ${LOW_STOCK_SQL.replace(/(stock_units|min_stock_level|pack_size)/g, 'p.$1')}
            GROUP BY s.id ORDER BY low_count DESC;`
         )
+      };
+    },
+
+    /**
+     * Profit and loss for local calendar days `from`..`to` (both included).
+     *
+     * Definitions (all amounts in cents, all exact integers):
+     *   net sales     = subtotal - bill discount; tax and the per-receipt fee are
+     *                   collected for the government, so they are not income
+     *   cost of goods = the cost recorded on each sale line when it was sold
+     *   gross profit  = net sales - cost of goods, over sales whose every line has
+     *                   a known cost; any other sale is left out and disclosed
+     *   net profit    = gross profit - expenses - stock written off (at cost)
+     * Cancelled (voided) sales and deleted expenses are excluded. The chart
+     * series are built from the same rows as the totals, so they always add up.
+     */
+    profit(input) {
+      const data = v.object(input);
+      const from = v.date(data.from, 'From date');
+      const to = v.date(data.to, 'To date');
+      if (to < from) throw validationError('The end date is before the start date');
+      const spanDays = daysInclusive(from, to);
+      if (spanDays > MAX_REPORT_DAYS) throw validationError('Choose a period of at most 10 years');
+      const { start, end } = localDatesRange(from, to);
+      const granularity = spanDays <= DAILY_BUCKET_MAX_DAYS ? 'day' : 'month';
+      const keyOf = (ymd) => (granularity === 'day' ? ymd : ymd.slice(0, 7));
+
+      const buckets = new Map();
+      for (let day = from; day <= to; day = nextYmd(day)) {
+        const key = keyOf(day);
+        if (!buckets.has(key)) {
+          buckets.set(key, { key, salesCount: 0, netSalesCents: 0, costedNetSalesCents: 0, cogsCents: 0, expensesCents: 0, writeOffCents: 0 });
+        }
+      }
+      const bucketFor = (ymd) => {
+        const bucket = buckets.get(keyOf(ymd));
+        if (!bucket) throw new Error(`Report period does not contain ${ymd}`);
+        return bucket;
+      };
+
+      const t = {
+        salesCount: 0,
+        grossSalesCents: 0,
+        discountCents: 0,
+        netSalesCents: 0,
+        taxAndFeesCents: 0,
+        collectedCents: 0,
+        costedSalesCount: 0,
+        costedNetSalesCents: 0,
+        uncostedSalesCount: 0,
+        uncostedNetSalesCents: 0,
+        cogsCents: 0,
+        expensesCents: 0,
+        expenseCount: 0,
+        writeOffCents: 0,
+        writeOffCount: 0,
+        writeOffUnknownCount: 0
+      };
+
+      const sales = db.all(
+        `SELECT s.id, s.created_at, s.subtotal_cents, s.discount_cents, s.tax_cents, s.total_cents,
+           COUNT(si.id) AS line_count,
+           COALESCE(SUM(CASE WHEN si.id IS NOT NULL AND si.cost_cents IS NULL THEN 1 ELSE 0 END), 0) AS unknown_lines,
+           COALESCE(SUM(si.cost_cents), 0) AS cost_cents
+         FROM sales s LEFT JOIN sale_items si ON si.sale_id = s.id
+         WHERE s.status = 'COMPLETED' AND s.created_at >= ? AND s.created_at < ?
+         GROUP BY s.id;`,
+        [start, end]
+      );
+      for (const sale of sales) {
+        const net = sale.subtotal_cents - sale.discount_cents;
+        const bucket = bucketFor(localDateString(new Date(sale.created_at)));
+        t.salesCount += 1;
+        t.grossSalesCents += sale.subtotal_cents;
+        t.discountCents += sale.discount_cents;
+        t.netSalesCents += net;
+        t.taxAndFeesCents += sale.tax_cents;
+        t.collectedCents += sale.total_cents;
+        bucket.salesCount += 1;
+        bucket.netSalesCents += net;
+        if (sale.line_count > 0 && sale.unknown_lines === 0) {
+          t.costedSalesCount += 1;
+          t.costedNetSalesCents += net;
+          t.cogsCents += sale.cost_cents;
+          bucket.costedNetSalesCents += net;
+          bucket.cogsCents += sale.cost_cents;
+        } else {
+          t.uncostedSalesCount += 1;
+          t.uncostedNetSalesCents += net;
+        }
+      }
+
+      const expenseRows = db.all(
+        `SELECT expense_date, category, SUM(amount_cents) AS amount_cents, COUNT(*) AS count
+         FROM expenses WHERE deleted_at IS NULL AND expense_date >= ? AND expense_date <= ?
+         GROUP BY expense_date, category;`,
+        [from, to]
+      );
+      const byCategory = new Map();
+      for (const row of expenseRows) {
+        bucketFor(row.expense_date).expensesCents += row.amount_cents;
+        t.expensesCents += row.amount_cents;
+        t.expenseCount += row.count;
+        const c = byCategory.get(row.category) || { category: row.category, amountCents: 0, count: 0 };
+        c.amountCents += row.amount_cents;
+        c.count += row.count;
+        byCategory.set(row.category, c);
+      }
+
+      const writeOffs = db.all(
+        "SELECT created_at, value_cents FROM stock_adjustments WHERE kind = 'WRITE_OFF' AND created_at >= ? AND created_at < ?;",
+        [start, end]
+      );
+      for (const w of writeOffs) {
+        t.writeOffCount += 1;
+        if (w.value_cents === null) {
+          t.writeOffUnknownCount += 1;
+          continue;
+        }
+        const loss = -w.value_cents;
+        t.writeOffCents += loss;
+        bucketFor(localDateString(new Date(w.created_at))).writeOffCents += loss;
+      }
+      // Write-offs recorded before values were kept: counted as unknown so the gap is visible.
+      const legacyWriteOffs = db.value(
+        `SELECT COUNT(*) FROM stock_adjustments
+         WHERE kind IS NULL AND change_units < 0 AND reason LIKE '%discarded%' AND created_at >= ? AND created_at < ?;`,
+        [start, end]
+      );
+      t.writeOffCount += legacyWriteOffs;
+      t.writeOffUnknownCount += legacyWriteOffs;
+
+      const grossProfitCents = t.costedNetSalesCents - t.cogsCents;
+      const netProfitCents = grossProfitCents - t.expensesCents - t.writeOffCents;
+
+      const lineFilter = "s.status = 'COMPLETED' AND s.created_at >= ? AND s.created_at < ? AND si.cost_cents IS NOT NULL";
+      const productRows = db.all(
+        `SELECT si.product_id, COALESCE(p.title, MAX(si.product_title)) AS title,
+           SUM(si.base_units) AS units, SUM(si.total_cents) AS revenue_cents, SUM(si.cost_cents) AS cost_cents
+         FROM sale_items si
+         JOIN sales s ON s.id = si.sale_id
+         LEFT JOIN products p ON p.id = si.product_id
+         WHERE ${lineFilter}
+         GROUP BY si.product_id;`,
+        [start, end]
+      );
+      const categoryRows = db.all(
+        `SELECT COALESCE(c.name, 'No category') AS name, SUM(si.total_cents) AS revenue_cents, SUM(si.cost_cents) AS cost_cents
+         FROM sale_items si
+         JOIN sales s ON s.id = si.sale_id
+         LEFT JOIN products p ON p.id = si.product_id
+         LEFT JOIN categories c ON c.id = p.category_id
+         WHERE ${lineFilter}
+         GROUP BY c.id;`,
+        [start, end]
+      );
+      const withProfit = (r) => ({
+        revenueCents: r.revenue_cents,
+        costCents: r.cost_cents,
+        profitCents: r.revenue_cents - r.cost_cents,
+        marginPct: percent(r.revenue_cents - r.cost_cents, r.revenue_cents)
+      });
+      const byProfit = (a, b) => b.profitCents - a.profitCents;
+
+      return {
+        from,
+        to,
+        granularity,
+        summary: {
+          ...t,
+          grossProfitCents,
+          grossMarginPct: percent(grossProfitCents, t.costedNetSalesCents),
+          markupPct: percent(grossProfitCents, t.cogsCents),
+          netProfitCents,
+          netMarginPct: percent(netProfitCents, t.costedNetSalesCents),
+          averageSaleCents: t.salesCount ? Math.round(t.netSalesCents / t.salesCount) : 0
+        },
+        series: [...buckets.values()].map((b) => {
+          const gross = b.costedNetSalesCents - b.cogsCents;
+          return { ...b, grossProfitCents: gross, netProfitCents: gross - b.expensesCents - b.writeOffCents };
+        }),
+        expensesByCategory: [...byCategory.values()].sort((a, b) => b.amountCents - a.amountCents),
+        topProducts: productRows
+          .map((r) => ({ productId: r.product_id, title: r.title, units: r.units, ...withProfit(r) }))
+          .sort(byProfit)
+          .slice(0, 10),
+        byCategory: categoryRows.map((r) => ({ name: r.name, ...withProfit(r) })).sort(byProfit),
+        productsMissingCost: db.value('SELECT COUNT(*) FROM products WHERE is_active = 1 AND cost_price_cents <= 0;')
       };
     },
 

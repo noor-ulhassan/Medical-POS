@@ -16,7 +16,9 @@ import {
   PanelLeftOpen,
   Database,
   TriangleAlert,
-  CircleHelp
+  CircleHelp,
+  TrendingUp,
+  Wallet
 } from 'lucide-react';
 import { useApp } from '../state/AppState.jsx';
 import { cx } from '../ui/cx.js';
@@ -47,6 +49,8 @@ const GROUPS = [
     label: 'Store',
     items: [
       { id: 'dashboardView', label: "Today's report", icon: ChartColumn, permission: 'reports.view' },
+      { id: 'profitView', label: 'Profit & loss', icon: TrendingUp, permission: 'reports.view' },
+      { id: 'expensesView', label: 'Expenses', icon: Wallet, permission: 'expenses.manage' },
       { id: 'settingsView', label: 'Settings', icon: Settings, permission: 'settings.manage' }
     ]
   }

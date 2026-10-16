@@ -147,7 +147,7 @@
     await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
   });
 
-  const views = ['dashboardView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
+  const views = ['dashboardView', 'profitView', 'expensesView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
   for (const view of views) {
     await step(`navigate to ${view}`, async () => {
       nav(view);
@@ -194,6 +194,25 @@
     type(field('customerForm', 'name'), 'Smoke Customer');
     $('#customerForm').requestSubmit();
     await waitFor('customer row', () => text('#customerTableBody').includes('Smoke Customer'));
+  });
+
+  await step('app opens in light mode', async () => {
+    if (document.documentElement.dataset.theme !== 'light') throw new Error(`theme is ${document.documentElement.dataset.theme}`);
+  });
+
+  await step('record an expense, then see it in Profit & loss', async () => {
+    nav('expensesView');
+    await waitFor('expense form', () => exists('expenseForm'));
+    type(field('expenseForm', 'category'), 'RENT');
+    type(field('expenseForm', 'amount'), '1234.50');
+    type(field('expenseForm', 'note'), 'Smoke rent');
+    $('#expenseForm').requestSubmit();
+    await waitFor('expense listed', () => text('#expensesTableBody').includes('Smoke rent'));
+    if (!text('#expensesMonthTotal').includes('1,234.50')) throw new Error(`month total is ${text('#expensesMonthTotal')}`);
+    nav('profitView');
+    await waitFor('profit statement', () => exists('profitStatement'));
+    await waitFor('expense in the statement', () => text('#profitStatement').includes('1,234.50'));
+    await waitFor('net profit shown', () => text('#profitNetProfit').includes('Rs'));
   });
 
   await step('settings tabs: staff, backups and activity log', async () => {

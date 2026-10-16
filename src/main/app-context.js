@@ -17,6 +17,7 @@ const { createReportsService } = require('./services/reports');
 const { createFilesService } = require('./services/files');
 const { createBackupService } = require('./services/backup');
 const { createAuditService, recordAudit } = require('./services/audit');
+const { createExpensesService } = require('./services/expenses');
 
 class QuitRequested extends Error {
   constructor() {
@@ -119,6 +120,7 @@ class AppContext {
       sales: createSalesService(db, { files }),
       parked: createParkedService(db),
       reports: createReportsService(db),
+      expenses: createExpensesService(db),
       audit: createAuditService(db),
       files,
       backup: this.backup

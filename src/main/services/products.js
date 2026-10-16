@@ -4,7 +4,7 @@ const v = require('../lib/validate');
 const { notFound, conflict, validationError } = require('../lib/errors');
 const { generateInternalBarcode } = require('../lib/barcode');
 const { nowIso } = require('../lib/dates');
-const { splitUnits } = require('../../shared/pricing');
+const { splitUnits, costOfUnitsCents } = require('../../shared/pricing');
 const { recordAudit } = require('./audit');
 
 const PRODUCT_SELECT = `
@@ -18,19 +18,29 @@ function withDerivedStock(row) {
   return { ...row, stock_packs: packs, stock_singles: singles };
 }
 
+/** What a stock adjustment was, so reports never have to guess from the free-text reason. */
+const ADJUSTMENT_KINDS = Object.freeze({ OPENING: 'OPENING', CORRECTION: 'CORRECTION', RECEIVED: 'RECEIVED', WRITE_OFF: 'WRITE_OFF' });
+
 /**
  * Apply a relative stock change and record it in stock_adjustments.
- * Must be called inside a transaction.
+ * `valueCents` is the change valued at cost (signed like the change; null
+ * when the cost is unknown). Must be called inside a transaction.
  */
-function adjustStock(db, actor, productId, changeUnits, reason) {
+function adjustStock(db, actor, productId, changeUnits, reason, { kind = null, valueCents = null } = {}) {
   if (changeUnits === 0) return;
   db.run('UPDATE products SET stock_units = stock_units + ? WHERE id = ?;', [changeUnits, productId]);
   const after = db.value('SELECT stock_units FROM products WHERE id = ?;', [productId]);
   db.run(
-    `INSERT INTO stock_adjustments (product_id, change_units, stock_after_units, reason, user_id, user_name, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?);`,
-    [productId, changeUnits, after, reason, actor ? actor.id : null, actor ? actor.name : '', nowIso()]
+    `INSERT INTO stock_adjustments (product_id, change_units, stock_after_units, reason, user_id, user_name, created_at, kind, value_cents)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    [productId, changeUnits, after, reason, actor ? actor.id : null, actor ? actor.name : '', nowIso(), kind, valueCents]
   );
+}
+
+/** Signed cost value of a stock change, or null when the product has no cost price. */
+function changeValueCents(costPerPackCents, changeUnits, packSize) {
+  const value = costOfUnitsCents(costPerPackCents, Math.abs(changeUnits), packSize);
+  return value === null ? null : Math.sign(changeUnits) * value;
 }
 
 function createProductsService(db) {
@@ -117,7 +127,10 @@ function createProductsService(db) {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);`,
             columns
           );
-          adjustStock(db, actor, res.lastInsertRowid, p.stockUnits, 'Opening stock');
+          adjustStock(db, actor, res.lastInsertRowid, p.stockUnits, 'Opening stock', {
+            kind: ADJUSTMENT_KINDS.OPENING,
+            valueCents: changeValueCents(p.costPriceCents, p.stockUnits, p.packSize)
+          });
           recordAudit(db, actor, 'products.create', { id: res.lastInsertRowid, title: p.title, barcode: p.barcode });
           return res.lastInsertRowid;
         }
@@ -131,7 +144,11 @@ function createProductsService(db) {
            WHERE id = ?;`,
           [...columns, id]
         );
-        adjustStock(db, actor, id, p.stockUnits - originalStockUnits, 'Manual stock correction');
+        const correction = p.stockUnits - originalStockUnits;
+        adjustStock(db, actor, id, correction, 'Manual stock correction', {
+          kind: ADJUSTMENT_KINDS.CORRECTION,
+          valueCents: changeValueCents(p.costPriceCents, correction, p.packSize)
+        });
         if (before.sale_price_cents !== p.salePriceCents || before.single_price_cents !== p.singlePriceCents) {
           recordAudit(db, actor, 'products.price_change', {
             id,
@@ -183,7 +200,10 @@ function createProductsService(db) {
 
       db.transaction(() => {
         const what = `${packs} pack(s)${singles ? ` + ${singles} loose unit(s)` : ''}`;
-        adjustStock(db, actor, id, units, `Stock received: ${what}`);
+        adjustStock(db, actor, id, units, `Stock received: ${what}`, {
+          kind: ADJUSTMENT_KINDS.RECEIVED,
+          valueCents: changeValueCents(costPriceCents !== null ? costPriceCents : product.cost_price_cents, units, product.pack_size)
+        });
         if (expiryDate) db.run('UPDATE products SET expiry_date = ? WHERE id = ?;', [expiryDate, id]);
         if (costPriceCents !== null) db.run('UPDATE products SET cost_price_cents = ? WHERE id = ?;', [costPriceCents, id]);
         recordAudit(db, actor, 'products.receive_stock', { id, title: product.title, units, expiryDate, costPriceCents });
@@ -198,7 +218,13 @@ function createProductsService(db) {
       const reason = v.string(data.reason, 'Reason', { max: 200 }) || 'Expired stock discarded';
       const product = get(id);
       if (product.stock_units <= 0) throw validationError('This product has no stock to discard');
-      db.transaction(() => adjustStock(db, actor, id, -product.stock_units, reason));
+      // Valued at cost so the loss shows in the profit report.
+      db.transaction(() =>
+        adjustStock(db, actor, id, -product.stock_units, reason, {
+          kind: ADJUSTMENT_KINDS.WRITE_OFF,
+          valueCents: changeValueCents(product.cost_price_cents, -product.stock_units, product.pack_size)
+        })
+      );
       return get(id);
     },
 
@@ -209,4 +235,4 @@ function createProductsService(db) {
   };
 }
 
-module.exports = { createProductsService, adjustStock, withDerivedStock };
+module.exports = { createProductsService, adjustStock, withDerivedStock, ADJUSTMENT_KINDS };

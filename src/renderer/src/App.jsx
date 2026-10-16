@@ -20,10 +20,14 @@ import { ExpiryView } from './features/stock/ExpiryView.jsx';
 import { QuotationView } from './features/quotes/QuotationView.jsx';
 import { SalesView } from './features/sales/SalesView.jsx';
 import { SettingsView } from './features/settings/SettingsView.jsx';
+import { ProfitView } from './features/profit/ProfitView.jsx';
+import { ExpensesView } from './features/expenses/ExpensesView.jsx';
 
 const SCREENS = {
   posView: PosView,
   dashboardView: DashboardView,
+  profitView: ProfitView,
+  expensesView: ExpensesView,
   inventoryView: ProductsView,
   suppliersView: SuppliersView,
   khataView: KhataView,
@@ -50,11 +54,6 @@ function writePreference(key, value) {
   }
 }
 
-function initialTheme() {
-  const saved = readPreference('noorpos_theme', null);
-  if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
 
 /** Enter in a form field moves to the next field; on the last field the form submits as usual. */
 function moveToNextField(e) {
@@ -79,7 +78,8 @@ export function App() {
   const { toast, guard } = useToast();
   const { user, setUser, view, go, loadAll, loadAppInfo, loadSettings, setSaveProblem } = app;
   const [booted, setBooted] = useState(false);
-  const [theme, setTheme] = useState(initialTheme);
+  // Always opens in light mode; dark mode can be switched on for the current session.
+  const [theme, setTheme] = useState('light');
   const [collapsed, setCollapsed] = useState(() => readPreference('noorpos_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
   const [helpOpen, setHelpOpen] = useState(false);
@@ -223,9 +223,7 @@ export function App() {
             }}
             theme={theme}
             onToggleTheme={() => {
-              const next = theme === 'dark' ? 'light' : 'dark';
-              setTheme(next);
-              writePreference('noorpos_theme', next);
+              setTheme(theme === 'dark' ? 'light' : 'dark');
             }}
             onLock={lock}
             onChangePin={() => setPinDialog({ forced: false })}

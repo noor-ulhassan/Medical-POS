@@ -3,7 +3,7 @@
 const v = require('../lib/validate');
 const { AppError, ErrorCodes, notFound, conflict, validationError } = require('../lib/errors');
 const { nowIso, localDateString } = require('../lib/dates');
-const { UNIT_TYPES, DISCOUNT_TYPES, lineUnits, unitPriceCents, computeTotals } = require('../../shared/pricing');
+const { UNIT_TYPES, DISCOUNT_TYPES, lineUnits, unitPriceCents, costOfUnitsCents, computeTotals } = require('../../shared/pricing');
 const { WALK_IN_CUSTOMER_ID } = require('../db/seed');
 const { postLedgerEntry } = require('./customers');
 const { recordAudit } = require('./audit');
@@ -74,7 +74,9 @@ function createSalesService(db, { files }) {
       }
       const units = lineUnits(line.unitType, line.quantity, product.pack_size);
       unitsByProduct.set(product.id, (unitsByProduct.get(product.id) || 0) + units);
-      return { ...line, product, units, priceCents: unitPriceCents(product, line.unitType) };
+      // Cost is captured now, at the price paid for this stock, so later cost changes never rewrite past profit.
+      const costCents = costOfUnitsCents(product.cost_price_cents, units, product.pack_size);
+      return { ...line, product, units, priceCents: unitPriceCents(product, line.unitType), costCents };
     });
 
     for (const [productId, units] of unitsByProduct) {
@@ -168,9 +170,12 @@ function createSalesService(db, { files }) {
 
         for (const line of priced) {
           db.run(
-            `INSERT INTO sale_items (sale_id, product_id, product_title, unit_type, quantity, price_cents, total_cents, base_units)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-            [id, line.productId, line.product.title, line.unitType, line.quantity, line.priceCents, line.priceCents * line.quantity, line.units]
+            `INSERT INTO sale_items (sale_id, product_id, product_title, unit_type, quantity, price_cents, total_cents, base_units, cost_cents)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              id, line.productId, line.product.title, line.unitType, line.quantity, line.priceCents, line.priceCents * line.quantity,
+              line.units, line.costCents
+            ]
           );
           // Relative update: concurrent changes and multiple lines of the same product all count.
           db.run('UPDATE products SET stock_units = stock_units - ? WHERE id = ?;', [line.units, line.productId]);

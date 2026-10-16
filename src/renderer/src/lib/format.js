@@ -70,3 +70,16 @@ export function timeReference(prefix) {
 }
 
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Short rupee amount for chart axes only (exact amounts are always shown in tooltips and tables): Rs 950, Rs 12.5K, Rs 1.2M. */
+export function compactMoney(cents) {
+  const rupees = (cents || 0) / 100;
+  const abs = Math.abs(rupees);
+  const sign = rupees < 0 ? '-' : '';
+  if (abs >= 1e6) return `${sign}Rs ${+(abs / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${sign}Rs ${+(abs / 1e3).toFixed(1)}K`;
+  return `${sign}Rs ${+abs.toFixed(0)}`;
+}
+
+/** A percentage with one decimal, or a dash when it cannot be worked out. */
+export const percentText = (value) => (value === null || value === undefined || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`);

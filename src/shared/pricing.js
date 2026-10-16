@@ -52,6 +52,17 @@
     return { packs, singles };
   }
 
+  /**
+   * Cost of `units` base units at a cost price per pack, in whole cents
+   * (rounded once, per line). Returns null when no cost price is set: an
+   * unknown cost must never be treated as free, or profit would be overstated.
+   */
+  function costOfUnitsCents(costPerPackCents, units, packSize) {
+    const cost = Number(costPerPackCents);
+    if (!Number.isFinite(cost) || cost <= 0) return null;
+    return Math.round((cost * units) / normalizePackSize(packSize));
+  }
+
   function unitPriceCents(product, unitType) {
     return unitType === 'PACK' ? product.sale_price_cents || 0 : product.single_price_cents || 0;
   }
@@ -100,6 +111,7 @@
     normalizePackSize,
     lineUnits,
     splitUnits,
+    costOfUnitsCents,
     unitPriceCents,
     discountCents,
     computeTotals

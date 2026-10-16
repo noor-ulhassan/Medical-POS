@@ -15,7 +15,7 @@ function Stat({ label, value, note, id, noteId, tone }) {
   return (
     <div className="min-w-0 bg-surface px-6 py-5">
       <div className="text-sm font-semibold text-ink-2">{label}</div>
-      <div id={id} className={cx('num mt-1.5 truncate text-2xl font-bold tracking-[-0.02em]', tone === 'danger' ? 'text-red-ink' : 'text-ink')}>
+      <div id={id} className={cx('num mt-1.5 break-words text-2xl font-bold tracking-[-0.02em]', tone === 'danger' ? 'text-red-ink' : 'text-ink')}>
         {value}
       </div>
       <div id={noteId} className="mt-1 text-sm text-ink-3">
@@ -55,6 +55,12 @@ function TodayCash({ today }) {
             <dt className="text-ink-2">Khata payments received</dt>
             <dd className="num font-semibold text-ink">{money(today.khataPaymentsCents)}</dd>
           </div>
+          {today.drawerExpensesCents > 0 && (
+            <div className="flex items-baseline justify-between py-2">
+              <dt className="text-ink-2">Expenses paid from the drawer</dt>
+              <dd className="num font-semibold text-ink">{money(today.drawerExpensesCents)}</dd>
+            </div>
+          )}
           {today.voidCount > 0 && (
             <div className="flex items-baseline justify-between py-2">
               <dt className="text-ink-2">Cancelled sales today ({today.voidCount})</dt>
@@ -69,7 +75,9 @@ function TodayCash({ today }) {
           </div>
           <p className="mt-2 text-sm">
             Cash sales {money(today.cashSalesCents)} + khata payments {money(today.khataPaymentsCents)}
-            {today.cashRefundsCents > 0 ? ` − cash given back ${money(today.cashRefundsCents)}` : ''}. Add the cash you started the day with, then count the drawer.
+            {today.cashRefundsCents > 0 ? ` − cash given back ${money(today.cashRefundsCents)}` : ''}
+            {today.drawerExpensesCents > 0 ? ` − expenses paid from the drawer ${money(today.drawerExpensesCents)}` : ''}. Add the cash you started the day with, then count
+            the drawer.
           </p>
         </div>
       </div>

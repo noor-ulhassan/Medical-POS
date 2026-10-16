@@ -357,6 +357,8 @@ const ACTION_LABELS = {
   'products.create': 'Added product',
   'products.price_change': 'Changed a price',
   'products.receive_stock': 'Received stock',
+  'expenses.create': 'Recorded an expense',
+  'expenses.delete': 'Deleted an expense',
   'products.archive': 'Archived product',
   'products.delete': 'Removed product',
   'categories.create': 'Added category',

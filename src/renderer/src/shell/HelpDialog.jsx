@@ -73,6 +73,25 @@ const GUIDES = [
     ]
   },
   {
+    title: 'Record a shop expense (rent, salaries, bills)',
+    permission: 'expenses.manage',
+    steps: [
+      'Open Expenses on the left.',
+      'Choose the date and what the money was for, and type the amount.',
+      "If you paid it with cash from the shop's drawer, tick the box, so the end-of-day cash count stays right.",
+      'Click Save expense. Do not enter payments to suppliers for medicines: their cost is counted automatically when you sell them.'
+    ]
+  },
+  {
+    title: 'See how much profit the shop made',
+    permission: 'reports.view',
+    steps: [
+      'Open Profit & loss on the left and choose a period at the top (for example This month).',
+      'Net profit is what is left after the cost of the medicines sold, your expenses and expired stock.',
+      'Every medicine needs a cost price (Medicines & stock) for its sales to be counted. The screen tells you if any are missing.'
+    ]
+  },
+  {
     title: 'Expired or nearly expired medicine',
     permission: 'products.view',
     steps: [

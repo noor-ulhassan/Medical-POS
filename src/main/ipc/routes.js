@@ -97,6 +97,12 @@ function createRoutes(ctx, platform) {
     'reports.dashboard': { permission: 'reports.view', handler: () => s().reports.dashboard() },
     'reports.alerts': { permission: 'products.view', handler: () => s().reports.alertCounts() },
     'reports.expiry': { permission: 'products.view', handler: () => s().reports.expiry() },
+    'reports.profit': { permission: 'reports.view', handler: (p) => s().reports.profit(p) },
+
+    // --- expenses ------------------------------------------------------
+    'expenses.list': { permission: 'expenses.manage', handler: (p) => s().expenses.list(p) },
+    'expenses.create': { permission: 'expenses.manage', handler: (p, { user }) => s().expenses.create(user, p) },
+    'expenses.remove': { permission: 'expenses.manage', handler: (p, { user }) => s().expenses.remove(user, p) },
 
     // --- system --------------------------------------------------------
     'system.backup': {

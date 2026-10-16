@@ -15,6 +15,15 @@ Fixes that protect money and stock, and a simpler interface for an owner who is 
 - Editing a product's stock now shows exactly how the stock will change before saving.
 - Cash checkout: cannot complete when the cash received is short; quick-cash buttons now suggest amounts above the total; khata sales over the limit are explained before submitting.
 
+### Profit, expenses and reports
+- New Profit & loss screen: net sales, cost of medicines sold, gross profit and margin, markup, expenses, expired stock written off and net profit, for today, the last 7 days, this or last month, the last 3 months, this year or any dates. Charts (Recharts) for sales and profit over time and expenses by type, gross profit by category, the most profitable medicines, a profit and loss statement whose lines always add up, and a per-day/per-month table.
+- Every sale now records the cost of each line at the moment of sale, so later cost changes never rewrite past profit. Sales made before this version, or of medicines with no cost price, are never guessed: they are left out of profit and the screen says how many and how much.
+- New Expenses screen: rent, salaries, bills and other running costs by category, with "paid from the cash drawer" (subtracted from the expected cash on Today's report). Deleting keeps the record, marked deleted, in the activity log. Supplier payments for medicines are deliberately not an expense category (their cost is already counted).
+- Expired stock write-offs are valued at cost and shown as a loss.
+- Today's report no longer cuts off large amounts.
+- The app always opens in light mode; dark mode can be switched on for the session.
+- Database upgraded to version 3 (a backup of the file is made first).
+
 ### Easier for the owner
 - Start-up and PIN screens use the shop photo as their background (also behind the first-start "choose your PIN" step).
 - PINs: any 4 to 6 digits are accepted, including simple ones such as 1234 or 0000, and the current PIN may be kept when asked to change it. PINs must still differ between staff, because the PIN identifies who is logging in.

@@ -10,6 +10,7 @@ Maintained by **Noor ul Hassan** (noorulhassan01.dev@gmail.com).
 | --- | --- |
 | **POS terminal** | Barcode/keyboard-driven checkout, sell by pack or single unit, flat or % discount, cash/card/wallet/credit, held (parked) carts, 80mm receipts and reprints |
 | **Inventory** | Products with pack size, expiry, cost/sale prices, low-stock levels, audited stock corrections, auto-generated in-store EAN-13 barcodes |
+| **Profit & expenses** | Profit and loss by day or month with charts: net sales, cost of medicines sold (recorded at the time of each sale), gross and net profit, margins, expenses by type, write-offs, most profitable medicines and categories |
 | **Customer khata** | Credit accounts with limits, payments, running ledger and printable A4 statements |
 | **Expiry center** | Stock expiring within 30/90/180 days, write-off of expired stock |
 | **Restock** | Low/out-of-stock lists per supplier and printable purchase orders |
@@ -72,7 +73,7 @@ Any admin can reset another user's PIN under **Settings → Staff and PINs**. If
 
 ## Upgrading from 1.x
 
-The first start of 2.0 moves the previous release's data from the Documents folder into `%LOCALAPPDATA%\NoorPharmacyPOS` (if Windows does not allow the move it is copied instead, leaving the original untouched) and upgrades the database in place. The original database file is copied to `Backups\noorpos_pre-migration-v2_*.db` first.
+The first start of 2.0 moves the previous release's data from the Documents folder into `%LOCALAPPDATA%\NoorPharmacyPOS` (if Windows does not allow the move it is copied instead, leaving the original untouched) and upgrades the database in place. The original database file is copied to `Backups\noorpos_pre-migration-v*_*.db` first (every later upgrade makes the same kind of copy).
 
 - PINs are now stored hashed. Users who still had a published default PIN (`1234`, `5678`, `0000`) must choose a new one at their next login.
 - Stock is now tracked in units (tablets); packs and loose units are calculated from it.
