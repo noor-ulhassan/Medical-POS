@@ -98,6 +98,21 @@ export function CartProvider({ children }) {
     setLines(next);
   };
 
+  /** Set a line's quantity to a typed number. Returns false (with a message) when it is not allowed. */
+  const setQuantity = (index, quantity) => {
+    const line = lines[index];
+    if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 100000) return false;
+    if (quantity === line.quantity) return true;
+    const product = productById(line.productId);
+    const others = unitsInCart(lines, line.productId) - lineUnits(line.unitType, line.quantity, product ? product.pack_size : 1);
+    if (product && !fits(product, others + lineUnits(line.unitType, quantity, product.pack_size))) {
+      toast(`Not enough stock for ${product.title}. ${Math.max(product.stock_units, 0)} units available.`, 'error');
+      return false;
+    }
+    setLines(lines.map((l, i) => (i === index ? { ...l, quantity } : l)));
+    return true;
+  };
+
   const setUnitType = (index, unitType) => {
     const line = lines[index];
     if (!line || line.unitType === unitType) return;
@@ -165,6 +180,7 @@ export function CartProvider({ children }) {
     confirmPaymentRef,
     add,
     changeQuantity,
+    setQuantity,
     setUnitType,
     remove,
     clear,

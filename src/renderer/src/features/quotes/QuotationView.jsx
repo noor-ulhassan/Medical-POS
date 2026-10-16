@@ -7,12 +7,12 @@ import { Button, IconButton } from '../../ui/Button.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
 import { Page, PageHeader } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr } from '../../ui/Table.jsx';
-import { money, toCents, centsToInput, unitPriceCents, addDaysIso, timeReference } from '../../lib/format.js';
+import { money, toCents, centsToInput, unitPriceCents, addDaysIso, timeReference, computeTotals } from '../../lib/format.js';
 
 const newRow = (key) => ({ key, productId: '', unitType: 'SINGLE', quantity: '1', price: '' });
 
 export function QuotationView() {
-  const { products, productById } = useApp();
+  const { products, productById, settings } = useApp();
   const { toast } = useToast();
   const { showDocument } = useDocuments();
   const keyRef = useRef(1);
@@ -39,7 +39,13 @@ export function QuotationView() {
     const price = toCents(r.price);
     return (Number.isNaN(price) ? 0 : price) * Math.max(0, Math.trunc(Number(r.quantity) || 0));
   };
-  const total = rows.reduce((sum, r) => sum + lineCents(r), 0);
+  // Same calculation as the till (tax rate and per-receipt fee), so the quote matches what the customer will pay.
+  const quoted = rows.filter((r) => productById(r.productId) && lineCents(r) > 0);
+  const totals = computeTotals({
+    lines: quoted.map((r) => ({ priceCents: lineCents(r), quantity: 1 })),
+    taxRatePercent: settings.tax_rate_percent,
+    posFeeCents: settings.pos_fee_cents
+  });
 
   const print = () => {
     const lines = rows
@@ -54,7 +60,7 @@ export function QuotationView() {
     const name = customerName.trim() || 'Valued customer';
     showDocument(
       `Quotation: ${name}`,
-      <Quotation customerName={name} customerPhone={customerPhone.trim()} rows={lines} validUntil={addDaysIso(days)} reference={timeReference('QT')} />
+      <Quotation customerName={name} customerPhone={customerPhone.trim()} rows={lines} validUntil={addDaysIso(days)} reference={timeReference('QT')} totals={computeTotals({ lines, taxRatePercent: settings.tax_rate_percent, posFeeCents: settings.pos_fee_cents })} />
     );
   };
 
@@ -132,7 +138,12 @@ export function QuotationView() {
             Add line
           </Button>
           <div className="text-base text-ink-2">
-            Total <strong id="quoteGrandTotal" className="num ml-2 text-lg text-ink">{money(total)}</strong>
+            {totals.taxCents > 0 && (
+              <span className="num mr-4 text-ink-3">
+                {money(totals.subtotalCents)} + tax and fees {money(totals.taxCents)}
+              </span>
+            )}
+            Total <strong id="quoteGrandTotal" className="num ml-2 text-lg text-ink">{money(totals.totalCents)}</strong>
           </div>
         </div>
       </div>

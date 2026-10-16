@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { call, onSessionProblem } from './lib/api.js';
+import { readPrefs, writePrefs, zoomFactor, TEXT_SIZES } from './lib/prefs.js';
 import { useApp } from './state/AppState.jsx';
 import { useCart } from './state/Cart.jsx';
 import { useToast } from './ui/Toast.jsx';
@@ -46,6 +47,14 @@ function readPreference(key, fallback) {
   }
 }
 
+function removePreference(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (_) {
+    /* preferences are optional */
+  }
+}
+
 function writePreference(key, value) {
   try {
     localStorage.setItem(key, value);
@@ -80,9 +89,54 @@ export function App() {
   const [booted, setBooted] = useState(false);
   // Always opens in light mode; dark mode can be switched on for the current session.
   const [theme, setTheme] = useState('light');
-  const [collapsed, setCollapsed] = useState(() => readPreference('noorpos_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
+  // The menu folds to icons by itself when the window (or enlarged text) leaves too little room,
+  // unless someone has folded or opened it by hand.
+  const [collapsedChoice, setCollapsedChoice] = useState(() => readPreference('noorpos_sidebar_collapsed', null));
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 1200);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 1200);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const collapsed = collapsedChoice === null ? narrow : collapsedChoice === 'true';
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
   const [helpOpen, setHelpOpen] = useState(false);
+  const [textSize, setTextSize] = useState(() => readPrefs().textSize);
+
+  // Text size is real browser zoom, applied by the main process and remembered on this computer.
+  const firstTextSize = useRef(true);
+  useEffect(() => {
+    // A new text size changes how much fits, so the menu goes back to folding by itself.
+    if (firstTextSize.current) firstTextSize.current = false;
+    else {
+      setCollapsedChoice(null);
+      removePreference('noorpos_sidebar_collapsed');
+    }
+    writePrefs({ textSize });
+    call('app.setZoom', { factor: zoomFactor(textSize) }).catch((err) => console.error('Could not set text size', err));
+  }, [textSize]);
+
+  const stepTextSize = useCallback((step) => {
+    setTextSize((current) => {
+      const i = TEXT_SIZES.findIndex((t) => t.value === current);
+      const next = step === 0 ? 0 : Math.min(Math.max(i + step, 0), TEXT_SIZES.length - 1);
+      return TEXT_SIZES[next].value;
+    });
+  }, []);
+
+  // Ctrl + / Ctrl - / Ctrl 0 change the text size everywhere, also on the lock screen.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!e.ctrlKey || e.altKey) return;
+      if (e.key === '+' || e.key === '=') stepTextSize(1);
+      else if (e.key === '-' || e.key === '_') stepTextSize(-1);
+      else if (e.key === '0') stepTextSize(0);
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [stepTextSize]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -216,10 +270,9 @@ export function App() {
           <Sidebar
             collapsed={collapsed}
             onToggleCollapsed={() => {
-              setCollapsed((c) => {
-                writePreference('noorpos_sidebar_collapsed', String(!c));
-                return !c;
-              });
+              const next = String(!collapsed);
+              writePreference('noorpos_sidebar_collapsed', next);
+              setCollapsedChoice(next);
             }}
             theme={theme}
             onToggleTheme={() => {
@@ -228,6 +281,11 @@ export function App() {
             onLock={lock}
             onChangePin={() => setPinDialog({ forced: false })}
             onHelp={() => setHelpOpen(true)}
+            textSize={textSize}
+            onCycleTextSize={() =>
+              // Step from the current value, so quick repeated clicks each count.
+              setTextSize((current) => TEXT_SIZES[(TEXT_SIZES.findIndex((t) => t.value === current) + 1) % TEXT_SIZES.length].value)
+            }
           />
           <main className="min-w-0 flex-1 overflow-hidden">
             <Screen key={view} />

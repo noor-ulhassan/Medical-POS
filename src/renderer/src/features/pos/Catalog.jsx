@@ -305,15 +305,16 @@ export function Catalog() {
         </div>
       </div>
 
-      <div className="flex items-center gap-5 px-6 py-2.5 text-xs text-ink-3">
-        <span className="flex items-center gap-1">
+      <div className="flex items-center gap-5 whitespace-nowrap px-6 py-2.5 text-xs text-ink-3">
+        {/* Keyboard tips only where they fit on one line (they are also in Help). */}
+        <span className="hidden items-center gap-1 xl:flex">
           <kbd>↑</kbd>
           <kbd>↓</kbd> choose
         </span>
-        <span className="flex items-center gap-1">
+        <span className="hidden items-center gap-1 xl:flex">
           <kbd>Enter</kbd> add a unit
         </span>
-        <span className="flex items-center gap-1">
+        <span className="hidden items-center gap-1 xl:flex">
           <kbd>Shift</kbd>+<kbd>Enter</kbd> add a pack
         </span>
         <span className="num ml-auto">

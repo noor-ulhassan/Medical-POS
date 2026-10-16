@@ -10,6 +10,7 @@ import { Field, Input, Select, Textarea, Checkbox, Fieldset } from '../../ui/Fie
 import { Page, PageHeader, Panel, Tabs, Pill } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, EmptyRow } from '../../ui/Table.jsx';
 import { toCents, centsToInput, dateTime, fileSize } from '../../lib/format.js';
+import { readPrefs, writePrefs } from '../../lib/prefs.js';
 
 const ROLE_HELP = {
   Cashier: 'Sells, holds sales, reprints receipts and attaches prescriptions.',
@@ -344,6 +345,42 @@ function BackupTab() {
   );
 }
 
+// ------------------------------------------------------------------ this computer
+
+/** Printer behaviour belongs to the computer at the counter, so it is saved here, not in the shop data. */
+function ComputerTab() {
+  const { toast } = useToast();
+  const [prefs, setPrefs] = useState(readPrefs);
+  const set = (name) => (e) => {
+    setPrefs(writePrefs({ [name]: e.target.checked }));
+    toast('Saved for this computer');
+  };
+  return (
+    <div className="flex max-w-[880px] flex-col gap-5">
+      <Panel title="Receipts">
+        <div className="flex flex-col gap-4">
+          <div>
+            <Checkbox name="autoPrintReceipt" checked={prefs.autoPrintReceipt} onChange={set('autoPrintReceipt')} label="Print the receipt automatically after every sale" />
+            <p className="ml-7 mt-1 text-sm text-ink-3">Saves pressing Print for each customer.</p>
+          </div>
+          <div>
+            <Checkbox name="silentPrint" checked={prefs.silentPrint} onChange={set('silentPrint')} label="Print without showing the print window" />
+            <p className="ml-7 mt-1 text-sm text-ink-3">
+              Prints straight to this computer's default printer. Make your receipt printer the default printer in Windows (Settings, Printers) first.
+            </p>
+          </div>
+        </div>
+      </Panel>
+      <Panel title="Text size">
+        <p className="text-base text-ink-2">
+          Use the <strong>Aa</strong> button at the bottom of the menu to make all text larger or smaller, or press Ctrl and + / Ctrl and −. It is remembered on this
+          computer.
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ activity
 
 const ACTION_LABELS = {
@@ -444,7 +481,8 @@ export function SettingsView() {
     { value: 'store', label: 'Store details' },
     can('users.manage') && { value: 'staff', label: 'Staff and PINs' },
     can('backup.manage') && { value: 'backup', label: 'Backup and restore' },
-    can('users.manage') && { value: 'activity', label: 'Activity log' }
+    can('users.manage') && { value: 'activity', label: 'Activity log' },
+    { value: 'computer', label: 'This computer' }
   ].filter(Boolean);
 
   return (
@@ -455,6 +493,7 @@ export function SettingsView() {
       {tab === 'staff' && <StaffTab />}
       {tab === 'backup' && <BackupTab />}
       {tab === 'activity' && <ActivityTab />}
+      {tab === 'computer' && <ComputerTab />}
     </Page>
   );
 }

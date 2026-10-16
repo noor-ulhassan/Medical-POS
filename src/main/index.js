@@ -22,6 +22,11 @@ const isSmokeTest = process.env.NOORPOS_SMOKE === '1';
 // Dev/smoke runs use their own Chromium profile so they never touch a real install.
 if (process.env.NOORPOS_USER_DATA_DIR) app.setPath('userData', process.env.NOORPOS_USER_DATA_DIR);
 
+// Dates in day/month/year (as used in Pakistan), also in date boxes: with
+// Windows set to English (US), Chromium would show 10/16/2026 and an expiry
+// typed as 05/06/2027 would be saved as 6 May instead of 5 June.
+app.commandLine.appendSwitch('lang', 'en-GB');
+
 // Old 32-bit Windows PCs often have GPU drivers that render Chromium windows
 // blank; software rendering is the reliable default. NOORPOS_GPU=1 opts back in.
 if (process.env.NOORPOS_GPU !== '1') app.disableHardwareAcceleration();
@@ -110,9 +115,10 @@ function notifyRenderer(channel, payload) {
 
 const platform = {
   appInfo: () => ({ version: app.getVersion(), dataDir: ctx.paths.dataDir, isDev }),
-  print: () =>
+  /** `silent` prints straight to the default printer, without the print window. */
+  print: ({ silent = false } = {}) =>
     new Promise((resolve) => {
-      mainWindow.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+      mainWindow.webContents.print({ silent: Boolean(silent), printBackground: true }, (success, failureReason) => {
         resolve({ printed: success, reason: success ? null : failureReason });
       });
     }),
@@ -125,7 +131,12 @@ const platform = {
     });
     return canceled || filePaths.length === 0 ? null : filePaths[0];
   },
-  openFolder: (folder) => shell.openPath(folder).then((error) => ({ opened: !error }))
+  openFolder: (folder) => shell.openPath(folder).then((error) => ({ opened: !error })),
+  /** Real browser zoom (not CSS zoom), so layout, charts and mouse positions all scale together. */
+  setZoom: (factor) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.setZoomFactor(factor);
+    return { factor };
+  }
 };
 
 function createWindow() {

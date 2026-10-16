@@ -21,6 +21,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { useApp } from '../state/AppState.jsx';
+import { TEXT_SIZES } from '../lib/prefs.js';
 import { cx } from '../ui/cx.js';
 
 const GROUPS = [
@@ -61,7 +62,9 @@ const BADGE_TITLES = {
   expiring: (n) => `${n} medicines expire within 6 months (or have expired)`
 };
 
-export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, onLock, onChangePin, onHelp }) {
+export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, onLock, onChangePin, onHelp, textSize, onCycleTextSize }) {
+  const sizeIndex = Math.max(TEXT_SIZES.findIndex((t) => t.value === textSize), 0);
+  const nextSize = TEXT_SIZES[(sizeIndex + 1) % TEXT_SIZES.length];
   const { user, settings, view, go, can, alerts, saveProblem } = useApp();
 
   return (
@@ -200,6 +203,18 @@ export function Sidebar({ collapsed, onToggleCollapsed, theme, onToggleTheme, on
           >
             {saveProblem ? <TriangleAlert className="size-4" aria-hidden="true" /> : <Database className="size-4" aria-hidden="true" />}
           </span>
+          <button
+            type="button"
+            id="textSizeBtn"
+            onClick={onCycleTextSize}
+            title={`Text size: ${TEXT_SIZES[sizeIndex].label}. Click for ${nextSize.label.toLowerCase()} (or Ctrl + and Ctrl -)`}
+            aria-label={`Text size ${TEXT_SIZES[sizeIndex].label}. Change to ${nextSize.label}`}
+            className="flex h-8 min-w-8 items-center justify-center rounded-control px-1 text-ink-2 hover:bg-sunken hover:text-ink"
+          >
+            <span className="font-bold leading-none" style={{ fontSize: 12 + sizeIndex * 2 }} aria-hidden="true">
+              Aa
+            </span>
+          </button>
           <button
             type="button"
             id="themeToggleBtn"

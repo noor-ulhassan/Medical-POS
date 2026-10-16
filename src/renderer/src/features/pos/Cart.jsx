@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pause, FolderOpen, Trash2, X, Minus, Plus, Camera, CircleCheck, ScanBarcode } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
@@ -10,6 +10,43 @@ import { Select } from '../../ui/Field.jsx';
 import { Segmented, EmptyState } from '../../ui/display.jsx';
 import { money, readFileAsBase64 } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
+
+/**
+ * The quantity can be typed (30 tablets without 29 clicks). The typed value is
+ * applied on Enter or when leaving the box; anything invalid goes back to the
+ * current quantity.
+ */
+function QuantityInput({ line, index, onCommit }) {
+  const [text, setText] = useState(String(line.quantity));
+  useEffect(() => setText(String(line.quantity)), [line.quantity]);
+  const commit = () => {
+    const n = /^\d+$/.test(text.trim()) ? Number(text.trim()) : NaN;
+    if (!onCommit(index, n)) setText(String(line.quantity));
+  };
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      aria-label={`Quantity of ${line.product.title}`}
+      data-cart-qty
+      value={text}
+      onChange={(e) => setText(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+      onFocus={(e) => e.target.select()}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+          document.getElementById('posSearchInput')?.focus();
+        } else if (e.key === 'Escape') {
+          setText(String(line.quantity));
+          e.currentTarget.blur();
+        }
+      }}
+      className="num h-7 w-11 border-x border-foil-strong bg-surface text-center text-base font-bold text-ink outline-none focus:bg-teal-soft"
+    />
+  );
+}
 
 function CreditStatus({ customer }) {
   if (!customer) return null;
@@ -126,7 +163,7 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
                     <button type="button" data-cart-action="dec" aria-label="One less" onClick={() => cart.changeQuantity(index, -1)} className="flex size-7 items-center justify-center text-ink-2 hover:bg-sunken hover:text-ink">
                       <Minus className="size-3.5" aria-hidden="true" />
                     </button>
-                    <span className="num w-8 text-center text-base font-bold text-ink">{line.quantity}</span>
+                    <QuantityInput line={line} index={index} onCommit={cart.setQuantity} />
                     <button type="button" data-cart-action="inc" aria-label="One more" onClick={() => cart.changeQuantity(index, 1)} className="flex size-7 items-center justify-center text-ink-2 hover:bg-sunken hover:text-ink">
                       <Plus className="size-3.5" aria-hidden="true" />
                     </button>

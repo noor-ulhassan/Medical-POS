@@ -8,7 +8,7 @@ export const money = (cents) => formatCents(cents, 'Rs');
 export const centsToInput = (cents) => ((cents || 0) / 100).toFixed(2);
 
 export const dateTime = (iso) =>
-  iso ? new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  iso ? new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
 
 export const shortDate = (ymd) => {
   if (!ymd) return '';

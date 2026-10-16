@@ -40,6 +40,12 @@ function createSalesService(db, { files }) {
     if (!sale) throw notFound('Invoice not found');
     sale.items = db.all('SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id;', [id]);
     sale.void = db.get('SELECT * FROM void_sales WHERE sale_id = ? ORDER BY id DESC LIMIT 1;', [id]);
+    // For khata sales: what the customer owed right after this sale (printed on the receipt).
+    const entry =
+      sale.payment_method === 'CREDIT'
+        ? db.get("SELECT balance_after_cents FROM customer_ledger WHERE sale_id = ? AND type = 'SALE_CREDIT' ORDER BY id LIMIT 1;", [id])
+        : null;
+    sale.khata_balance_after_cents = entry ? entry.balance_after_cents : null;
     return sale;
   }
 

@@ -14,6 +14,7 @@ const GUIDES = [
       'Click Sell on the left (or press F1).',
       'Scan the barcode on the box, or type the medicine name and click it.',
       'To sell a whole pack instead of one tablet, click Pack on that line in the sale.',
+      'To change how many, click the number on that line and type it (for example 30), then press Enter.',
       'Click the green Charge button (or press F2).',
       'Type the cash the customer gave you. The screen shows the change to give back.',
       'Click Complete sale, then Print receipt.'
@@ -106,6 +107,22 @@ const GUIDES = [
     steps: [
       'The software saves every sale immediately and makes a backup every day by itself.',
       'Once a week: Settings, Backup and restore, Open data folder, and copy the Backups folder to a USB drive.'
+    ]
+  },
+  {
+    title: 'Make the writing bigger',
+    steps: [
+      'Click the Aa button at the bottom of the menu. Each click makes the text bigger, then back to normal.',
+      'Or hold Ctrl and press + (bigger) or − (smaller). Ctrl and 0 goes back to normal.'
+    ]
+  },
+  {
+    title: 'Print receipts automatically',
+    permission: 'settings.manage',
+    steps: [
+      'Open Settings, then This computer.',
+      'Tick "Print the receipt automatically after every sale".',
+      'To skip the print window too, make the receipt printer the default printer in Windows, then tick "Print without showing the print window".'
     ]
   },
   {

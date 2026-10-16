@@ -127,3 +127,26 @@ test('held sales list says whose sale it is and how many lines it has', async ()
   assert.equal(held.item_count, 2);
   assert.equal(held.cart_json, undefined);
 });
+
+test('khata receipts carry the balance right after the sale; cash sales do not', async () => {
+  const app = await createTestApp();
+  await loginAs(app, 'Manager');
+  app.ctx.db.transaction(() => app.ctx.db.run('UPDATE settings SET pos_fee_cents = 0, tax_rate_percent = 0;'));
+  const product = addProduct(app.ctx, { singlePriceCents: 250 });
+  const customer = ok(await app.call('customers.save', { name: 'Khata', creditLimitCents: 100000 }));
+  const line = [{ productId: product.id, unitType: 'SINGLE', quantity: 2 }];
+  const first = ok(await app.call('sales.checkout', { lines: line, paymentMethod: 'CREDIT', customerId: customer.id }));
+  const second = ok(await app.call('sales.checkout', { lines: line, paymentMethod: 'CREDIT', customerId: customer.id }));
+  assert.equal(first.khata_balance_after_cents, 500);
+  assert.equal(second.khata_balance_after_cents, 1000);
+  ok(await app.call('customers.recordPayment', { customerId: customer.id, amountCents: 300 }));
+  assert.equal(ok(await app.call('sales.get', { id: first.id })).khata_balance_after_cents, 500, 'a reprint shows the balance at the time');
+  const cash = ok(await app.call('sales.checkout', { lines: line, paymentMethod: 'CASH' }));
+  assert.equal(cash.khata_balance_after_cents, null);
+});
+
+test('text size accepts only the offered sizes and works on the lock screen', async () => {
+  const app = await createTestApp();
+  assert.equal(ok(await app.call('app.setZoom', { factor: 1.15 })).factor, 1.15);
+  assert.equal((await app.call('app.setZoom', { factor: 5 })).error.code, 'VALIDATION');
+});

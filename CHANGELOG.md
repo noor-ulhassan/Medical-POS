@@ -15,6 +15,16 @@ Fixes that protect money and stock, and a simpler interface for an owner who is 
 - Editing a product's stock now shows exactly how the stock will change before saving.
 - Cash checkout: cannot complete when the cash received is short; quick-cash buttons now suggest amounts above the total; khata sales over the limit are explained before submitting.
 
+### Easier on any shop computer
+- Dates are day/month/year everywhere, including date boxes (Windows in English (US) showed 10/16/2026, so an expiry typed as 05/06/2027 was saved as 6 May). Times are 12-hour.
+- Text size: the Aa button at the bottom of the menu, or Ctrl + / Ctrl - / Ctrl 0, makes everything larger (Normal, Large, Larger); remembered on the computer. The menu folds to icons by itself when space is short.
+- Settings, This computer: print the receipt automatically after every sale, and print straight to the default printer without the print window. A print that fails now says so instead of failing silently.
+- The quantity on a cart line can be typed (30 tablets no longer takes 29 clicks), with the same stock check as the + button.
+- Fixed: scrolling the mouse wheel over a focused number box (cash received, prices) changed its value.
+- Fixed: a stray Enter (or a barcode scanner's Enter) on a "Clear this sale?" or "Delete?" question confirmed it; the safe answer now has focus.
+- Fixed: quotations left out sales tax and the receipt fee, so the quote was lower than the bill; they now use the same calculation as the till.
+- Khata receipts show the customer's balance right after the sale.
+
 ### Profit, expenses and reports
 - New Profit & loss screen: net sales, cost of medicines sold, gross profit and margin, markup, expenses, expired stock written off and net profit, for today, the last 7 days, this or last month, the last 3 months, this year or any dates. Charts (Recharts) for sales and profit over time and expenses by type, gross profit by category, the most profitable medicines, a profit and loss statement whose lines always add up, and a per-day/per-month table.
 - Every sale now records the cost of each line at the moment of sale, so later cost changes never rewrite past profit. Sales made before this version, or of medicines with no cost price, are never guessed: they are left out of profit and the screen says how many and how much.

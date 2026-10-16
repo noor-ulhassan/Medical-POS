@@ -105,6 +105,15 @@
     type(input, '');
   });
 
+  await step('quantity can be typed in the sale', async () => {
+    const qty = $('#cartItemsList [data-cart-qty]');
+    const before = text('#summaryTotal');
+    qty.focus();
+    type(qty, '3');
+    qty.blur();
+    await waitFor('quantity applied', () => $('#cartItemsList [data-cart-qty]').value === '3' && text('#summaryTotal') !== before);
+  });
+
   await step('checkout prints a receipt with a sequential invoice', async () => {
     $('#btnOpenCheckoutModal').click();
     await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
@@ -143,8 +152,23 @@
     $('#modalCheckoutPayment button[aria-label="Close"]').click();
     $('#btnClearCart').click();
     await waitFor('confirm', () => exists('modalConfirm'));
+    await waitFor('safe answer focused', () => document.activeElement && document.activeElement.textContent.trim() === 'Cancel');
     $('#confirmYes').click();
     await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
+  });
+
+  await step('dates are day/month/year', async () => {
+    const locale = new Intl.DateTimeFormat().resolvedOptions().locale;
+    if (!locale.startsWith('en-GB')) throw new Error(`locale is ${locale}`);
+  });
+
+  await step('text size button makes everything bigger and back', async () => {
+    const before = window.devicePixelRatio;
+    $('#textSizeBtn').click();
+    await waitFor('zoomed in', () => window.devicePixelRatio > before);
+    $('#textSizeBtn').click();
+    $('#textSizeBtn').click();
+    await waitFor('back to normal', () => Math.abs(window.devicePixelRatio - before) < 0.01);
   });
 
   const views = ['dashboardView', 'profitView', 'expensesView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];

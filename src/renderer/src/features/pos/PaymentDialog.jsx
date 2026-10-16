@@ -10,6 +10,7 @@ import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button } from '../../ui/Button.jsx';
 import { money, toCents, centsToInput } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
+import { readPrefs } from '../../lib/prefs.js';
 
 const METHODS = [
   { value: 'CASH', label: 'Cash', icon: Banknote },
@@ -105,7 +106,7 @@ export function PaymentDialog() {
       });
       cart.setPaymentOpen(false);
       cart.clear();
-      showReceipt(sale);
+      showReceipt(sale, { autoPrint: readPrefs().autoPrintReceipt });
       await Promise.all([loadProducts(), loadCustomers()]);
       refreshAlerts();
     } finally {
