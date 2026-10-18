@@ -11,7 +11,7 @@ import { Button, IconButton } from '../../ui/Button.jsx';
 import { Field, Textarea } from '../../ui/Field.jsx';
 import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, Pagination } from '../../ui/Table.jsx';
-import { money, dateTime, readFileAsBase64 } from '../../lib/format.js';
+import { money, dateTime, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
 
 const PAGE_SIZE = 25;
 const METHOD_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wallet', CREDIT: 'Khata' };
@@ -145,7 +145,7 @@ export function SalesView() {
     <Page id="salesView">
       <PageHeader title="Sales history" description="Every sale made on this computer. Reprint a receipt, attach a prescription, or cancel a sale when items are returned." actions={<Button icon={RefreshCw} onClick={load}>Refresh</Button>} />
       <SearchInput id="salesSearchInput" icon={Search} value={search} onChange={setSearch} placeholder="Search by invoice number or customer" className="w-[360px]" />
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" id="invoiceRxFileInput" onChange={attachRx} />
+      <input ref={fileRef} type="file" accept={PRESCRIPTION_FILE_TYPES} className="hidden" id="invoiceRxFileInput" onChange={attachRx} />
       <div className="overflow-hidden rounded-panel border border-foil bg-surface">
         {result && rows.length === 0 ? (
           <EmptyState icon={ReceiptText} title={query ? 'No sales match' : 'No sales yet'}>

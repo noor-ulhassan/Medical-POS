@@ -29,7 +29,8 @@ function initialValues(product) {
       salePrice: '',
       singlePrice: '',
       allowNegativeStock: false,
-      prescriptionRequired: false
+      prescriptionRequired: false,
+      stockChangeReason: ''
     };
   }
   return {
@@ -49,9 +50,17 @@ function initialValues(product) {
     salePrice: centsToInput(product.sale_price_cents),
     singlePrice: centsToInput(product.single_price_cents),
     allowNegativeStock: product.allow_negative_stock === 1,
-    prescriptionRequired: product.is_prescription_required === 1
+    prescriptionRequired: product.is_prescription_required === 1,
+    stockChangeReason: ''
   };
 }
+
+/** Why there is less stock than before: only damage and loss cost the shop money (they show in Profit & loss). */
+const STOCK_DECREASE_REASONS = [
+  { value: 'MISTAKE', label: 'The old number was a counting or typing mistake' },
+  { value: 'DAMAGED', label: 'Damaged or broken (counted as a loss)' },
+  { value: 'LOST', label: 'Lost or missing (counted as a loss)' }
+];
 
 function cents(value, label) {
   const c = toCents(value);
@@ -116,7 +125,8 @@ export function ProductDialog({ product, onClose }) {
       salePriceCents: cents(v.salePrice, 'Sale price'),
       singlePriceCents: cents(v.singlePrice, 'Unit price'),
       allowNegativeStock: v.allowNegativeStock,
-      prescriptionRequired: v.prescriptionRequired
+      prescriptionRequired: v.prescriptionRequired,
+      stockChangeReason: v.stockChangeReason || undefined
     });
     onClose();
     toast(`${saved.title} saved`);
@@ -125,6 +135,7 @@ export function ProductDialog({ product, onClose }) {
   });
 
   const totalUnits = Number(v.stockPacks || 0) * Number(v.packSize || 0) + Number(v.stockSingles || 0);
+  const stockGoesDown = !isNew && Number.isFinite(totalUnits) && totalUnits < Number(v.originalStockUnits);
   const margin = toCents(v.salePrice) - toCents(v.costPrice);
   const addCatalog = can('catalog.manage') && <IconButton icon={Plus} label="Add a category or supplier" data-action="manage-catalog" onClick={() => setCatalogOpen(true)} className="border border-foil-strong" />;
 
@@ -206,6 +217,18 @@ export function ProductDialog({ product, onClose }) {
                   Stock will change by {totalUnits > Number(v.originalStockUnits) ? '+' : ''}
                   {plural(totalUnits - Number(v.originalStockUnits), 'unit')} (from {v.originalStockUnits} to {totalUnits}). To add a new delivery, use Receive stock instead.
                 </p>
+              )}
+              {stockGoesDown && (
+                <Field label="Why is there less stock?" className="mt-3">
+                  <Select name="stockChangeReason" value={v.stockChangeReason} onChange={set('stockChangeReason')} required>
+                    <option value="">Choose a reason…</option>
+                    {STOCK_DECREASE_REASONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
               )}
             </Fieldset>
 

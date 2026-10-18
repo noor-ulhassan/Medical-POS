@@ -15,8 +15,8 @@ Maintained by **Noor ul Hassan** (noorulhassan01.dev@gmail.com).
 | **Expiry center** | Stock expiring within 30/90/180 days, write-off of expired stock |
 | **Restock** | Low/out-of-stock lists per supplier and printable purchase orders |
 | **Sales log** | Search, reprint, re-order into cart, void (restores stock and khata), prescription images |
-| **Users** | PIN login, Admin / Manager / Cashier roles enforced by the app, forced PIN change, lockout after wrong PINs, audit log |
-| **Data safety** | Every change is saved immediately with crash-safe writes, daily automatic backups (14 kept), backups before every restore/reset/upgrade, damaged files are never overwritten |
+| **Users** | PIN login, Admin / Manager / Cashier roles enforced by the app, forced PIN change, lockout after wrong PINs (kept after a restart), automatic lock when the till is left unused, a discount limit for cashiers, audit log of logins, discounts, stock changes and prices |
+| **Data safety** | Every change is saved immediately with crash-safe writes, daily automatic backups (14 kept), backups before every restore/reset/upgrade, a copy of every backup and prescription photo on a USB drive or cloud folder, damaged files are never overwritten |
 
 ## Install
 
@@ -28,8 +28,8 @@ Download the installer from this repository's **Releases** page and run it.
 
 | Role | Can do |
 | --- | --- |
-| Cashier | Sell, hold carts, reprint receipts, attach prescriptions, view stock and customers, make quotations |
-| Manager | Everything a cashier can, plus inventory, suppliers, khata accounts and payments, voids, write-offs, dashboard, restock |
+| Cashier | Sell (discounts up to the limit the owner sets, 10% unless changed), hold carts, reprint receipts, attach prescriptions, view stock and customers, make quotations |
+| Manager | Everything a cashier can, plus any discount, inventory, suppliers, khata accounts and payments, voids, write-offs, dashboard, restock |
 | Admin | Everything, plus store settings, users, backup/restore and factory reset |
 
 ### Where data lives
@@ -42,7 +42,7 @@ Backups\            automatic and manual backups (.db)
 Prescriptions\      attached prescription images
 ```
 
-Copy the `Backups` folder to a USB drive or cloud folder regularly. To restore, use **Settings → Restore From Backup**.
+Under **Settings → Backup and restore → Choose a USB drive or cloud folder**, pick a USB drive that stays plugged in, or a OneDrive / Google Drive folder. Every backup and prescription photo is then also copied to its `Noor Pharmacy POS backups` folder (retried every hour); Today's report warns when the copy fails or was never set up. To restore, use **Settings → Restore a backup**.
 
 ### Why not the Documents folder?
 

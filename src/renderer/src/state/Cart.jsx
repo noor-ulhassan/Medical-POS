@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { useApp } from './AppState.jsx';
 import { useToast } from '../ui/Toast.jsx';
-import { computeTotals, lineUnits, toCents, unitPriceCents, expiryStatus, shortDate } from '../lib/format.js';
+import { computeTotals, lineUnits, toCents, unitPriceCents, expiryStatus, shortDate, discountWithinLimit } from '../lib/format.js';
 
 /**
  * The sale being built at the counter. Lives above the screens so it
@@ -12,8 +12,13 @@ export const WALK_IN_ID = 1;
 
 const CartContext = createContext(null);
 
+const noPriceMessage = (product, unitType) => {
+  const by = unitType === 'PACK' ? 'pack' : 'unit';
+  return `${product.title} has no price per ${by}, so it cannot be sold by the ${by}. Set the price under Medicines & stock.`;
+};
+
 export function CartProvider({ children }) {
-  const { settings, productById } = useApp();
+  const { settings, productById, can } = useApp();
   const { toast } = useToast();
   const [lines, setLines] = useState([]);
   const [customerId, setCustomerId] = useState(WALK_IN_ID);
@@ -48,6 +53,10 @@ export function CartProvider({ children }) {
     [priced, discount, settings.tax_rate_percent, settings.pos_fee_cents]
   );
 
+  // Same rule as the main process: above this share of the bill a manager must complete the sale.
+  const discountLimitPercent = settings.cashier_max_discount_percent;
+  const discountNeedsManager = !can('sales.discountAnyAmount') && !discountWithinLimit(totals.discountCents, totals.subtotalCents, discountLimitPercent);
+
   const unitsInCart = (list, productId, override) =>
     list.reduce((sum, line, i) => {
       if (line.productId !== productId) return sum;
@@ -66,6 +75,11 @@ export function CartProvider({ children }) {
         if (!quiet) {
           toast(`${product.title} expired on ${shortDate(product.expiry_date)} and cannot be sold. Take it off the shelf.`, 'error');
         }
+        return false;
+      }
+      // Nor is anything without a price (it would be given away).
+      if (!(unitPriceCents(product, unitType) > 0)) {
+        if (!quiet) toast(noPriceMessage(product, unitType), 'error');
         return false;
       }
       const current = linesRef.current;
@@ -117,6 +131,10 @@ export function CartProvider({ children }) {
     const line = lines[index];
     if (!line || line.unitType === unitType) return;
     const product = productById(line.productId);
+    if (product && !(unitPriceCents(product, unitType) > 0)) {
+      toast(noPriceMessage(product, unitType), 'error');
+      return;
+    }
     if (product && !fits(product, unitsInCart(lines, product.id, { index, unitType }))) {
       toast(`Not enough stock to sell ${product.title} by the ${unitType === 'PACK' ? 'pack' : 'unit'}`, 'error');
       return;
@@ -165,7 +183,11 @@ export function CartProvider({ children }) {
   const value = {
     lines,
     priced,
+    /** The lines to send to the main process: only those still shown (a product removed elsewhere drops out). */
+    saleLines: priced.map(({ productId, unitType, quantity }) => ({ productId, unitType, quantity })),
     totals,
+    discountLimitPercent,
+    discountNeedsManager,
     customerId,
     setCustomerId,
     discount,

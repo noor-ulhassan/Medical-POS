@@ -7,7 +7,7 @@ import { useToast } from '../../ui/Toast.jsx';
 import { useDocuments, LedgerStatement } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
-import { Field, Input } from '../../ui/Field.jsx';
+import { Field, Input, Select } from '../../ui/Field.jsx';
 import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, Pagination, paginate } from '../../ui/Table.jsx';
 import { money, toCents, centsToInput } from '../../lib/format.js';
@@ -68,22 +68,32 @@ function CustomerDialog({ customer, onClose }) {
   );
 }
 
+/** Only cash goes into the drawer, so Today's report needs to know how the customer paid. */
+const KHATA_PAYMENT_METHODS = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CARD', label: 'Card' },
+  { value: 'MOBILE WALLET', label: 'Mobile wallet' },
+  { value: 'BANK', label: 'Bank transfer' }
+];
+
 function PaymentDialog({ customer, onClose }) {
   const { loadCustomers } = useApp();
   const { toast, guard } = useToast();
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
+  const [method, setMethod] = useState('CASH');
 
   useEffect(() => {
     setAmount('');
     setNotes('');
+    setMethod('CASH');
   }, [customer]);
 
   const submit = guard(async (e) => {
     e.preventDefault();
     const cents = toCents(amount);
     if (Number.isNaN(cents) || cents <= 0) throw new Error('Enter the amount received');
-    const { customer: updated, balanceCents } = await call('customers.recordPayment', { customerId: customer.id, amountCents: cents, notes });
+    const { customer: updated, balanceCents } = await call('customers.recordPayment', { customerId: customer.id, amountCents: cents, notes, paymentMethod: method });
     onClose();
     toast(`${money(cents)} received from ${updated.name}. Still owes ${money(balanceCents)}.`);
     await loadCustomers();
@@ -107,6 +117,15 @@ function PaymentDialog({ customer, onClose }) {
           )}
           <Field label="Amount received (Rs)">
             <Input numeric type="number" name="amount" value={amount} onChange={(e) => setAmount(e.target.value)} step="0.01" min="0.01" required className="!h-12 !text-xl font-bold" />
+          </Field>
+          <Field label="Paid by" help="Only cash is counted in the cash that should be in the drawer.">
+            <Select name="paymentMethod" value={method} onChange={(e) => setMethod(e.target.value)}>
+              {KHATA_PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field label="Note">
             <Input name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={250} placeholder="e.g. Paid in cash at the counter" />

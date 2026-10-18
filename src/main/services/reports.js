@@ -78,6 +78,17 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         "SELECT COALESCE(SUM(credit_cents), 0) FROM customer_ledger WHERE type = 'PAYMENT_RECEIVED' AND created_at >= ? AND created_at < ?;",
         [today.start, today.end]
       );
+      // Only khata payments taken in cash are in the drawer (payments from before methods were recorded count as cash).
+      const todayKhataCashPaymentsCents = db.value(
+        `SELECT COALESCE(SUM(credit_cents), 0) FROM customer_ledger
+         WHERE type = 'PAYMENT_RECEIVED' AND (payment_method IS NULL OR payment_method = 'CASH') AND created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
+      const todayDiscounts = db.get(
+        `SELECT COUNT(*) AS count, COALESCE(SUM(discount_cents), 0) AS total_cents
+         FROM sales WHERE status = 'COMPLETED' AND discount_cents > 0 AND created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
       const todayVoids = db.get(
         `SELECT COUNT(*) AS count, COALESCE(SUM(s.total_cents), 0) AS total_cents
          FROM void_sales v JOIN sales s ON s.id = v.sale_id
@@ -99,17 +110,35 @@ function createReportsService(db, { now = () => new Date() } = {}) {
       );
 
       const alerts = this.alertCounts();
+      const copy = db.get('SELECT backup_copy_dir, backup_copy_last_at, backup_copy_last_error FROM settings WHERE id = 1;');
+      // Many wrong PINs in a day means someone may be trying to guess one.
+      const wrongPinsToday = db.value(
+        `SELECT COUNT(*) FROM audit_log
+         WHERE action IN ('auth.login_failed', 'auth.pin_taken', 'auth.pin_change_failed') AND created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
       return {
         today: {
           byMethod: todayByMethod,
           cashSalesCents: todayCashSalesCents,
           khataPaymentsCents: todayKhataPaymentsCents,
+          khataCashPaymentsCents: todayKhataCashPaymentsCents,
           cashRefundsCents: todayCashRefundsCents,
           drawerExpensesCents: todayDrawerExpensesCents,
-          expectedCashCents: todayCashSalesCents + todayKhataPaymentsCents - todayCashRefundsCents - todayDrawerExpensesCents,
+          expectedCashCents: todayCashSalesCents + todayKhataCashPaymentsCents - todayCashRefundsCents - todayDrawerExpensesCents,
           voidCount: todayVoids.count,
-          voidTotalCents: todayVoids.total_cents
+          voidTotalCents: todayVoids.total_cents,
+          discountCount: todayDiscounts.count,
+          discountCents: todayDiscounts.total_cents
         },
+        // So the owner sees on the daily screen when backups exist only on this computer.
+        backupCopy: {
+          dir: copy.backup_copy_dir,
+          lastAt: copy.backup_copy_last_at,
+          lastError: copy.backup_copy_last_error,
+          daysSinceCopy: copy.backup_copy_last_at ? Math.floor((now() - new Date(copy.backup_copy_last_at)) / 86400000) : null
+        },
+        wrongPinsToday,
         totalRevenueCents: all.total,
         totalInvoices: all.count,
         todayRevenueCents: todays.total,
@@ -149,7 +178,8 @@ function createReportsService(db, { now = () => new Date() } = {}) {
      *   cost of goods = the cost recorded on each sale line when it was sold
      *   gross profit  = net sales - cost of goods, over sales whose every line has
      *                   a known cost; any other sale is left out and disclosed
-     *   net profit    = gross profit - expenses - stock written off (at cost)
+     *   net profit    = gross profit - expenses - stock written off (expired,
+     *                   damaged or lost; at cost)
      * Cancelled (voided) sales and deleted expenses are excluded. The chart
      * series are built from the same rows as the totals, so they always add up.
      */
@@ -246,8 +276,9 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         byCategory.set(row.category, c);
       }
 
+      // Expired stock written off, and stock recorded as damaged or lost when correcting a count.
       const writeOffs = db.all(
-        "SELECT created_at, value_cents FROM stock_adjustments WHERE kind = 'WRITE_OFF' AND created_at >= ? AND created_at < ?;",
+        "SELECT created_at, value_cents FROM stock_adjustments WHERE kind IN ('WRITE_OFF', 'LOSS') AND created_at >= ? AND created_at < ?;",
         [start, end]
       );
       for (const w of writeOffs) {

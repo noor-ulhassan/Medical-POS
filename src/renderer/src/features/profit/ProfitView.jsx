@@ -137,7 +137,7 @@ function NetProfitHero({ s }) {
       <div className="w-full max-w-[420px] space-y-1 text-base" aria-label="How net profit is worked out">
         {part('Gross profit', s.grossProfitCents, '')}
         {part('Expenses', s.expensesCents, '−')}
-        {part('Expired stock written off', s.writeOffCents, '−')}
+        {part('Stock written off (expired, damaged, lost)', s.writeOffCents, '−')}
         <div className="flex items-baseline gap-2 border-t border-foil pt-1 font-bold">
           <span className="w-3 text-ink-3">=</span>
           <span className="text-ink">Net profit</span>
@@ -450,7 +450,7 @@ export function ProfitView() {
               id="profitExpenses"
               label="Expenses"
               value={money(s.expensesCents)}
-              note={s.writeOffCents > 0 ? `+ ${money(s.writeOffCents)} expired stock written off` : plural(s.expenseCount, 'entry', 'entries')}
+              note={s.writeOffCents > 0 ? `+ ${money(s.writeOffCents)} stock written off` : plural(s.expenseCount, 'entry', 'entries')}
             />
           </div>
 
@@ -491,7 +491,7 @@ export function ProfitView() {
                 <StatementRow sign="−" label="Cost of medicines sold" value={s.cogsCents} />
                 <StatementRow strong label="Gross profit" note={percentText(s.grossMarginPct)} value={s.grossProfitCents} />
                 <StatementRow sign="−" label="Expenses" value={s.expensesCents} />
-                <StatementRow sign="−" label="Expired stock written off" note="(at cost)" value={s.writeOffCents} />
+                <StatementRow sign="−" label="Stock written off: expired, damaged or lost" note="(at cost)" value={s.writeOffCents} />
                 <StatementRow strong label="Net profit" note={percentText(s.netMarginPct)} value={s.netProfitCents} id="stmtNetProfit" />
                 <div className="mt-3 rounded-control bg-sunken px-3 py-2.5 text-sm text-ink-2">
                   Customers paid <strong className="num text-ink">{money(s.collectedCents)}</strong> in total. That includes{' '}

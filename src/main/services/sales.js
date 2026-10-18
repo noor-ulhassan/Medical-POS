@@ -3,7 +3,17 @@
 const v = require('../lib/validate');
 const { AppError, ErrorCodes, notFound, conflict, validationError } = require('../lib/errors');
 const { nowIso, localDateString } = require('../lib/dates');
-const { UNIT_TYPES, DISCOUNT_TYPES, lineUnits, unitPriceCents, costOfUnitsCents, computeTotals } = require('../../shared/pricing');
+const {
+  UNIT_TYPES,
+  DISCOUNT_TYPES,
+  lineUnits,
+  unitPriceCents,
+  costOfUnitsCents,
+  computeTotals,
+  discountWithinLimit,
+  formatCents
+} = require('../../shared/pricing');
+const { can } = require('../../shared/permissions');
 const { WALK_IN_CUSTOMER_ID } = require('../db/seed');
 const { postLedgerEntry } = require('./customers');
 const { recordAudit } = require('./audit');
@@ -78,11 +88,20 @@ function createSalesService(db, { files }) {
             'If you have newer stock, update its expiry date under Medicines & stock.'
         );
       }
+      // A price left at 0 would give the medicine away.
+      const priceCents = unitPriceCents(product, line.unitType);
+      if (!(priceCents > 0)) {
+        const by = line.unitType === 'PACK' ? 'pack' : 'unit';
+        throw new AppError(
+          ErrorCodes.NO_PRICE,
+          `"${product.title}" has no price per ${by}, so it cannot be sold by the ${by}. Set the price under Medicines & stock.`
+        );
+      }
       const units = lineUnits(line.unitType, line.quantity, product.pack_size);
       unitsByProduct.set(product.id, (unitsByProduct.get(product.id) || 0) + units);
       // Cost is captured now, at the price paid for this stock, so later cost changes never rewrite past profit.
       const costCents = costOfUnitsCents(product.cost_price_cents, units, product.pack_size);
-      return { ...line, product, units, priceCents: unitPriceCents(product, line.unitType), costCents };
+      return { ...line, product, units, priceCents, costCents };
     });
 
     for (const [productId, units] of unitsByProduct) {
@@ -138,6 +157,15 @@ function createSalesService(db, { files }) {
           taxRatePercent: settings.tax_rate_percent,
           posFeeCents: settings.pos_fee_cents
         });
+
+        const discountLimit = settings.cashier_max_discount_percent;
+        if (!can(actor.role, 'sales.discountAnyAmount') && !discountWithinLimit(totals.discountCents, totals.subtotalCents, discountLimit)) {
+          throw new AppError(
+            ErrorCodes.DISCOUNT_LIMIT,
+            `A discount of ${formatCents(totals.discountCents)} on this bill needs a manager (a cashier can give up to ${discountLimit}%). ` +
+              'Lower the discount, or press F12 and let a manager log in: the sale stays in the cart.'
+          );
+        }
 
         let paidCents = 0;
         let changeCents = 0;
@@ -196,6 +224,16 @@ function createSalesService(db, { files }) {
             notes: `Invoice ${invoiceNo} credit purchase`
           });
         }
+        // Discounts are money given away, so the owner can see who gave which.
+        if (totals.discountCents > 0) {
+          recordAudit(db, actor, 'sales.discount', {
+            saleId: id,
+            invoiceNo,
+            discountCents: totals.discountCents,
+            subtotalCents: totals.subtotalCents,
+            percent: Math.round((totals.discountCents / totals.subtotalCents) * 1000) / 10
+          });
+        }
         return id;
       });
 
@@ -207,8 +245,10 @@ function createSalesService(db, { files }) {
       const pageSize = v.integer(data.pageSize || 25, 'Page size', { min: 1, max: 200 });
       const page = v.integer(data.page || 1, 'Page', { min: 1 });
       const search = v.string(data.search, 'Search', { max: 100 });
-      const where = search ? 'WHERE invoice_no LIKE ? OR customer_name LIKE ?' : '';
-      const params = search ? [`%${search}%`, `%${search}%`] : [];
+      // % and _ typed in the box are searched for literally.
+      const pattern = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const where = search ? "WHERE invoice_no LIKE ? ESCAPE '\\' OR customer_name LIKE ? ESCAPE '\\'" : '';
+      const params = search ? [pattern, pattern] : [];
       const total = db.value(`SELECT COUNT(*) FROM sales ${where};`, params);
       const rows = db.all(`SELECT * FROM sales ${where} ORDER BY id DESC LIMIT ? OFFSET ?;`, [...params, pageSize, (page - 1) * pageSize]);
       return { rows, total, page, pageSize };

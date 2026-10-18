@@ -80,6 +80,16 @@
   }
 
   /**
+   * True when a bill discount is no more than `limitPercent` of the subtotal.
+   * Compared with the rounded allowance, so a 10% discount always passes a 10% limit.
+   */
+  function discountWithinLimit(discountCentsValue, subtotalCents, limitPercent) {
+    if (!discountCentsValue) return true;
+    const limit = Math.min(Math.max(Number(limitPercent) || 0, 0), 100);
+    return discountCentsValue <= Math.round((subtotalCents * limit) / 100);
+  }
+
+  /**
    * Compute receipt totals.
    * @param {object} input
    * @param {{priceCents:number, quantity:number}[]} input.lines
@@ -114,6 +124,7 @@
     costOfUnitsCents,
     unitPriceCents,
     discountCents,
+    discountWithinLimit,
     computeTotals
   };
 });

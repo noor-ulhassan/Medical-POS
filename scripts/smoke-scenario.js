@@ -105,6 +105,27 @@
     type(input, '');
   });
 
+  await step('a scan right after an arrow-key pick adds the scanned medicine, not the picked one', async () => {
+    const input = $('#posSearchInput');
+    const qty = (title) => {
+      const line = [...document.querySelectorAll('#cartItemsList .cart-item')].find((li) => li.textContent.includes(title) && li.textContent.includes('per unit'));
+      return line ? Number(line.querySelector('[data-cart-qty]').value) : 0;
+    };
+    type(input, 'Atorvastatin');
+    await sleep(150);
+    key(input, 'ArrowDown');
+    await waitFor('row highlighted', () => $('#productGrid [aria-selected="true"]'));
+    key(input, 'Enter');
+    await waitFor('picked unit', () => qty('Atorvastatin') === 1);
+    if (input.selectionStart !== 0 || input.selectionEnd !== input.value.length) throw new Error('search text is not selected for the next scan');
+    // A scanner replaces the selected text and presses Enter well within the search debounce.
+    const paracetamol = qty('Paracetamol');
+    type(input, '2000000000022');
+    key(input, 'Enter');
+    await waitFor('scanned paracetamol', () => qty('Paracetamol') === paracetamol + 1);
+    if (qty('Atorvastatin') !== 1) throw new Error(`the picked medicine was added again (x${qty('Atorvastatin')})`);
+  });
+
   await step('quantity can be typed in the sale', async () => {
     const qty = $('#cartItemsList [data-cart-qty]');
     const before = text('#summaryTotal');

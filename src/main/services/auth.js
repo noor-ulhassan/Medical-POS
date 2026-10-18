@@ -11,6 +11,11 @@ const { recordAudit } = require('./audit');
 const MAX_FAILED_ATTEMPTS = 5;
 const BASE_LOCKOUT_MS = 30 * 1000;
 const MAX_LOCKOUT_MS = 5 * 60 * 1000;
+/** Wrong PINs are forgotten only after an hour without one (logging in does not reset them). */
+const FAILURE_WINDOW_MS = 60 * 60 * 1000;
+/** Tries at changing one's own PIN (any outcome) allowed per user in 24 hours. */
+const MAX_PIN_CHANGES_PER_DAY = 5;
+const PIN_CHANGE_ACTIONS = ['auth.pin_changed', 'auth.pin_taken', 'auth.pin_change_failed'];
 
 function toPublicUser(row) {
   return {
@@ -24,8 +29,62 @@ function toPublicUser(row) {
 }
 
 function createAuthService(db, { now = () => Date.now() } = {}) {
-  let failedAttempts = 0;
-  let lockedUntil = 0;
+  /*
+   * Wrong-PIN lockout. Login is PIN-only, so PINs are unique and every member
+   * of staff can log in: if a correct login reset the count, a cashier could
+   * guess a few PINs, log in as themselves, and guess again for ever. So the
+   * count only fades after an hour without a wrong PIN, and it is kept in the
+   * settings row so that restarting the app does not reset it either. Wrong
+   * guesses made through "change my PIN" count too ("this PIN is already used"
+   * reveals another user's PIN just like a login does).
+   */
+  function lockoutRow() {
+    return (
+      db.get(
+        'SELECT login_failed_attempts AS attempts, login_locked_until_ms AS until, login_last_failure_ms AS last FROM settings WHERE id = 1;'
+      ) || { attempts: 0, until: 0, last: 0 }
+    );
+  }
+
+  function saveLockout(attempts, until, last) {
+    db.run('UPDATE settings SET login_failed_attempts = ?, login_locked_until_ms = ?, login_last_failure_ms = ? WHERE id = 1;', [
+      attempts,
+      until,
+      last
+    ]);
+  }
+
+  /** Throws LOCKED_OUT while the keypad is locked. */
+  function assertNotLockedOut() {
+    const { attempts, until, last } = lockoutRow();
+    let remaining = until - now();
+    if (remaining > MAX_LOCKOUT_MS) {
+      // The PC clock was moved back: never lock for longer than the maximum.
+      remaining = MAX_LOCKOUT_MS;
+      db.transaction(() => saveLockout(attempts, now() + MAX_LOCKOUT_MS, last));
+    }
+    if (remaining > 0) {
+      throw new AppError(ErrorCodes.LOCKED_OUT, `Too many wrong PINs. Try again in ${Math.ceil(remaining / 1000)} seconds.`);
+    }
+  }
+
+  /** Count a wrong guess (inside the caller's transaction) and start or extend the lockout. */
+  function registerFailure() {
+    const previous = lockoutRow();
+    const attempts = now() - previous.last > FAILURE_WINDOW_MS ? 1 : previous.attempts + 1;
+    let until = 0;
+    if (attempts >= MAX_FAILED_ATTEMPTS) {
+      const factor = 2 ** Math.min(attempts - MAX_FAILED_ATTEMPTS, 10);
+      until = now() + Math.min(BASE_LOCKOUT_MS * factor, MAX_LOCKOUT_MS);
+    }
+    saveLockout(attempts, until, now());
+    return attempts;
+  }
+
+  /** Only for the recovery started on the computer itself (--reset-admin-pin). */
+  function clearFailures() {
+    saveLockout(0, 0, 0);
+  }
 
   function activeUsers() {
     return db.all('SELECT * FROM users WHERE is_active = 1 ORDER BY id;');
@@ -61,22 +120,12 @@ function createAuthService(db, { now = () => Date.now() } = {}) {
 
     login(input) {
       const { pin } = v.object(input);
-      const remaining = lockedUntil - now();
-      if (remaining > 0) {
-        throw new AppError(ErrorCodes.LOCKED_OUT, `Too many wrong PINs. Try again in ${Math.ceil(remaining / 1000)} seconds.`);
-      }
+      assertNotLockedOut();
       const user = typeof pin === 'string' && PIN_PATTERN.test(pin) ? findActiveUserByPin(pin) : null;
       if (!user) {
-        failedAttempts += 1;
-        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-          const factor = 2 ** (failedAttempts - MAX_FAILED_ATTEMPTS);
-          lockedUntil = now() + Math.min(BASE_LOCKOUT_MS * factor, MAX_LOCKOUT_MS);
-        }
-        db.transaction(() => recordAudit(db, null, 'auth.login_failed', { attempts: failedAttempts }));
+        db.transaction(() => recordAudit(db, null, 'auth.login_failed', { attempts: registerFailure() }));
         throw new AppError(ErrorCodes.UNAUTHENTICATED, 'Invalid PIN');
       }
-      failedAttempts = 0;
-      lockedUntil = 0;
       db.transaction(() => recordAudit(db, user, 'auth.login'));
       return toPublicUser(user);
     },
@@ -89,10 +138,31 @@ function createAuthService(db, { now = () => Date.now() } = {}) {
 
     changeOwnPin(actor, input) {
       const { currentPin, newPin } = v.object(input);
+      assertNotLockedOut();
+      // Each try, whatever its outcome, says whether a PIN is free or someone else's,
+      // so a user gets a few tries a day (a real change needs one or two).
+      const since = new Date(now() - 24 * 60 * 60 * 1000).toISOString();
+      const triesToday = db.value(
+        `SELECT COUNT(*) FROM audit_log WHERE user_id = ? AND created_at >= ? AND action IN (${PIN_CHANGE_ACTIONS.map(() => '?').join(', ')});`,
+        [actor.id, since, ...PIN_CHANGE_ACTIONS]
+      );
+      if (triesToday >= MAX_PIN_CHANGES_PER_DAY) {
+        throw new AppError(
+          ErrorCodes.LOCKED_OUT,
+          'Your PIN has been changed, or tried, too many times today. Ask the owner to give you a new PIN in Settings, under Staff and PINs.'
+        );
+      }
       const row = getUserRow(actor.id);
-      if (!verifyPin(String(currentPin || ''), row.pin_hash)) throw validationError('Current PIN is incorrect');
+      if (!verifyPin(String(currentPin || ''), row.pin_hash)) {
+        db.transaction(() => recordAudit(db, actor, 'auth.pin_change_failed', { reason: 'wrong current PIN', attempts: registerFailure() }));
+        throw validationError('Current PIN is incorrect');
+      }
       assertAcceptablePin(newPin);
-      assertPinAvailable(newPin, actor.id);
+      if (findActiveUserByPin(newPin, { excludeUserId: actor.id })) {
+        // Counted and logged like a wrong PIN at the keypad (see registerFailure).
+        db.transaction(() => recordAudit(db, actor, 'auth.pin_taken', { attempts: registerFailure() }));
+        throw conflict('This PIN is already used by another user. Choose a different one.');
+      }
       db.transaction(() => {
         db.run('UPDATE users SET pin_hash = ?, must_change_pin = 0 WHERE id = ?;', [hashPin(newPin), actor.id]);
         recordAudit(db, actor, 'auth.pin_changed');
@@ -168,10 +238,9 @@ function createAuthService(db, { now = () => Date.now() } = {}) {
       } while (isWeakPin(pin) || findActiveUserByPin(pin, { excludeUserId: admin.id }));
       db.transaction(() => {
         db.run('UPDATE users SET pin_hash = ?, must_change_pin = 1, is_active = 1 WHERE id = ?;', [hashPin(pin), admin.id]);
+        clearFailures();
         recordAudit(db, { id: null, name: 'PIN recovery' }, 'users.reset_pin', { userId: admin.id, via: 'recovery' });
       });
-      failedAttempts = 0;
-      lockedUntil = 0;
       return { user: toPublicUser(getUserRow(admin.id)), pin };
     },
 
@@ -190,4 +259,4 @@ function createAuthService(db, { now = () => Date.now() } = {}) {
   };
 }
 
-module.exports = { createAuthService, toPublicUser, MAX_FAILED_ATTEMPTS };
+module.exports = { createAuthService, toPublicUser, MAX_FAILED_ATTEMPTS, MAX_PIN_CHANGES_PER_DAY };

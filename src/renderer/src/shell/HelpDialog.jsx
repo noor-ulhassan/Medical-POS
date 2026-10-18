@@ -33,7 +33,19 @@ const GUIDES = [
   {
     title: 'A customer pays what they owe',
     permission: 'customers.payment',
-    steps: ['Open Khata (credit) on the left.', 'Find the customer and click Receive.', 'Type the amount they paid and click Record payment.']
+    steps: [
+      'Open Khata (credit) on the left.',
+      'Find the customer and click Receive.',
+      'Type the amount they paid, choose how they paid (cash, card, mobile wallet or bank transfer), and click Record payment.'
+    ]
+  },
+  {
+    title: 'Give a discount',
+    steps: [
+      'Type the discount in the Discount box under the sale (or press F3). Choose Rs or %.',
+      'A cashier can give up to the limit set by the owner (10% unless changed). For more, press F12 and let a manager log in: the sale stays in the cart.',
+      "Every discount, and who gave it, is shown in the activity log and on Today's report."
+    ]
   },
   {
     title: 'A delivery of medicine arrived',
@@ -88,7 +100,7 @@ const GUIDES = [
     permission: 'reports.view',
     steps: [
       'Open Profit & loss on the left and choose a period at the top (for example This month).',
-      'Net profit is what is left after the cost of the medicines sold, your expenses and expired stock.',
+      'Net profit is what is left after the cost of the medicines sold, your expenses and stock that expired, broke or went missing.',
       'Every medicine needs a cost price (Medicines & stock) for its sales to be counted. The screen tells you if any are missing.'
     ]
   },
@@ -106,7 +118,9 @@ const GUIDES = [
     permission: 'backup.manage',
     steps: [
       'The software saves every sale immediately and makes a backup every day by itself.',
-      'Once a week: Settings, Backup and restore, Open data folder, and copy the Backups folder to a USB drive.'
+      'Plug in a USB drive that can stay in the computer (or use a OneDrive or Google Drive folder).',
+      'Settings, Backup and restore, Choose a USB drive or cloud folder. From then on every backup and prescription photo is also copied there.',
+      "If the copy stops working (for example the drive was taken out), Today's report says so."
     ]
   },
   {

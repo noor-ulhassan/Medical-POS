@@ -4,6 +4,25 @@
 
 Fixes that protect money and stock, and a simpler interface for an owner who is not used to computers.
 
+### Review fixes
+- Fixed: after about 40,000 sales without closing the app, every sale failed ("memory access out of bounds") until it was restarted. The database engine (sql.js) leaks memory on every `exec()` call, and one was made after every saved row; it now uses a prepared statement instead. 200,000 sales in one session were tested.
+- Fixed: a barcode scanned straight after choosing a medicine with the arrow keys added the chosen medicine again instead of the scanned one. Typing or scanning now clears the highlighted row at once, and after an item is added the search text is selected, so the next scan replaces it.
+- New: a cashier can discount a bill only up to a limit set by the owner (Settings, Store details; 10% unless changed). A manager or admin can give more. Every discount is in the activity log, and Today's report shows the discounts given today. Previously any cashier could give 100% off without a trace.
+- Fixed: a cashier could find out other people's PINs by trying them as their own new PIN ("already used by another user"), with no limit and nothing logged. Changing one's own PIN is now limited to 5 tries a day per user, and "already used" counts as a wrong PIN and is logged. Logging in no longer resets the wrong-PIN count (a cashier could guess a few PINs, log in as themselves and guess again); it fades after an hour without a wrong PIN, and it is kept in the database, so restarting the app does not reset it either (a clock moved backwards never locks for more than 5 minutes). Today's report warns when 10 or more wrong PINs are entered in a day. The lock screen no longer tells every member of staff how to reset the admin PIN.
+- New: the till locks itself after 10 minutes without use (Settings, This computer: never, 2, 5, 10 or 30 minutes). The sale in progress is kept. Receipts and other windows are closed when it locks, so no store data stays on screen.
+- Fixed: prescription photos attached in version 1.x could not be opened after the upgrade (their saved path pointed to the old Documents folder).
+- Prescription photos must really be JPG, PNG, GIF or BMP (the file contents are checked, not just the name). WebP is no longer accepted, because the Chromium version needed for Windows 7 has a known WebP decoder flaw.
+- New: backups and prescription photos can be copied to a USB drive or a OneDrive/Google Drive folder (Settings, Backup and restore). The copy is made after every backup and retried every hour; a failure is shown in Settings, on Today's report and once a day as a message. Today's report also warns when backups are only on this computer.
+- Fixed: khata payments were always counted as cash in "Cash that should be in the drawer". A payment now records how it was received (cash, card, mobile wallet, bank transfer) and only cash is counted.
+- Fixed: lowering the stock of a medicine by hand was never a loss in Profit & loss, so breakage and theft were invisible. When stock goes down the app asks why: a counting or typing mistake (not a loss), or damaged or lost (counted as a loss, at cost). Every hand-made stock change, write-off and cost price change is now in the activity log.
+- Fixed: a medicine whose unit or pack price was left at 0 was sold for free; it is now refused with a message saying what to set.
+- Receiving stock with a later expiry date while older packs are in stock now asks whether the older packs are gone, because the medicine has one expiry date and the older packs could otherwise be sold after they expire.
+- Fixed: holding a sale lost its prescription photo; it now comes back with the sale.
+- Fixed: a cart line whose medicine was removed elsewhere was hidden but still sent at checkout, so the sale failed with no way to remove it.
+- Fixed: a restore or factory reset that failed half-way (file locked by antivirus) left the app unable to do anything until restarted; the data in use is reopened.
+- Searching past sales treats % and _ as ordinary characters. The activity log request is validated.
+- Database upgraded to version 4 (a backup of the file is made first).
+
 ### Money and stock correctness
 - Fixed: the payment method stayed selected from the previous sale, so a cash sale straight after a card sale could be recorded as card (cash drawer would not match). Every checkout now starts at Cash.
 - Fixed: pressing Enter twice quickly, or holding F2, could submit the same sale twice. Checkout is now locked while a sale is being saved.

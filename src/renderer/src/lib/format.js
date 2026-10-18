@@ -1,6 +1,6 @@
 import pricing from '@shared/pricing.js';
 
-export const { formatCents, toCents, splitUnits, computeTotals, lineUnits, unitPriceCents } = pricing;
+export const { formatCents, toCents, splitUnits, computeTotals, lineUnits, unitPriceCents, discountWithinLimit } = pricing;
 
 export const money = (cents) => formatCents(cents, 'Rs');
 
@@ -53,6 +53,9 @@ export function fileSize(bytes) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** Image types accepted for prescription photos (the main process checks the file contents too). */
+export const PRESCRIPTION_FILE_TYPES = '.jpg,.jpeg,.png,.gif,.bmp';
 
 export function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {

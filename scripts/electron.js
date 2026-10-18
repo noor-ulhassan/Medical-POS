@@ -28,12 +28,21 @@ if (mode !== '--dev' && mode !== '--smoke') {
 }
 
 const children = [];
+/** Throwaway folder of a smoke run, removed when the app exits. */
+let smokeDir = null;
 delete env.ELECTRON_RUN_AS_NODE;
 
 function startElectron() {
   const app = spawn(electron, [root], { env, stdio: 'inherit' });
   app.on('exit', (code) => {
     children.forEach((c) => c.kill());
+    if (smokeDir) {
+      try {
+        fs.rmSync(smokeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      } catch (err) {
+        console.warn(`Could not remove the smoke-test folder ${smokeDir}: ${err.message}`);
+      }
+    }
     process.exit(code === null ? 1 : code);
   });
 }
@@ -67,6 +76,7 @@ if (mode === '--dev') {
   const build = spawnSync(process.execPath, [vite, ...viteArgs, '--logLevel', 'warn'], { cwd: root, stdio: 'inherit' });
   if (build.status !== 0) process.exit(build.status || 1);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'noorpos-smoke-'));
+  smokeDir = tmp;
   env.NOORPOS_SMOKE = '1';
   env.NOORPOS_DEMO_DATA = '1';
   env.NOORPOS_DATA_DIR = path.join(tmp, 'data');

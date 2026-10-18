@@ -10,7 +10,7 @@ import { Field, Input, Select, Textarea, Checkbox, Fieldset } from '../../ui/Fie
 import { Page, PageHeader, Panel, Tabs, Pill } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, EmptyRow } from '../../ui/Table.jsx';
 import { toCents, centsToInput, dateTime, fileSize } from '../../lib/format.js';
-import { readPrefs, writePrefs } from '../../lib/prefs.js';
+import { readPrefs, writePrefs, AUTO_LOCK_CHOICES } from '../../lib/prefs.js';
 
 const ROLE_HELP = {
   Cashier: 'Sells, holds sales, reprints receipts and attaches prescriptions.',
@@ -35,7 +35,8 @@ function StoreTab() {
       taxRatePercent: String(settings.tax_rate_percent),
       posFee: centsToInput(settings.pos_fee_cents),
       invoicePrefix: settings.invoice_prefix,
-      receiptDisclaimer: settings.receipt_disclaimer
+      receiptDisclaimer: settings.receipt_disclaimer,
+      cashierMaxDiscountPercent: String(settings.cashier_max_discount_percent ?? 10)
     });
   }, [settings]);
 
@@ -47,7 +48,13 @@ function StoreTab() {
     e.preventDefault();
     const fee = toCents(v.posFee);
     if (Number.isNaN(fee) || fee < 0) throw new Error('Fee per receipt is not a valid amount');
-    await call('settings.update', { ...v, taxRatePercent: Number(v.taxRatePercent), posFeeCents: fee, posFee: undefined });
+    await call('settings.update', {
+      ...v,
+      taxRatePercent: Number(v.taxRatePercent),
+      cashierMaxDiscountPercent: Number(v.cashierMaxDiscountPercent),
+      posFeeCents: fee,
+      posFee: undefined
+    });
     await loadSettings();
     toast('Settings saved');
   });
@@ -85,6 +92,24 @@ function StoreTab() {
             </Field>
             <Field label="Invoice prefix" help={`Next invoice: ${nextInvoice}`}>
               <Input name="invoicePrefix" value={v.invoicePrefix} onChange={set('invoicePrefix')} maxLength={12} />
+            </Field>
+          </div>
+        </Fieldset>
+        <Fieldset legend="Discounts">
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Most discount a cashier can give (%)" help="Of the bill. A manager or admin can give more. Every discount is in the activity log." className="col-span-2">
+              <Input
+                numeric
+                type="number"
+                name="cashierMaxDiscountPercent"
+                min={0}
+                max={100}
+                step="0.5"
+                required
+                value={v.cashierMaxDiscountPercent}
+                onChange={set('cashierMaxDiscountPercent')}
+                className="!w-[140px]"
+              />
             </Field>
           </div>
         </Fieldset>
@@ -225,8 +250,87 @@ function StaffTab() {
 
 // ------------------------------------------------------------------ backups
 
+/** Toast for the outcome of copying backups to the USB drive / cloud folder (null when none is set). */
+function copyOutcomeToast(toast, copy) {
+  if (!copy) return;
+  if (copy.ok) toast(`Backups copied to ${copy.target}`);
+  else toast(copy.error, 'error', { sticky: true });
+}
+
+/** Where the second copy of the backups goes: a USB drive or a cloud folder, so a dead or stolen PC loses nothing. */
+function BackupCopyPanel() {
+  const { settings, loadSettings } = useApp();
+  const { toast, guard } = useToast();
+  const confirm = useConfirm();
+  const dir = settings.backup_copy_dir;
+
+  const choose = guard(async () => {
+    const res = await call('system.chooseBackupCopyFolder');
+    if (res.cancelled) return;
+    await loadSettings();
+    copyOutcomeToast(toast, res.copy);
+  });
+
+  const stop = guard(async () => {
+    const ok = await confirm({
+      title: 'Stop copying backups?',
+      message: 'Backups will then only be on this computer. If its disk fails or it is stolen, the shop data is lost.',
+      confirmText: 'Stop copying',
+      danger: true
+    });
+    if (!ok) return;
+    await call('system.stopBackupCopies');
+    await loadSettings();
+    toast('Backups are no longer copied');
+  });
+
+  return (
+    <Panel title="Copy to a USB drive or cloud folder">
+      {dir ? (
+        <div id="backupCopyStatus" className="flex flex-col gap-3">
+          <p className="text-base text-ink-2">
+            Every backup and every prescription photo is also copied to <strong className="num break-all text-ink">{dir}</strong> (in a folder named
+            Noor Pharmacy POS backups). Each day's backup is copied as soon as the drive can be reached.
+          </p>
+          {settings.backup_copy_last_error ? (
+            <div className="flex gap-3 rounded-panel bg-red-soft px-4 py-3 text-sm font-semibold text-red-ink">
+              <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+              <span>{settings.backup_copy_last_error}</span>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-3">Last copied: {settings.backup_copy_last_at ? dateTime(settings.backup_copy_last_at) : 'not yet'}.</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button icon={Folder} id="btnChooseBackupCopyFolder" onClick={choose}>
+              Change folder…
+            </Button>
+            <Button variant="danger-ghost" id="btnStopBackupCopies" onClick={stop}>
+              Stop copying
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div id="backupCopyStatus" className="flex flex-col gap-3">
+          <div className="flex gap-3 rounded-panel bg-amber-soft px-4 py-3 text-sm text-amber-ink">
+            <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+            <span>
+              Backups are only on this computer. If its disk fails or it is stolen, all sales, stock and khata records are lost. Choose a USB drive that stays
+              plugged in, or a OneDrive or Google Drive folder.
+            </span>
+          </div>
+          <div>
+            <Button variant="primary" icon={Folder} id="btnChooseBackupCopyFolder" onClick={choose}>
+              Choose a USB drive or cloud folder…
+            </Button>
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function BackupTab() {
-  const { appInfo, can } = useApp();
+  const { appInfo, can, loadSettings } = useApp();
   const { toast, guard } = useToast();
   const confirm = useConfirm();
   const [backups, setBackups] = useState([]);
@@ -241,9 +345,10 @@ function BackupTab() {
   const reloadSoon = () => setTimeout(() => window.location.reload(), 1200);
 
   const backupNow = guard(async () => {
-    const { filePath } = await call('system.backup');
+    const { filePath, copy } = await call('system.backup');
     toast(`Backup saved to ${filePath}`);
-    await load();
+    copyOutcomeToast(toast, copy);
+    await Promise.all([load(), loadSettings()]);
   });
 
   const restore = guard(async () => {
@@ -276,7 +381,7 @@ function BackupTab() {
     <div className="flex max-w-[880px] flex-col gap-5">
       <Panel title="Backups">
         <p className="max-w-[70ch] text-base text-ink-2">
-          A backup is made automatically once a day (the last 14 are kept) and before every restore, reset or upgrade. Copy the backups folder to a USB drive or cloud folder every week.
+          A backup is made automatically once a day (the last 14 are kept) and before every restore, reset or upgrade.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="primary" icon={Download} id="btnBackupDb" onClick={backupNow}>
@@ -314,6 +419,8 @@ function BackupTab() {
           Data folder: <span id="dataFolderPath" className="num">{appInfo.dataDir}</span>. Version <span id="appVersion">{appInfo.version}</span>.
         </p>
       </Panel>
+
+      <BackupCopyPanel />
 
       {can('system.reset') && (
         <Panel title="Factory reset" tone="danger">
@@ -371,6 +478,27 @@ function ComputerTab() {
           </div>
         </div>
       </Panel>
+      <Panel title="Lock when not in use">
+        <div className="flex flex-col gap-2">
+          <Field label="Lock this till by itself" help="Someone has to enter their PIN again. A sale that is being rung up is kept.">
+            <Select
+              name="autoLockMinutes"
+              value={String(prefs.autoLockMinutes)}
+              onChange={(e) => {
+                setPrefs(writePrefs({ autoLockMinutes: Number(e.target.value) }));
+                toast('Saved for this computer');
+              }}
+              className="!w-[240px]"
+            >
+              {AUTO_LOCK_CHOICES.map((c) => (
+                <option key={c.value} value={String(c.value)}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </Panel>
       <Panel title="Text size">
         <p className="text-base text-ink-2">
           Use the <strong>Aa</strong> button at the bottom of the menu to make all text larger or smaller, or press Ctrl and + / Ctrl and −. It is remembered on this
@@ -387,6 +515,8 @@ const ACTION_LABELS = {
   'auth.login': 'Logged in',
   'auth.login_failed': 'Wrong PIN entered',
   'auth.pin_changed': 'Changed own PIN',
+  'auth.pin_change_failed': 'Wrong current PIN when changing PIN',
+  'auth.pin_taken': 'Tried a PIN that someone else uses',
   'users.create': 'Added staff member',
   'users.update': 'Edited staff member',
   'users.reset_pin': 'Reset a PIN',
@@ -394,6 +524,12 @@ const ACTION_LABELS = {
   'products.create': 'Added product',
   'products.price_change': 'Changed a price',
   'products.receive_stock': 'Received stock',
+  'products.stock_correction': 'Corrected stock',
+  'products.stock_loss': 'Recorded damaged or lost stock',
+  'products.write_off': 'Wrote off stock',
+  'sales.discount': 'Gave a discount',
+  'system.backup_copy_folder': 'Chose the backup copy folder',
+  'system.backup_copy_stopped': 'Stopped copying backups',
   'expenses.create': 'Recorded an expense',
   'expenses.delete': 'Deleted an expense',
   'products.archive': 'Archived product',

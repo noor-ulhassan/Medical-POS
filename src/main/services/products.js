@@ -18,8 +18,25 @@ function withDerivedStock(row) {
   return { ...row, stock_packs: packs, stock_singles: singles };
 }
 
-/** What a stock adjustment was, so reports never have to guess from the free-text reason. */
-const ADJUSTMENT_KINDS = Object.freeze({ OPENING: 'OPENING', CORRECTION: 'CORRECTION', RECEIVED: 'RECEIVED', WRITE_OFF: 'WRITE_OFF' });
+/**
+ * What a stock adjustment was, so reports never have to guess from the free-text reason.
+ * WRITE_OFF (expired stock discarded) and LOSS (damaged or lost, found when correcting
+ * the stock) are losses in profit and loss; a CORRECTION fixes a counting or typing mistake.
+ */
+const ADJUSTMENT_KINDS = Object.freeze({
+  OPENING: 'OPENING',
+  CORRECTION: 'CORRECTION',
+  RECEIVED: 'RECEIVED',
+  WRITE_OFF: 'WRITE_OFF',
+  LOSS: 'LOSS'
+});
+
+/** Why a product edit lowers the stock. */
+const STOCK_DECREASE_REASONS = Object.freeze({
+  MISTAKE: { kind: ADJUSTMENT_KINDS.CORRECTION, reason: 'Manual stock correction' },
+  DAMAGED: { kind: ADJUSTMENT_KINDS.LOSS, reason: 'Damaged or broken' },
+  LOST: { kind: ADJUSTMENT_KINDS.LOSS, reason: 'Lost or missing' }
+});
 
 /**
  * Apply a relative stock change and record it in stock_adjustments.
@@ -137,6 +154,11 @@ function createProductsService(db) {
 
         const before = get(id);
         const originalStockUnits = v.integer(data.originalStockUnits, 'Original stock', { min: -1e9, max: 1e9 });
+        const correction = p.stockUnits - originalStockUnits;
+        // Less stock than before: a mistake being fixed, or medicine that was damaged or lost (a loss).
+        const decrease = STOCK_DECREASE_REASONS[
+          correction < 0 ? v.oneOf(data.stockChangeReason || 'MISTAKE', 'Reason for less stock', Object.keys(STOCK_DECREASE_REASONS)) : 'MISTAKE'
+        ];
         db.run(
           `UPDATE products SET barcode = ?, title = ?, generic_name = ?, category_id = ?, supplier_id = ?, pack_size = ?,
              expiry_date = ?, min_stock_level = ?, cost_price_cents = ?, sale_price_cents = ?, single_price_cents = ?,
@@ -144,17 +166,28 @@ function createProductsService(db) {
            WHERE id = ?;`,
           [...columns, id]
         );
-        const correction = p.stockUnits - originalStockUnits;
-        adjustStock(db, actor, id, correction, 'Manual stock correction', {
-          kind: ADJUSTMENT_KINDS.CORRECTION,
-          valueCents: changeValueCents(p.costPriceCents, correction, p.packSize)
-        });
-        if (before.sale_price_cents !== p.salePriceCents || before.single_price_cents !== p.singlePriceCents) {
+        const valueCents = changeValueCents(p.costPriceCents, correction, p.packSize);
+        adjustStock(db, actor, id, correction, decrease.reason, { kind: decrease.kind, valueCents });
+        if (correction !== 0) {
+          // Stock changed by hand is where shrinkage would hide, so it is in the activity log.
+          recordAudit(db, actor, decrease.kind === ADJUSTMENT_KINDS.LOSS ? 'products.stock_loss' : 'products.stock_correction', {
+            id,
+            title: p.title,
+            changeUnits: correction,
+            reason: decrease.reason,
+            valueCents
+          });
+        }
+        if (
+          before.sale_price_cents !== p.salePriceCents ||
+          before.single_price_cents !== p.singlePriceCents ||
+          before.cost_price_cents !== p.costPriceCents
+        ) {
           recordAudit(db, actor, 'products.price_change', {
             id,
             title: p.title,
-            from: { pack: before.sale_price_cents, single: before.single_price_cents },
-            to: { pack: p.salePriceCents, single: p.singlePriceCents }
+            from: { pack: before.sale_price_cents, single: before.single_price_cents, cost: before.cost_price_cents },
+            to: { pack: p.salePriceCents, single: p.singlePriceCents, cost: p.costPriceCents }
           });
         }
         return id;
@@ -219,12 +252,11 @@ function createProductsService(db) {
       const product = get(id);
       if (product.stock_units <= 0) throw validationError('This product has no stock to discard');
       // Valued at cost so the loss shows in the profit report.
-      db.transaction(() =>
-        adjustStock(db, actor, id, -product.stock_units, reason, {
-          kind: ADJUSTMENT_KINDS.WRITE_OFF,
-          valueCents: changeValueCents(product.cost_price_cents, -product.stock_units, product.pack_size)
-        })
-      );
+      const valueCents = changeValueCents(product.cost_price_cents, -product.stock_units, product.pack_size);
+      db.transaction(() => {
+        adjustStock(db, actor, id, -product.stock_units, reason, { kind: ADJUSTMENT_KINDS.WRITE_OFF, valueCents });
+        recordAudit(db, actor, 'products.write_off', { id, title: product.title, units: product.stock_units, reason, valueCents });
+      });
       return get(id);
     },
 
@@ -235,4 +267,4 @@ function createProductsService(db) {
   };
 }
 
-module.exports = { createProductsService, adjustStock, withDerivedStock, ADJUSTMENT_KINDS };
+module.exports = { createProductsService, adjustStock, withDerivedStock, ADJUSTMENT_KINDS, STOCK_DECREASE_REASONS };

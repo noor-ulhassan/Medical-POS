@@ -20,9 +20,18 @@ const PAYMENT_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wa
 
 export function DocumentsProvider({ children }) {
   const { guard, toast } = useToast();
+  const { user } = useApp();
   const [receipt, setReceipt] = useState(null);
   const [doc, setDoc] = useState(null);
   const [printWhenShown, setPrintWhenShown] = useState(null); // sale id to print as soon as its receipt is on screen
+
+  // Nothing from the store stays on screen once the till is locked (F12 or after a while without use).
+  useEffect(() => {
+    if (user) return;
+    setReceipt(null);
+    setDoc(null);
+    setPrintWhenShown(null);
+  }, [user]);
 
   /** `autoPrint`: print straight away (the "print after every sale" setting on this computer). */
   const showReceipt = useCallback((sale, { autoPrint = false } = {}) => {

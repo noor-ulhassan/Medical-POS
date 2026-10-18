@@ -8,7 +8,7 @@ import { useConfirm } from '../../ui/Confirm.jsx';
 import { IconButton } from '../../ui/Button.jsx';
 import { Select } from '../../ui/Field.jsx';
 import { Segmented, EmptyState } from '../../ui/display.jsx';
-import { money, readFileAsBase64 } from '../../lib/format.js';
+import { money, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 
 /**
@@ -207,7 +207,7 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
             <option value="PERCENT">%</option>
           </select>
         </div>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" id="prescriptionFileInput" onChange={attach} />
+        <input ref={fileRef} type="file" accept={PRESCRIPTION_FILE_TYPES} className="hidden" id="prescriptionFileInput" onChange={attach} />
         <button
           type="button"
           id="btnAttachPrescription"
@@ -222,6 +222,11 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
           <span id="prescriptionStatusTag">{cart.prescriptionPath ? 'Rx attached' : 'Rx'}</span>
         </button>
       </div>
+      {cart.discountNeedsManager && (
+        <p id="discountLimitNote" className="border-t border-foil bg-red-soft px-4 py-2 text-sm font-semibold text-red-ink">
+          A cashier can give up to {cart.discountLimitPercent}% discount. Lower it, or let a manager complete this sale.
+        </p>
+      )}
 
       <dl className="space-y-0.5 border-t border-foil px-4 py-2.5 text-base">
         <div className="flex justify-between text-ink-2">

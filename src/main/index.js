@@ -131,6 +131,10 @@ const platform = {
     });
     return canceled || filePaths.length === 0 ? null : filePaths[0];
   },
+  pickFolder: async (title) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, { title, properties: ['openDirectory', 'createDirectory'] });
+    return canceled || filePaths.length === 0 ? null : filePaths[0];
+  },
   openFolder: (folder) => shell.openPath(folder).then((error) => ({ opened: !error })),
   /** Real browser zoom (not CSS zoom), so layout, charts and mouse positions all scale together. */
   setZoom: (factor) => {
@@ -240,6 +244,7 @@ async function main() {
     onPersistError: (err) => {
       console.error('[db] could not save to disk:', err);
       notifyRenderer('app:warning', {
+        kind: 'save',
         message: `Could not save data to disk (${err.code || err.message}). Your work is kept in memory; do not close the app until this is fixed.`
       });
     }
@@ -276,13 +281,20 @@ async function main() {
 
   // Shops leave the app open for days, so the daily backup cannot rely on a
   // restart. autoDaily() is a no-op when today's backup already exists.
+  // The copy to the USB drive / cloud folder is retried every hour too (the
+  // drive may be plugged in later); a failure is announced once a day, with
+  // the day's new backup, and is always shown in Settings and Today's report.
   setInterval(() => {
+    let created = null;
     try {
-      if (ctx.db) ctx.backup.autoDaily();
+      if (ctx.db) created = ctx.backup.autoDaily();
     } catch (err) {
       console.error('[backup] automatic daily backup failed:', err);
-      notifyRenderer('app:warning', { message: `Automatic backup failed (${err.code || err.message}). Use Settings, Backup now.` });
+      notifyRenderer('app:warning', { kind: 'backup', message: `Automatic backup failed (${err.code || err.message}). Use Settings, Backup now.` });
     }
+    ctx.copyBackupsAway().then((copy) => {
+      if (copy && !copy.ok && created) notifyRenderer('app:warning', { kind: 'backup', message: `${copy.error} Today's backup is only on this computer.` });
+    });
   }, 60 * 60 * 1000);
 
   app.on('second-instance', () => {

@@ -124,11 +124,14 @@ class Database {
   run(sql, params) {
     this.sqlDb.run(sql, normalizeParams(params));
     const changes = this.sqlDb.getRowsModified();
-    const lastInsertRowid = this.sqlDb.exec('SELECT last_insert_rowid();')[0].values[0][0];
+    // Not sqlDb.exec(): sql.js leaks WASM memory on every exec() that returns
+    // rows, and after ~330k calls in one session the engine fails ("memory
+    // access out of bounds"), i.e. the till stops after ~40k sales.
+    const lastInsertRowid = this.value('SELECT last_insert_rowid();');
     return { changes, lastInsertRowid };
   }
 
-  /** Execute a script of several statements (schema/migrations only). */
+  /** Execute a script of several statements (schema/migrations only; see run() about exec()). */
   exec(sql) {
     this.sqlDb.exec(sql);
   }

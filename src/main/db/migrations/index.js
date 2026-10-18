@@ -1,6 +1,11 @@
 'use strict';
 
-const MIGRATIONS = [require('./001_baseline'), require('./002_v2_hardening'), require('./003_profit_tracking')];
+const MIGRATIONS = [
+  require('./001_baseline'),
+  require('./002_v2_hardening'),
+  require('./003_profit_tracking'),
+  require('./004_owner_controls')
+];
 const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
 
 /** Database created by a pre-1.1 build (batch-based schema) that cannot be upgraded in place. */

@@ -83,6 +83,10 @@ export function PaymentDialog() {
       toast(`This sale would take ${customer.name} over their khata limit of ${money(customer.credit_limit_cents)}.`, 'error');
       return;
     }
+    if (cart.discountNeedsManager) {
+      toast(`A cashier can give up to ${cart.discountLimitPercent}% discount. Lower it, or press F12 and let a manager log in: the sale stays in the cart.`, 'error');
+      return;
+    }
     const needsRx = cart.priced.filter((l) => l.product.is_prescription_required);
     if (needsRx.length && !cart.prescriptionPath) {
       const proceed = await confirm({
@@ -97,7 +101,7 @@ export function PaymentDialog() {
     setBusy(true);
     try {
       const sale = await call('sales.checkout', {
-        lines: cart.lines.map(({ productId, unitType, quantity }) => ({ productId, unitType, quantity })),
+        lines: cart.saleLines,
         customerId: cart.customerId,
         paymentMethod: method,
         paidCents: method === 'CASH' && !Number.isNaN(paidCents) ? paidCents : null,

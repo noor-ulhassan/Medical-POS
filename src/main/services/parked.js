@@ -23,10 +23,24 @@ function normalizeStoredCart(json) {
       quantity: Number(l.quantity) || 0
     }))
     .filter((l) => l.productId && l.quantity > 0);
-  return { lines, discount: Array.isArray(parsed) ? null : parsed.discount || null };
+  return {
+    lines,
+    discount: Array.isArray(parsed) ? null : parsed.discount || null,
+    prescriptionPath: !Array.isArray(parsed) && typeof parsed.prescriptionPath === 'string' ? parsed.prescriptionPath : ''
+  };
 }
 
-function createParkedService(db) {
+function createParkedService(db, { files } = {}) {
+  /** A prescription photo attached before the sale was held, if its file is still there. */
+  function keptPrescription(stored) {
+    if (!stored || !files) return '';
+    try {
+      return files.normalizeStoredPrescription(stored);
+    } catch (_) {
+      return '';
+    }
+  }
+
   return {
     /** Held carts with who they belong to and how many lines they have, so staff can tell them apart. */
     list() {
@@ -54,11 +68,13 @@ function createParkedService(db) {
       });
       const customerId = v.id(data.customerId || WALK_IN_CUSTOMER_ID, 'Customer');
       const totalCents = v.cents(data.totalCents || 0, 'Total');
+      // Checked like at checkout, so a held sale cannot point outside the Prescriptions folder.
+      const prescriptionPath = files ? files.normalizeStoredPrescription(data.prescriptionPath) : '';
       const tabKey = `TAB-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
       db.transaction(() => {
         db.run(
           'INSERT INTO parked_orders (tab_key, cashier_id, customer_id, cart_json, total_cents, created_at) VALUES (?, ?, ?, ?, ?, ?);',
-          [tabKey, actor.id, customerId, JSON.stringify({ lines, discount: data.discount || null }), totalCents, nowIso()]
+          [tabKey, actor.id, customerId, JSON.stringify({ lines, discount: data.discount || null, prescriptionPath }), totalCents, nowIso()]
         );
       });
       return { tabKey };
@@ -71,7 +87,8 @@ function createParkedService(db) {
         const row = db.get('SELECT * FROM parked_orders WHERE id = ?;', [id]);
         if (!row) throw notFound('Parked order not found (it may already have been resumed)');
         db.run('DELETE FROM parked_orders WHERE id = ?;', [id]);
-        return { customerId: row.customer_id, ...normalizeStoredCart(row.cart_json) };
+        const cart = normalizeStoredCart(row.cart_json);
+        return { customerId: row.customer_id, ...cart, prescriptionPath: keptPrescription(cart.prescriptionPath) };
       });
     }
   };

@@ -64,7 +64,10 @@ function createRoutes(ctx, platform) {
     'users.create': { permission: 'users.manage', handler: (p, { user }) => s().auth.createUser(user, p) },
     'users.update': { permission: 'users.manage', handler: (p, { user }) => s().auth.updateUser(user, p) },
     'users.resetPin': { permission: 'users.manage', handler: (p, { user }) => s().auth.resetUserPin(user, p) },
-    'audit.list': { permission: 'users.manage', handler: (p) => s().audit.list(v.object(p)) },
+    'audit.list': {
+      permission: 'users.manage',
+      handler: (p) => s().audit.list({ limit: v.integer(v.object(p).limit ?? 200, 'Limit', { min: 1, max: 1000 }) })
+    },
 
     // --- catalog -------------------------------------------------------
     'catalog.categories': { permission: 'products.view', handler: () => s().catalog.listCategories() },
@@ -116,11 +119,23 @@ function createRoutes(ctx, platform) {
     // --- system --------------------------------------------------------
     'system.backup': {
       permission: 'backup.manage',
-      handler: () => {
+      handler: async () => {
         const { filePath } = ctx.backup.create('manual');
-        return { filePath };
+        // Also to the USB drive / cloud folder, when one is set.
+        const copy = await ctx.copyBackupsAway();
+        return { filePath, copy };
       }
     },
+    'system.chooseBackupCopyFolder': {
+      permission: 'backup.manage',
+      handler: async (p, { user }) => {
+        if (!platform.pickFolder) throw validationError('Choosing a folder is not available here');
+        const dir = await platform.pickFolder('Choose where to keep a copy of the backups (a USB drive or a cloud folder)');
+        if (!dir) return { cancelled: true };
+        return { copy: await ctx.setBackupCopyFolder(user, dir) };
+      }
+    },
+    'system.stopBackupCopies': { permission: 'backup.manage', handler: (p, { user }) => ctx.stopBackupCopies(user) },
     'system.listBackups': { permission: 'backup.manage', handler: () => ctx.backup.list() },
     'system.restore': {
       permission: 'backup.manage',
