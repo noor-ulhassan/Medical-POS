@@ -35,8 +35,12 @@ function createCustomersService(db) {
     get,
 
     list() {
-      // Walk-in customer first, then alphabetical.
-      return db.all('SELECT * FROM customers ORDER BY (id = ?) DESC, name COLLATE NOCASE;', [WALK_IN_CUSTOMER_ID]);
+      // Walk-in customer first, then alphabetical. has_ledger: an opening balance can only be set before any entry.
+      return db.all(
+        `SELECT customers.*, EXISTS (SELECT 1 FROM customer_ledger l WHERE l.customer_id = customers.id) AS has_ledger
+         FROM customers ORDER BY (id = ?) DESC, name COLLATE NOCASE;`,
+        [WALK_IN_CUSTOMER_ID]
+      );
     },
 
     save(actor, input) {
@@ -47,22 +51,41 @@ function createCustomersService(db) {
       const phone = v.string(data.phone, 'Phone', { max: 60 });
       const address = v.string(data.address, 'Address', { max: 250 });
       const creditLimitCents = v.cents(data.creditLimitCents, 'Credit limit');
+      // What the customer already owed in the shop's old (paper) khata book.
+      const blank = data.openingBalanceCents === undefined || data.openingBalanceCents === null || data.openingBalanceCents === '';
+      const openingBalanceCents = blank ? 0 : v.cents(data.openingBalanceCents, 'Already owes', { max: 1e11 });
 
       const customerId = db.transaction(() => {
+        let customer;
         if (id) {
           get(id);
           db.run('UPDATE customers SET name = ?, phone = ?, address = ?, credit_limit_cents = ? WHERE id = ?;', [
             name, phone, address, creditLimitCents, id
           ]);
           recordAudit(db, actor, 'customers.update', { id, name, creditLimitCents });
-          return id;
+          customer = id;
+        } else {
+          const res = db.run(
+            'INSERT INTO customers (name, phone, address, credit_limit_cents, current_debt_cents) VALUES (?, ?, ?, ?, 0);',
+            [name, phone, address, creditLimitCents]
+          );
+          recordAudit(db, actor, 'customers.create', { id: res.lastInsertRowid, name, creditLimitCents });
+          customer = res.lastInsertRowid;
         }
-        const res = db.run(
-          'INSERT INTO customers (name, phone, address, credit_limit_cents, current_debt_cents) VALUES (?, ?, ?, ?, 0);',
-          [name, phone, address, creditLimitCents]
-        );
-        recordAudit(db, actor, 'customers.create', { id: res.lastInsertRowid, name, creditLimitCents });
-        return res.lastInsertRowid;
+        if (openingBalanceCents > 0) {
+          // Only as the first entry: later it would rewrite a running account.
+          if (db.get('SELECT 1 FROM customer_ledger WHERE customer_id = ? LIMIT 1;', [customer])) {
+            throw validationError(`${name} already has khata entries, so an opening balance can no longer be added`);
+          }
+          postLedgerEntry(db, {
+            customerId: customer,
+            type: 'OPENING_BALANCE',
+            deltaCents: openingBalanceCents,
+            notes: `Opening balance from the old khata book (entered by ${actor.name})`
+          });
+          recordAudit(db, actor, 'customers.opening_balance', { id: customer, name, amountCents: openingBalanceCents });
+        }
+        return customer;
       });
       return get(customerId);
     },

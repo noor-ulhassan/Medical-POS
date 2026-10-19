@@ -4,6 +4,12 @@
 
 Fixes that protect money and stock, and a simpler interface for an owner who is not used to computers.
 
+### Returns and opening khata balances
+- New: Return items (Past sales, managers). A customer can bring back some of what they bought: choose how many of each line. The screen says how much to give back (their share of what they paid for those items, including the bill discount, tax and fee) or how much comes off their khata. The items go back into stock, or, when they cannot be sold again, are recorded as damaged stock (a loss at cost). Returning a whole sale in several goes adds up exactly to the bill. The receipt can be printed again with the returns on it, and the sale shows as "Partly returned" or "Returned".
+- Returns count on the day they happen: Profit & loss takes them off net sales and the cost of medicines sold, and Today's report shows them and takes cash returns off the cash expected in the drawer. A sale with returns can no longer be cancelled whole (return the rest instead).
+- New: "Already owes" when adding a khata customer (or for one with no entries yet), for what they owed in the old khata book. It becomes the opening entry of their khata; it is not a sale.
+- Database upgraded to version 5 (a backup of the file is made first).
+
 ### Review fixes
 - Fixed: after about 40,000 sales without closing the app, every sale failed ("memory access out of bounds") until it was restarted. The database engine (sql.js) leaks memory on every `exec()` call, and one was made after every saved row; it now uses a prepared statement instead. 200,000 sales in one session were tested.
 - Fixed: a barcode scanned straight after choosing a medicine with the arrow keys added the chosen medicine again instead of the scanned one. Typing or scanning now clears the highlighted row at once, and after an item is added the search text is selected, so the next scan replaces it.

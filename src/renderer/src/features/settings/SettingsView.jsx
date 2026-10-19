@@ -14,7 +14,7 @@ import { readPrefs, writePrefs, AUTO_LOCK_CHOICES } from '../../lib/prefs.js';
 
 const ROLE_HELP = {
   Cashier: 'Sells, holds sales, reprints receipts and attaches prescriptions.',
-  Manager: 'Everything a cashier does, plus products, khata, voids, write-offs, restock and the dashboard.',
+  Manager: 'Everything a cashier does, plus any discount, products, khata, returns, voids, write-offs, restock and the dashboard.',
   Admin: 'Everything, plus store settings, staff, backups and factory reset.'
 };
 
@@ -528,6 +528,8 @@ const ACTION_LABELS = {
   'products.stock_loss': 'Recorded damaged or lost stock',
   'products.write_off': 'Wrote off stock',
   'sales.discount': 'Gave a discount',
+  'sales.return': 'Took back returned items',
+  'customers.opening_balance': 'Entered an opening khata balance',
   'system.backup_copy_folder': 'Chose the backup copy folder',
   'system.backup_copy_stopped': 'Stopped copying backups',
   'expenses.create': 'Recorded an expense',

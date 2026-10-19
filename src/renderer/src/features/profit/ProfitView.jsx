@@ -481,6 +481,7 @@ export function ProfitView() {
               <div className="text-base" id="profitStatement">
                 <StatementRow label="Sales before discounts" value={s.grossSalesCents} />
                 <StatementRow sign="−" label="Discounts given" value={s.discountCents} />
+                {s.returnsCount > 0 && <StatementRow sign="−" label="Returned by customers" note={`(${s.returnsCount})`} value={s.returnsNetCents} />}
                 <StatementRow strong label="Net sales" value={s.netSalesCents} id="stmtNetSales" />
                 {s.uncostedSalesCount > 0 && (
                   <>

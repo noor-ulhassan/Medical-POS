@@ -28,7 +28,9 @@ const ADJUSTMENT_KINDS = Object.freeze({
   CORRECTION: 'CORRECTION',
   RECEIVED: 'RECEIVED',
   WRITE_OFF: 'WRITE_OFF',
-  LOSS: 'LOSS'
+  LOSS: 'LOSS',
+  // Brought back by a customer (sale_returns); profit and loss counts the return itself.
+  RETURNED: 'RETURNED'
 });
 
 /** Why a product edit lowers the stock. */

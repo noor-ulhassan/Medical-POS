@@ -76,6 +76,14 @@ function TodayCash({ today }) {
               <dd className="num font-semibold text-ink">{money(today.drawerExpensesCents)}</dd>
             </div>
           )}
+          {today.returnCount > 0 && (
+            <div className="flex items-baseline justify-between py-2">
+              <dt className="text-ink-2">
+                Items returned today <span className="text-sm text-ink-3">({plural(today.returnCount, 'return')}, {money(today.cashReturnsCents)} in cash)</span>
+              </dt>
+              <dd id="dashTodayReturns" className="num font-semibold text-red-ink">{money(today.returnsCents)}</dd>
+            </div>
+          )}
           {today.voidCount > 0 && (
             <div className="flex items-baseline justify-between py-2">
               <dt className="text-ink-2">Cancelled sales today ({today.voidCount})</dt>
@@ -91,6 +99,7 @@ function TodayCash({ today }) {
           <p className="mt-2 text-sm">
             Cash sales {money(today.cashSalesCents)} + khata payments in cash {money(today.khataCashPaymentsCents)}
             {today.cashRefundsCents > 0 ? ` − cash given back ${money(today.cashRefundsCents)}` : ''}
+            {today.cashReturnsCents > 0 ? ` − cash given back for returns ${money(today.cashReturnsCents)}` : ''}
             {today.drawerExpensesCents > 0 ? ` − expenses paid from the drawer ${money(today.drawerExpensesCents)}` : ''}. Add the cash you started the day with, then count
             the drawer.
           </p>

@@ -96,6 +96,8 @@ function createRoutes(ctx, platform) {
     'sales.list': { permission: 'sales.view', handler: (p) => s().sales.list(p) },
     'sales.get': { permission: 'sales.view', handler: (p) => s().sales.get(p) },
     'sales.void': { permission: 'sales.void', handler: (p, { user }) => s().sales.void(user, p) },
+    'sales.returnQuote': { permission: 'sales.void', handler: (p) => s().sales.returnQuote(p) },
+    'sales.returnItems': { permission: 'sales.void', handler: (p, { user }) => s().sales.returnItems(user, p) },
     'sales.attachPrescription': { permission: 'sales.attachRx', handler: (p, { user }) => s().sales.attachPrescription(user, p) },
     'sales.getPrescription': { permission: 'sales.view', handler: (p) => s().sales.getPrescription(p) },
     'files.savePrescription': { permission: 'pos.sell', handler: (p) => s().files.savePrescription(p) },

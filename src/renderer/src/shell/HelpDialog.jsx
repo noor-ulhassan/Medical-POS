@@ -68,12 +68,31 @@ const GUIDES = [
     ]
   },
   {
-    title: 'A customer returns medicine, or a sale was a mistake',
+    title: 'A customer brings back some of what they bought',
     permission: 'sales.void',
     steps: [
       'Open Past sales and find the sale (search by invoice number or customer).',
-      'Click Cancel sale and write why.',
+      'Click Return. Type how many of each item came back (or click All), and write why.',
+      'If the medicine cannot be sold again (opened, damaged, not kept cold), untick "Put the medicine back on the shelf".',
+      'The screen tells you how much money to give back (or how much comes off their khata). Click Save the return, then print the receipt for the customer.'
+    ]
+  },
+  {
+    title: 'A whole sale was a mistake',
+    permission: 'sales.void',
+    steps: [
+      'Open Past sales and find the sale.',
+      'Click Cancel sale and write why. (Once something was returned from a sale, use Return for the rest instead.)',
       'The screen tells you how much money to give back. The medicines go back into stock by themselves.'
+    ]
+  },
+  {
+    title: 'A customer already owed money in the old khata book',
+    permission: 'customers.manage',
+    steps: [
+      'Open Khata (credit) and click Add customer (or the pencil next to a customer who has no entries yet).',
+      'Type what they owe from the old book under "Already owes" and save.',
+      'It is added to their khata as the opening balance. Payments they make later are taken off it as usual.'
     ]
   },
   {

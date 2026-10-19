@@ -4,7 +4,8 @@ const MIGRATIONS = [
   require('./001_baseline'),
   require('./002_v2_hardening'),
   require('./003_profit_tracking'),
-  require('./004_owner_controls')
+  require('./004_owner_controls'),
+  require('./005_returns')
 ];
 const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
 

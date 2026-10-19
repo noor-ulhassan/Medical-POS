@@ -17,15 +17,23 @@ const PAGE_SIZE = 25;
 function CustomerDialog({ customer, onClose }) {
   const { loadCustomers } = useApp();
   const { toast, guard } = useToast();
-  const [v, setV] = useState({ name: '', phone: '', address: '', creditLimit: '5000.00' });
+  const [v, setV] = useState({ name: '', phone: '', address: '', creditLimit: '5000.00', openingBalance: '' });
   const isNew = customer === 'new';
+  // What they already owed in the old khata book; only before their first entry here.
+  const canSetOpening = isNew || (customer && !customer.has_ledger);
 
   useEffect(() => {
     if (!customer) return;
     setV(
       isNew
-        ? { name: '', phone: '', address: '', creditLimit: '5000.00' }
-        : { name: customer.name, phone: customer.phone || '', address: customer.address || '', creditLimit: centsToInput(customer.credit_limit_cents) }
+        ? { name: '', phone: '', address: '', creditLimit: '5000.00', openingBalance: '' }
+        : {
+            name: customer.name,
+            phone: customer.phone || '',
+            address: customer.address || '',
+            creditLimit: centsToInput(customer.credit_limit_cents),
+            openingBalance: ''
+          }
     );
   }, [customer, isNew]);
 
@@ -34,7 +42,16 @@ function CustomerDialog({ customer, onClose }) {
     e.preventDefault();
     const limit = toCents(v.creditLimit);
     if (Number.isNaN(limit) || limit < 0) throw new Error('Credit limit is not a valid amount');
-    const saved = await call('customers.save', { id: isNew ? null : customer.id, name: v.name, phone: v.phone, address: v.address, creditLimitCents: limit });
+    const opening = v.openingBalance.trim() === '' ? 0 : toCents(v.openingBalance);
+    if (Number.isNaN(opening) || opening < 0) throw new Error('"Already owes" is not a valid amount');
+    const saved = await call('customers.save', {
+      id: isNew ? null : customer.id,
+      name: v.name,
+      phone: v.phone,
+      address: v.address,
+      creditLimitCents: limit,
+      openingBalanceCents: canSetOpening && opening > 0 ? opening : undefined
+    });
     onClose();
     toast(`${saved.name} saved`);
     await loadCustomers();
@@ -56,6 +73,11 @@ function CustomerDialog({ customer, onClose }) {
           <Field label="Credit limit (Rs)" help="Khata sales are refused once the balance would go over this.">
             <Input numeric type="number" name="creditLimit" value={v.creditLimit} onChange={set('creditLimit')} min={0} step="0.01" required />
           </Field>
+          {canSetOpening && (
+            <Field label="Already owes (Rs)" help="From your old khata book, if they owed you money before using this software. Leave empty if nothing. This can only be entered once.">
+              <Input numeric type="number" name="openingBalance" value={v.openingBalance} onChange={set('openingBalance')} min={0} step="0.01" placeholder="0.00" />
+            </Field>
+          )}
         </ModalBody>
         <ModalFooter>
           <Button onClick={onClose}>Cancel</Button>

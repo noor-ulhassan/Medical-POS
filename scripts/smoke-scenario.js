@@ -216,6 +216,34 @@
     await waitFor('voided badge', () => text('#salesTableBody').includes('Cancelled'));
   });
 
+  await step('return one item from a sale', async () => {
+    nav('posView');
+    await waitFor('products', () => $('#productGrid [data-product-id]:not(.is-out)'));
+    const row = $('#productGrid [data-product-id]:not(.is-out)');
+    row.click();
+    row.click();
+    row.click();
+    await waitFor('3 in the sale', () => $('#cartItemsList [data-cart-qty]') && $('#cartItemsList [data-cart-qty]').value === '3');
+    $('#btnOpenCheckoutModal').click();
+    await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
+    $('#checkoutPaymentForm').requestSubmit();
+    await waitFor('rx confirmation or receipt', () => exists('modalConfirm') || exists('modalReceiptPreview'));
+    if (exists('modalConfirm')) $('#confirmYes').click();
+    await waitFor('receipt', () => exists('modalReceiptPreview'));
+    $('#modalReceiptPreview button[aria-label="Close"]').click();
+    nav('salesView');
+    await waitFor('return button', () => $('#salesTableBody [data-return]'));
+    $('#salesTableBody [data-return]').click();
+    await waitFor('return dialog', () => exists('modalReturnItems') && $('[data-return-qty]'));
+    type($('[data-return-qty]'), '1');
+    await waitFor('refund shown', () => text('#returnRefund').includes('cash back'));
+    type(field('returnForm', 'reason'), 'Smoke return');
+    $('#returnForm').requestSubmit();
+    await waitFor('receipt with the return', () => exists('modalReceiptPreview') && text('#receiptReturns').includes('-R1'));
+    $('#modalReceiptPreview button[aria-label="Close"]').click();
+    await waitFor('partly returned', () => text('#salesTableBody').includes('Partly returned'));
+  });
+
   await step('add a product', async () => {
     nav('inventoryView');
     await waitFor('products', () => $('#btnOpenAddProduct'));
@@ -237,8 +265,10 @@
     $('#btnOpenAddCustomer').click();
     await waitFor('customer dialog', () => exists('modalCustomer'));
     type(field('customerForm', 'name'), 'Smoke Customer');
+    type(field('customerForm', 'openingBalance'), '250'); // owed in the old khata book
     $('#customerForm').requestSubmit();
     await waitFor('customer row', () => text('#customerTableBody').includes('Smoke Customer'));
+    await waitFor('opening balance owed', () => text('#customerTableBody').includes('Rs 250.00'));
   });
 
   await step('app opens in light mode', async () => {
