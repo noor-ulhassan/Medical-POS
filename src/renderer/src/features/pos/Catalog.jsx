@@ -88,10 +88,20 @@ export function Catalog() {
     return () => document.removeEventListener('keydown', onKey, true);
   }, []);
 
+  /**
+   * After an item is added, the search text stays (so the list stays filtered)
+   * but is selected: the next scan or typed name replaces it instead of being
+   * added to the end of it.
+   */
+  const readyForNextScan = () => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  };
+
   /** Add from a click, then put the cursor back in the search box ready for the next scan. */
   const addByClick = (product, unitType) => {
     cart.add(product, unitType);
-    inputRef.current?.focus();
+    readyForNextScan();
   };
 
   const matches = useMemo(
@@ -116,8 +126,11 @@ export function Catalog() {
 
   /** Enter in the search box: exact barcode/name match, or the only match, goes into the cart. */
   function handleEnter(e) {
-    if (active >= 0 && shown[active]) {
+    // The highlighted row only counts for the text it was chosen from. Typing
+    // (or a scan) clears it at once in onChange; this guards the same rule.
+    if (active >= 0 && shown[active] && search.trim().toLowerCase() === query) {
       cart.add(shown[active], e.shiftKey ? 'PACK' : 'SINGLE');
+      readyForNextScan();
       return;
     }
     const value = search.trim().toLowerCase();
@@ -163,7 +176,13 @@ export function Catalog() {
             id="posSearchInput"
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              // A scanner types a whole barcode and Enter within a few milliseconds,
+              // well before the search debounce; a stale highlight would add the
+              // previously chosen medicine instead of the scanned one.
+              setSearch(e.target.value);
+              setActive(-1);
+            }}
             onKeyDown={onKeyDown}
             placeholder="Scan a barcode or type a medicine name"
             autoComplete="off"

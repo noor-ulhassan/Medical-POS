@@ -20,9 +20,18 @@ const PAYMENT_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wa
 
 export function DocumentsProvider({ children }) {
   const { guard, toast } = useToast();
+  const { user } = useApp();
   const [receipt, setReceipt] = useState(null);
   const [doc, setDoc] = useState(null);
   const [printWhenShown, setPrintWhenShown] = useState(null); // sale id to print as soon as its receipt is on screen
+
+  // Nothing from the store stays on screen once the till is locked (F12 or after a while without use).
+  useEffect(() => {
+    if (user) return;
+    setReceipt(null);
+    setDoc(null);
+    setPrintWhenShown(null);
+  }, [user]);
 
   /** `autoPrint`: print straight away (the "print after every sale" setting on this computer). */
   const showReceipt = useCallback((sale, { autoPrint = false } = {}) => {
@@ -159,6 +168,24 @@ export function Receipt({ sale }) {
       )}
       {sale.payment_method === 'CREDIT' && sale.khata_balance_after_cents !== null && sale.khata_balance_after_cents !== undefined && (
         <Row label="Khata balance after this sale" value={money(sale.khata_balance_after_cents)} />
+      )}
+      {sale.returns && sale.returns.length > 0 && (
+        <div id="receiptReturns">
+          <Rule />
+          <div className="font-bold">Returned</div>
+          {sale.returns.map((r) => (
+            <div key={r.id} className="mt-1">
+              <Row label={`${r.return_no}, ${dateTime(r.created_at)}`} value={`-${money(r.refund_cents)}`} />
+              {r.items.map((i) => (
+                <div key={i.id} className="text-[11px]">
+                  {i.quantity} x {i.product_title} ({i.unit_type === 'PACK' ? 'pack' : 'unit'})
+                </div>
+              ))}
+            </div>
+          ))}
+          <Rule />
+          <Row label="Paid after returns" value={money(sale.total_cents - sale.returned_cents)} strong />
+        </div>
       )}
       <Rule />
       <div className="text-center text-[11px]">

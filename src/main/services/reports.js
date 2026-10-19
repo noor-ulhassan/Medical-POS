@@ -78,6 +78,24 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         "SELECT COALESCE(SUM(credit_cents), 0) FROM customer_ledger WHERE type = 'PAYMENT_RECEIVED' AND created_at >= ? AND created_at < ?;",
         [today.start, today.end]
       );
+      // Only khata payments taken in cash are in the drawer (payments from before methods were recorded count as cash).
+      const todayKhataCashPaymentsCents = db.value(
+        `SELECT COALESCE(SUM(credit_cents), 0) FROM customer_ledger
+         WHERE type = 'PAYMENT_RECEIVED' AND (payment_method IS NULL OR payment_method = 'CASH') AND created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
+      // Items brought back today (from any day's sale). Cash returns were paid out of the drawer.
+      const todayReturns = db.get(
+        `SELECT COUNT(*) AS count, COALESCE(SUM(refund_cents), 0) AS total_cents,
+           COALESCE(SUM(CASE WHEN refund_method = 'CASH' THEN refund_cents ELSE 0 END), 0) AS cash_cents
+         FROM sale_returns WHERE created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
+      const todayDiscounts = db.get(
+        `SELECT COUNT(*) AS count, COALESCE(SUM(discount_cents), 0) AS total_cents
+         FROM sales WHERE status = 'COMPLETED' AND discount_cents > 0 AND created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
       const todayVoids = db.get(
         `SELECT COUNT(*) AS count, COALESCE(SUM(s.total_cents), 0) AS total_cents
          FROM void_sales v JOIN sales s ON s.id = v.sale_id
@@ -99,17 +117,39 @@ function createReportsService(db, { now = () => new Date() } = {}) {
       );
 
       const alerts = this.alertCounts();
+      const copy = db.get('SELECT backup_copy_dir, backup_copy_last_at, backup_copy_last_error FROM settings WHERE id = 1;');
+      // Many wrong PINs in a day means someone may be trying to guess one.
+      const wrongPinsToday = db.value(
+        `SELECT COUNT(*) FROM audit_log
+         WHERE action IN ('auth.login_failed', 'auth.pin_taken', 'auth.pin_change_failed') AND created_at >= ? AND created_at < ?;`,
+        [today.start, today.end]
+      );
       return {
         today: {
           byMethod: todayByMethod,
           cashSalesCents: todayCashSalesCents,
           khataPaymentsCents: todayKhataPaymentsCents,
+          khataCashPaymentsCents: todayKhataCashPaymentsCents,
           cashRefundsCents: todayCashRefundsCents,
           drawerExpensesCents: todayDrawerExpensesCents,
-          expectedCashCents: todayCashSalesCents + todayKhataPaymentsCents - todayCashRefundsCents - todayDrawerExpensesCents,
+          returnCount: todayReturns.count,
+          returnsCents: todayReturns.total_cents,
+          cashReturnsCents: todayReturns.cash_cents,
+          expectedCashCents:
+            todayCashSalesCents + todayKhataCashPaymentsCents - todayCashRefundsCents - todayReturns.cash_cents - todayDrawerExpensesCents,
           voidCount: todayVoids.count,
-          voidTotalCents: todayVoids.total_cents
+          voidTotalCents: todayVoids.total_cents,
+          discountCount: todayDiscounts.count,
+          discountCents: todayDiscounts.total_cents
         },
+        // So the owner sees on the daily screen when backups exist only on this computer.
+        backupCopy: {
+          dir: copy.backup_copy_dir,
+          lastAt: copy.backup_copy_last_at,
+          lastError: copy.backup_copy_last_error,
+          daysSinceCopy: copy.backup_copy_last_at ? Math.floor((now() - new Date(copy.backup_copy_last_at)) / 86400000) : null
+        },
+        wrongPinsToday,
         totalRevenueCents: all.total,
         totalInvoices: all.count,
         todayRevenueCents: todays.total,
@@ -149,7 +189,8 @@ function createReportsService(db, { now = () => new Date() } = {}) {
      *   cost of goods = the cost recorded on each sale line when it was sold
      *   gross profit  = net sales - cost of goods, over sales whose every line has
      *                   a known cost; any other sale is left out and disclosed
-     *   net profit    = gross profit - expenses - stock written off (at cost)
+     *   net profit    = gross profit - expenses - stock written off (expired,
+     *                   damaged or lost; at cost)
      * Cancelled (voided) sales and deleted expenses are excluded. The chart
      * series are built from the same rows as the totals, so they always add up.
      */
@@ -193,7 +234,9 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         expenseCount: 0,
         writeOffCents: 0,
         writeOffCount: 0,
-        writeOffUnknownCount: 0
+        writeOffUnknownCount: 0,
+        returnsCount: 0,
+        returnsNetCents: 0
       };
 
       const sales = db.all(
@@ -229,6 +272,36 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         }
       }
 
+      // Returns count on the day the customer brought the items back (a sale can
+      // no longer be cancelled once something was returned from it). They take
+      // their part of net sales and, when the sale's cost is known, of the cost
+      // of goods off the same side of the sum the sale itself is on.
+      const returns = db.all(
+        `SELECT r.id, r.created_at, r.net_cents, r.refund_cents,
+           (SELECT SUM(sri.cost_cents) FROM sale_return_items sri WHERE sri.return_id = r.id) AS cost_cents,
+           (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = r.sale_id AND si.cost_cents IS NULL) AS unknown_lines
+         FROM sale_returns r JOIN sales s ON s.id = r.sale_id
+         WHERE s.status = 'COMPLETED' AND r.created_at >= ? AND r.created_at < ?;`,
+        [start, end]
+      );
+      for (const r of returns) {
+        const bucket = bucketFor(localDateString(new Date(r.created_at)));
+        t.returnsCount += 1;
+        t.returnsNetCents += r.net_cents;
+        t.netSalesCents -= r.net_cents;
+        t.taxAndFeesCents -= r.refund_cents - r.net_cents;
+        t.collectedCents -= r.refund_cents;
+        bucket.netSalesCents -= r.net_cents;
+        if (r.unknown_lines === 0) {
+          t.costedNetSalesCents -= r.net_cents;
+          t.cogsCents -= r.cost_cents || 0;
+          bucket.costedNetSalesCents -= r.net_cents;
+          bucket.cogsCents -= r.cost_cents || 0;
+        } else {
+          t.uncostedNetSalesCents -= r.net_cents;
+        }
+      }
+
       const expenseRows = db.all(
         `SELECT expense_date, category, SUM(amount_cents) AS amount_cents, COUNT(*) AS count
          FROM expenses WHERE deleted_at IS NULL AND expense_date >= ? AND expense_date <= ?
@@ -246,8 +319,9 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         byCategory.set(row.category, c);
       }
 
+      // Expired stock written off, and stock recorded as damaged or lost when correcting a count.
       const writeOffs = db.all(
-        "SELECT created_at, value_cents FROM stock_adjustments WHERE kind = 'WRITE_OFF' AND created_at >= ? AND created_at < ?;",
+        "SELECT created_at, value_cents FROM stock_adjustments WHERE kind IN ('WRITE_OFF', 'LOSS') AND created_at >= ? AND created_at < ?;",
         [start, end]
       );
       for (const w of writeOffs) {
@@ -284,7 +358,7 @@ function createReportsService(db, { now = () => new Date() } = {}) {
         [start, end]
       );
       const categoryRows = db.all(
-        `SELECT COALESCE(c.name, 'No category') AS name, SUM(si.total_cents) AS revenue_cents, SUM(si.cost_cents) AS cost_cents
+        `SELECT c.id AS category_id, COALESCE(c.name, 'No category') AS name, SUM(si.total_cents) AS revenue_cents, SUM(si.cost_cents) AS cost_cents
          FROM sale_items si
          JOIN sales s ON s.id = si.sale_id
          LEFT JOIN products p ON p.id = si.product_id
@@ -293,6 +367,38 @@ function createReportsService(db, { now = () => new Date() } = {}) {
          GROUP BY c.id;`,
         [start, end]
       );
+      // Items returned in the period come off their medicine and category (when those sold in the
+      // period too; these lists rank what sold, the totals above include every return).
+      const returnFilter = "s.status = 'COMPLETED' AND r.created_at >= ? AND r.created_at < ? AND sri.cost_cents IS NOT NULL";
+      const returnedBy = (groupKey, joins) =>
+        new Map(
+          db
+            .all(
+              `SELECT ${groupKey} AS k, SUM(sri.base_units) AS units, SUM(sri.price_cents * sri.quantity) AS revenue_cents, SUM(sri.cost_cents) AS cost_cents
+               FROM sale_return_items sri
+               JOIN sale_returns r ON r.id = sri.return_id
+               JOIN sales s ON s.id = r.sale_id
+               ${joins}
+               WHERE ${returnFilter}
+               GROUP BY ${groupKey};`,
+              [start, end]
+            )
+            .map((row) => [row.k, row])
+        );
+      const lessReturns = (row, returned) =>
+        returned
+          ? {
+              ...row,
+              units: row.units === undefined ? undefined : row.units - returned.units,
+              revenue_cents: row.revenue_cents - returned.revenue_cents,
+              cost_cents: row.cost_cents - returned.cost_cents
+            }
+          : row;
+      const productReturns = returnedBy('sri.product_id', '');
+      const categoryReturns = returnedBy('c.id', 'LEFT JOIN products p ON p.id = sri.product_id LEFT JOIN categories c ON c.id = p.category_id');
+      const productNet = productRows.map((r) => lessReturns(r, productReturns.get(r.product_id)));
+      const categoryNet = categoryRows.map((r) => lessReturns(r, categoryReturns.get(r.category_id)));
+
       const withProfit = (r) => ({
         revenueCents: r.revenue_cents,
         costCents: r.cost_cents,
@@ -319,11 +425,11 @@ function createReportsService(db, { now = () => new Date() } = {}) {
           return { ...b, grossProfitCents: gross, netProfitCents: gross - b.expensesCents - b.writeOffCents };
         }),
         expensesByCategory: [...byCategory.values()].sort((a, b) => b.amountCents - a.amountCents),
-        topProducts: productRows
+        topProducts: productNet
           .map((r) => ({ productId: r.product_id, title: r.title, units: r.units, ...withProfit(r) }))
           .sort(byProfit)
           .slice(0, 10),
-        byCategory: categoryRows.map((r) => ({ name: r.name, ...withProfit(r) })).sort(byProfit),
+        byCategory: categoryNet.map((r) => ({ name: r.name, ...withProfit(r) })).sort(byProfit),
         productsMissingCost: db.value('SELECT COUNT(*) FROM products WHERE is_active = 1 AND cost_price_cents <= 0;')
       };
     },

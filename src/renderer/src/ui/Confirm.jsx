@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Modal, ModalBody, ModalFooter } from './Modal.jsx';
 import { Button } from './Button.jsx';
+import { useApp } from '../state/AppState.jsx';
 
 const ConfirmContext = createContext(null);
 
@@ -25,6 +26,16 @@ export function ConfirmProvider({ children }) {
     setRequest(null);
     if (resolve) resolve(answer);
   };
+
+  // Locking the till answers "no" to an open question.
+  const { user } = useApp();
+  useEffect(() => {
+    if (user || !resolver.current) return;
+    const resolve = resolver.current;
+    resolver.current = null;
+    setRequest(null);
+    resolve(false);
+  }, [user]);
 
   return (
     <ConfirmContext.Provider value={confirm}>

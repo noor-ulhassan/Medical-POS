@@ -200,14 +200,40 @@ export function App() {
 
   useEffect(() => {
     if (!window.noorpos.onWarning) return undefined;
-    return window.noorpos.onWarning(({ message }) => {
-      setSaveProblem(message);
+    return window.noorpos.onWarning(({ message, kind }) => {
+      // Only a failed save means the data is not on disk; a backup problem is shown but does not mark it.
+      if (kind !== 'backup') setSaveProblem(message);
       toast(message, 'error', { sticky: true });
     });
   }, [setSaveProblem, toast]);
 
-  // Keyboard-first operation for barcode scanners and fast cashiers.
   const ready = Boolean(user) && !user.mustChangePin;
+
+  // A till left logged in (often as the owner) lets anyone at the counter use
+  // that account, so it locks itself after a while without use. The sale in
+  // progress is kept. The delay is chosen in Settings, This computer.
+  useEffect(() => {
+    if (!ready) return undefined;
+    let lastActivity = Date.now();
+    const touch = () => {
+      lastActivity = Date.now();
+    };
+    const events = ['keydown', 'pointerdown', 'pointermove', 'wheel'];
+    events.forEach((name) => document.addEventListener(name, touch, { capture: true, passive: true }));
+    const timer = setInterval(() => {
+      const minutes = readPrefs().autoLockMinutes;
+      if (minutes > 0 && Date.now() - lastActivity >= minutes * 60 * 1000) {
+        lock();
+        toast(`Locked after ${minutes} minutes without use. The sale in progress is kept.`, 'info');
+      }
+    }, 10 * 1000);
+    return () => {
+      clearInterval(timer);
+      events.forEach((name) => document.removeEventListener(name, touch, { capture: true }));
+    };
+  }, [ready, lock, toast]);
+
+  // Keyboard-first operation for barcode scanners and fast cashiers.
   useEffect(() => {
     if (!ready) return undefined;
     const focusLater = (id) => setTimeout(() => {

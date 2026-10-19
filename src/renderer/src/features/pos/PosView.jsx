@@ -29,10 +29,11 @@ export function PosView() {
       return;
     }
     const { tabKey } = await call('parked.park', {
-      lines: cart.lines,
+      lines: cart.saleLines,
       customerId: cart.customerId,
       totalCents: cart.totals.totalCents,
-      discount: cart.discount
+      discount: cart.discount,
+      prescriptionPath: cart.prescriptionPath
     });
     cart.clear();
     toast(`Sale put on hold (${tabKey}). Open "Held sales" to finish it later.`);
@@ -54,6 +55,7 @@ export function PosView() {
     cart.clear();
     cart.restoreDiscount(parked.discount);
     const { skipped } = cart.load(parked.lines, parked.customerId);
+    if (parked.prescriptionPath) cart.setPrescriptionPath(parked.prescriptionPath);
     if (skipped) toast(`${skipped} item(s) could not be restored (removed or out of stock)`, 'warning');
   });
 

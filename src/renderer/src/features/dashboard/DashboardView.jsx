@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ClipboardList, ChartColumn } from 'lucide-react';
+import { RefreshCw, ClipboardList, ChartColumn, TriangleAlert } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
@@ -10,6 +10,8 @@ import { money, plural } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 
 const METHOD_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wallet', CREDIT: 'Khata' };
+/** A few typos a day are normal; this many suggests someone is guessing. */
+const WRONG_PIN_WARNING = 10;
 
 function Stat({ label, value, note, id, noteId, tone }) {
   return (
@@ -52,13 +54,34 @@ function TodayCash({ today }) {
             );
           })}
           <div className="flex items-baseline justify-between py-2">
-            <dt className="text-ink-2">Khata payments received</dt>
+            <dt className="text-ink-2">
+              Khata payments received
+              {today.khataPaymentsCents !== today.khataCashPaymentsCents && (
+                <span className="text-sm text-ink-3"> ({money(today.khataCashPaymentsCents)} in cash)</span>
+              )}
+            </dt>
             <dd className="num font-semibold text-ink">{money(today.khataPaymentsCents)}</dd>
           </div>
+          {today.discountCount > 0 && (
+            <div className="flex items-baseline justify-between py-2">
+              <dt className="text-ink-2">
+                Discounts given <span className="text-sm text-ink-3">({plural(today.discountCount, 'sale')}, see the activity log)</span>
+              </dt>
+              <dd id="dashTodayDiscounts" className="num font-semibold text-ink">{money(today.discountCents)}</dd>
+            </div>
+          )}
           {today.drawerExpensesCents > 0 && (
             <div className="flex items-baseline justify-between py-2">
               <dt className="text-ink-2">Expenses paid from the drawer</dt>
               <dd className="num font-semibold text-ink">{money(today.drawerExpensesCents)}</dd>
+            </div>
+          )}
+          {today.returnCount > 0 && (
+            <div className="flex items-baseline justify-between py-2">
+              <dt className="text-ink-2">
+                Items returned today <span className="text-sm text-ink-3">({plural(today.returnCount, 'return')}, {money(today.cashReturnsCents)} in cash)</span>
+              </dt>
+              <dd id="dashTodayReturns" className="num font-semibold text-red-ink">{money(today.returnsCents)}</dd>
             </div>
           )}
           {today.voidCount > 0 && (
@@ -74,14 +97,43 @@ function TodayCash({ today }) {
             {money(today.expectedCashCents)}
           </div>
           <p className="mt-2 text-sm">
-            Cash sales {money(today.cashSalesCents)} + khata payments {money(today.khataPaymentsCents)}
+            Cash sales {money(today.cashSalesCents)} + khata payments in cash {money(today.khataCashPaymentsCents)}
             {today.cashRefundsCents > 0 ? ` − cash given back ${money(today.cashRefundsCents)}` : ''}
+            {today.cashReturnsCents > 0 ? ` − cash given back for returns ${money(today.cashReturnsCents)}` : ''}
             {today.drawerExpensesCents > 0 ? ` − expenses paid from the drawer ${money(today.drawerExpensesCents)}` : ''}. Add the cash you started the day with, then count
             the drawer.
           </p>
         </div>
       </div>
     </Panel>
+  );
+}
+
+/** Backups that exist only on this computer are lost with it; say so where the owner looks every day. */
+function BackupCopyWarning({ copy }) {
+  const { can, go } = useApp();
+  if (!copy) return null;
+  let message = null;
+  if (!copy.dir) message = 'Backups are only on this computer. If its disk fails or it is stolen, all sales, stock and khata records are lost.';
+  else if (copy.lastError) message = copy.lastError;
+  else if (copy.daysSinceCopy === null || copy.daysSinceCopy >= 2) {
+    message = `Backups have not been copied to ${copy.dir} ${copy.daysSinceCopy === null ? 'yet' : `for ${plural(copy.daysSinceCopy, 'day')}`}. Is the USB drive plugged in?`;
+  }
+  if (!message) return null;
+  return (
+    <div id="dashBackupWarning" className="flex flex-wrap items-center justify-between gap-3 rounded-panel bg-amber-soft px-5 py-3.5 text-base text-amber-ink">
+      <span className="flex items-center gap-3">
+        <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+        {message}
+      </span>
+      {can('backup.manage') ? (
+        <Button size="sm" onClick={() => go('settingsView')}>
+          Open Settings
+        </Button>
+      ) : (
+        <span className="text-sm">Ask the owner to set this up in Settings, Backup and restore.</span>
+      )}
+    </div>
   );
 }
 
@@ -117,6 +169,18 @@ export function DashboardView() {
         <Stat label="Owed on khata" id="dashCustomerDebt" value={money(d?.outstandingDebtCents)} note="Outstanding customer balances" />
         <Stat label="Products needing attention" id="dashRiskAlerts" value={d ? d.riskCount : 0} note="Low stock or expiring within 6 months" tone={d?.riskCount ? 'danger' : undefined} />
       </div>
+
+      <BackupCopyWarning copy={d?.backupCopy} />
+
+      {d && d.wrongPinsToday >= WRONG_PIN_WARNING && (
+        <div id="dashWrongPins" className="flex items-center gap-3 rounded-panel bg-red-soft px-5 py-3.5 text-base text-red-ink">
+          <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+          <span>
+            {plural(d.wrongPinsToday, 'wrong PIN')} were entered today. Someone may be trying to guess a PIN: the owner can see when in Settings, Activity log, and
+            give staff new PINs.
+          </span>
+        </div>
+      )}
 
       <TodayCash today={d?.today} />
 

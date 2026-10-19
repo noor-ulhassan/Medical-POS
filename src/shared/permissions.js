@@ -23,6 +23,8 @@
     'sales.view': ALL,
     'sales.attachRx': ALL,
     'sales.void': MANAGERS,
+    // Cashiers may discount a bill only up to settings.cashier_max_discount_percent.
+    'sales.discountAnyAmount': MANAGERS,
     'products.view': ALL,
     'products.manage': MANAGERS,
     'stock.adjust': MANAGERS,

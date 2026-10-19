@@ -1,6 +1,7 @@
 /**
  * Preferences that belong to this computer (screen and printer), not to the
- * shop's data: text size and how receipts print. Kept in the browser
+ * shop's data: text size, how receipts print and when the till locks itself
+ * after it is left unused. Kept in the browser
  * profile; every access is guarded so the app works if storage is blocked.
  */
 
@@ -10,7 +11,16 @@ export const TEXT_SIZES = [
   { value: 'larger', label: 'Larger', factor: 1.3 }
 ];
 
-const DEFAULTS = { textSize: 'normal', autoPrintReceipt: false, silentPrint: false };
+/** Minutes without use before the till locks itself (0 = never). */
+export const AUTO_LOCK_CHOICES = [
+  { value: 0, label: 'Never' },
+  { value: 2, label: 'After 2 minutes' },
+  { value: 5, label: 'After 5 minutes' },
+  { value: 10, label: 'After 10 minutes' },
+  { value: 30, label: 'After 30 minutes' }
+];
+
+const DEFAULTS = { textSize: 'normal', autoPrintReceipt: false, silentPrint: false, autoLockMinutes: 10 };
 const KEY = 'noorpos_computer_prefs';
 
 export function readPrefs() {
@@ -20,6 +30,7 @@ export function readPrefs() {
     if (!TEXT_SIZES.some((t) => t.value === prefs.textSize)) prefs.textSize = DEFAULTS.textSize;
     prefs.autoPrintReceipt = prefs.autoPrintReceipt === true;
     prefs.silentPrint = prefs.silentPrint === true;
+    if (!AUTO_LOCK_CHOICES.some((c) => c.value === prefs.autoLockMinutes)) prefs.autoLockMinutes = DEFAULTS.autoLockMinutes;
     return prefs;
   } catch (_) {
     return { ...DEFAULTS };

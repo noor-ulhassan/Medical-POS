@@ -10,7 +10,7 @@ import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
 import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, Pagination, paginate } from '../../ui/Table.jsx';
-import { money, isLowStock, isOutOfStock, splitUnits, toCents, centsToInput } from '../../lib/format.js';
+import { money, isLowStock, isOutOfStock, splitUnits, toCents, centsToInput, shortDate } from '../../lib/format.js';
 import { ProductDialog } from './ProductDialog.jsx';
 
 const PAGE_SIZE = 25;
@@ -24,6 +24,7 @@ const stockText = (units, packSize) => {
 function ReceiveStockDialog({ product, onClose }) {
   const { loadProducts, refreshAlerts } = useApp();
   const { toast, guard } = useToast();
+  const confirm = useConfirm();
   const [v, setV] = useState({ packs: '', singles: '', expiryDate: '', costPrice: '' });
 
   useEffect(() => {
@@ -41,6 +42,23 @@ function ReceiveStockDialog({ product, onClose }) {
     if (added <= 0) throw new Error('Enter how many packs arrived');
     const cost = v.costPrice === '' ? null : toCents(v.costPrice);
     if (cost !== null && (Number.isNaN(cost) || cost < 0)) throw new Error('Cost per pack is not a valid amount');
+    // One expiry date is kept per medicine. Moving it later while older packs
+    // remain would let those packs be sold after they expire.
+    if (v.expiryDate && product.expiry_date && product.stock_units > 0 && v.expiryDate > product.expiry_date) {
+      const olderGone = await confirm({
+        title: 'Are older packs still on the shelf?',
+        message:
+          `${stockText(product.stock_units, product.pack_size)} already in stock expire on ${shortDate(product.expiry_date)}. ` +
+          `This medicine has one expiry date, so if any of those packs are still there, keep the earlier date; ` +
+          `otherwise they could be sold after they expire.\n\nUse ${shortDate(v.expiryDate)} only if all the older packs are gone.`,
+        confirmText: `Older packs are gone: use ${shortDate(v.expiryDate)}`
+      });
+      if (!olderGone) {
+        setV((cur) => ({ ...cur, expiryDate: product.expiry_date }));
+        toast(`Kept the earlier expiry date ${shortDate(product.expiry_date)}. Press Add to stock to save.`, 'info');
+        return;
+      }
+    }
     const saved = await call('products.receiveStock', {
       id: product.id,
       packs,
