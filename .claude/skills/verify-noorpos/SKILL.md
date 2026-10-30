@@ -51,9 +51,9 @@ node .claude/skills/verify-noorpos/scripts/drive.mjs eval path/to/journey.js   #
 | `$v.overflowing()` | elements wider than the window (a layout bug at this size) |
 | `$v.closeDialogs()` | click every open dialog's close button |
 
-Views (`viewId`): `posView` Sell, `salesView` Past sales, `quotationView`, `inventoryView` Medicines & stock, `expiryView`, `ordersView` Order from supplier, `suppliersView`, `khataView`, `dashboardView` Today's report, `profitView`, `expensesView`, `settingsView`.
+Views (`viewId`), grouped by the five side-bar sections: Sell `posView`; Sales `salesView` (Past sales), `quotationView` (Price quote); Stock `inventoryView` (Medicines), `expiryView` (Expiring), `ordersView` (Reorder), `suppliersView`; Khata `khataView`; Reports `dashboardView` (Today), `profitView`, `expensesView`; plus `settingsView`. `$v.nav(viewId)` clicks the section and then its tab.
 
-Stable handles to prefer (the smoke test uses them too): element ids (`#posSearchInput`, `#btnOpenCheckoutModal`, `#checkoutPaymentForm`, `#modalReceiptPreview`, `#cartItemsList`, `#salesTableBody`...), `data-*` attributes (`data-product-id`, `data-cart-qty`, `data-void`, `data-return`, `data-pay`, `data-edit`, `data-receive`), form field `name`s, and `aria-label`s. Recipes per feature are in [features/](features/README.md).
+Stable handles to prefer (the smoke test uses them too): element ids (`#posSearchInput`, `#btnOpenCheckoutModal`, `#checkoutPaymentForm`, `#modalReceiptPreview`, `#cartItemsList`, `#salesTableBody`...), `data-*` attributes (`data-product-id`, `data-cart-qty`, `data-open-sale`, `data-open-product`, `data-open-customer` for rows that open a detail window, and inside those windows `data-void`, `data-return`, `data-pay`, `data-edit`, `data-history`, `data-receive`), form field `name`s, and `aria-label`s. Recipes per feature are in [features/](features/README.md).
 
 ## Evidence
 
@@ -65,6 +65,7 @@ node .claude/skills/verify-noorpos/scripts/drive.mjs shot sell-after-sale   # pr
 - Prove the user path, not internals: click and type through the UI, then capture the action's result and a second view of it (a sale on the receipt and in Past sales; stock on the product list).
 - For layout work, also return `$v.overflowing()` and check it is empty.
 - Never put screenshots in the repository.
+- The app keeps painting while other windows cover it, but not while it is minimized: `shot` then fails with that reason instead of hanging. Ask the user to restore it from the taskbar.
 
 ## Cleanup
 
