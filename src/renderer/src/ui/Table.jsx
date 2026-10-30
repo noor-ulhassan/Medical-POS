@@ -19,7 +19,7 @@ export function Th({ num, className, children }) {
     <th
       scope="col"
       className={cx(
-        'sticky top-0 z-[1] whitespace-nowrap border-b border-foil bg-sunken px-4 py-2.5 text-left text-xs font-semibold text-ink-2',
+        'sticky top-0 z-[1] whitespace-nowrap border-b border-foil bg-sunken px-4 py-3 text-left text-sm font-semibold text-ink-2',
         num && 'text-right',
         className
       )}

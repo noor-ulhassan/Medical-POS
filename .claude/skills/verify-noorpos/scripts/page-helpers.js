@@ -69,8 +69,15 @@ window.$v =
       return true;
     }
 
+    /** Open a screen: its section in the side bar, then its tab when the section has several screens. */
     async function nav(view) {
-      click(`.nav-item[data-target="${view}"]`);
+      const item = $$('.nav-item[data-views]').find((el) => el.dataset.views.split(' ').includes(view));
+      if (!item) throw new Error(`no menu section opens ${view} (role without access?)`);
+      item.click();
+      if (item.dataset.target !== view) {
+        await waitFor(`${view} tab`, () => $(`[data-tab="${view}"]`));
+        click(`[data-tab="${view}"]`);
+      }
       await waitFor(view, () => exists(view));
       await sleep(200);
     }

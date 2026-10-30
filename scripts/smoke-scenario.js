@@ -39,7 +39,16 @@
   }
   const field = (form, name) => $(`#${form} [name="${name}"]`);
   const key = (target, k, extra = {}) => target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...extra }));
-  const nav = (view) => $(`.nav-item[data-target="${view}"]`).click();
+  /** Open a screen: its section in the side bar, then its tab when the section has several screens. */
+  const nav = (view) => {
+    const item = [...document.querySelectorAll('.nav-item[data-views]')].find((el) => el.dataset.views.split(' ').includes(view));
+    item.click();
+    if (item.dataset.target === view) return Promise.resolve();
+    return (async () => {
+      await waitFor(`${view} tab`, () => $(`[data-tab="${view}"]`));
+      $(`[data-tab="${view}"]`).click();
+    })();
+  };
   const button = (scope, label) => [...document.querySelectorAll(`${scope} button`)].find((b) => b.textContent.trim().startsWith(label));
 
   async function typePin(pin) {
@@ -185,11 +194,15 @@
 
   await step('text size button makes everything bigger and back', async () => {
     const before = window.devicePixelRatio;
+    $('#btnUserMenu').click();
+    await waitFor('me window', () => exists('modalMe'));
     $('#textSizeBtn').click();
     await waitFor('zoomed in', () => window.devicePixelRatio > before);
     $('#textSizeBtn').click();
     $('#textSizeBtn').click();
     await waitFor('back to normal', () => Math.abs(window.devicePixelRatio - before) < 0.01);
+    $('#modalMe button[aria-label="Close"]').click();
+    await waitFor('me window closed', () => !exists('modalMe'));
   });
 
   const views = ['dashboardView', 'profitView', 'expensesView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
@@ -314,10 +327,14 @@
 
   await step('theme switches between light and dark', async () => {
     const before = document.documentElement.dataset.theme;
+    $('#btnUserMenu').click();
+    await waitFor('me window', () => exists('modalMe'));
     $('#themeToggleBtn').click();
     await waitFor('theme changed', () => document.documentElement.dataset.theme !== before);
     $('#themeToggleBtn').click();
     await waitFor('theme restored', () => document.documentElement.dataset.theme === before);
+    $('#modalMe button[aria-label="Close"]').click();
+    await waitFor('me window closed', () => !exists('modalMe'));
   });
 
   await step('F12 locks the terminal', async () => {

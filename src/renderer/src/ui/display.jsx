@@ -11,7 +11,7 @@ const PILL_TONES = {
 export function Pill({ tone = 'neutral', className, children, ...props }) {
   return (
     <span
-      className={cx('inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-semibold', PILL_TONES[tone], className)}
+      className={cx('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 text-sm font-semibold', PILL_TONES[tone], className)}
       {...props}
     >
       {children}
@@ -22,7 +22,7 @@ export function Pill({ tone = 'neutral', className, children, ...props }) {
 /** "Rx" marker for prescription-only medicines. */
 export function RxPill() {
   return (
-    <Pill tone="amber" title="Prescription required" className="h-[18px] px-1.5 text-[11px]">
+    <Pill tone="amber" title="Prescription required" className="h-5 px-1.5 text-xs">
       Rx
     </Pill>
   );
@@ -127,7 +127,7 @@ export function Segmented({ options, value, onChange, size = 'md', label, classN
           onClick={() => onChange(o.value)}
           className={cx(
             'whitespace-nowrap rounded-[4px] font-semibold transition-colors',
-            size === 'xs' ? 'h-6 px-2 text-xs' : size === 'sm' ? 'h-7 px-2.5 text-sm' : 'h-8 px-3 text-sm',
+            size === 'xs' ? 'h-8 px-2.5 text-sm' : size === 'sm' ? 'h-9 px-3 text-sm' : 'h-10 px-3.5 text-base',
             value === o.value ? 'bg-surface text-ink shadow-sm ring-1 ring-foil' : 'text-ink-2 hover:text-ink'
           )}
         >

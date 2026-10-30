@@ -10,9 +10,9 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: 'h-8 px-2.5 text-sm gap-1.5 [&_svg]:size-4',
-  md: 'h-9 px-3.5 text-base gap-2 [&_svg]:size-[18px]',
-  lg: 'h-11 px-5 text-md gap-2 [&_svg]:size-5'
+  sm: 'h-9 px-3 text-sm gap-1.5 [&_svg]:size-4',
+  md: 'h-11 px-4 text-base gap-2 [&_svg]:size-5',
+  lg: 'h-12 px-5 text-md gap-2 [&_svg]:size-5'
 };
 
 export const Button = forwardRef(function Button(
@@ -52,7 +52,7 @@ export const IconButton = forwardRef(function IconButton(
       aria-label={label}
       className={cx(
         'inline-flex shrink-0 items-center justify-center rounded-control transition-colors disabled:pointer-events-none disabled:opacity-40',
-        size === 'sm' ? 'size-8 [&_svg]:size-4' : 'size-9 [&_svg]:size-[18px]',
+        size === 'sm' ? 'size-9 [&_svg]:size-[18px]' : 'size-11 [&_svg]:size-5',
         tone === 'danger' ? 'text-ink-3 hover:bg-red-soft hover:text-red-ink' : 'text-ink-2 hover:bg-sunken hover:text-ink',
         className
       )}
