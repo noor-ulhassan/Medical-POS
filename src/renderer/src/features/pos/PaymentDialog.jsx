@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Banknote, CreditCard, Smartphone, NotebookPen, Check, CircleAlert } from 'lucide-react';
+import { Banknote, Check, CircleAlert } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart, WALK_IN_ID } from '../../state/Cart.jsx';
@@ -11,14 +11,9 @@ import { Button } from '../../ui/Button.jsx';
 import { money, toCents, centsToInput } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 import { readPrefs } from '../../lib/prefs.js';
+import { PAYMENT_METHODS as METHODS } from '../../lib/look.js';
 
-/** Each way of paying keeps one tone wherever it appears (here, Past sales, Today's report). */
-export const METHODS = [
-  { value: 'CASH', label: 'Cash', icon: Banknote, tone: 1 },
-  { value: 'CARD', label: 'Card', icon: CreditCard, tone: 2 },
-  { value: 'MOBILE WALLET', label: 'Mobile wallet', icon: Smartphone, tone: 3 },
-  { value: 'CREDIT', label: 'Khata', icon: NotebookPen, tone: 4 }
-];
+
 
 const NOTES = [10, 20, 50, 100, 500, 1000, 5000];
 
@@ -125,7 +120,7 @@ export function PaymentDialog() {
   const balanceAfter = customer ? customer.current_debt_cents + total : 0;
 
   return (
-    <Modal open={open} onClose={() => cart.setPaymentOpen(false)} title="Take payment" id="modalCheckoutPayment" size="md">
+    <Modal open={open} onClose={() => cart.setPaymentOpen(false)} title="Take payment" icon={Banknote} id="modalCheckoutPayment" size="md">
       <form
         id="checkoutPaymentForm"
         className="contents"

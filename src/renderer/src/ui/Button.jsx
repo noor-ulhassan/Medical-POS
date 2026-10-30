@@ -71,12 +71,12 @@ export function ActionButton({ icon: Icon, tone = 'default', children, ...props 
       className={cx(
         'flex h-12 w-full items-center gap-3 rounded-control px-4 text-left text-base font-semibold transition-colors',
         tone === 'primary' && 'bg-teal text-teal-on hover:bg-teal-hover',
-        tone === 'danger' && 'text-red-ink ring-1 ring-red/30 hover:bg-red-soft',
-        tone === 'default' && 'bg-sunken text-ink hover:bg-foil'
+        tone === 'danger' && 'bg-surface text-red-ink ring-1 ring-red/30 hover:bg-red-soft',
+        tone === 'default' && 'bg-surface text-ink shadow-sm ring-1 ring-foil hover:bg-accent-soft hover:ring-accent/40'
       )}
       {...props}
     >
-      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      <Icon className={cx('size-5 shrink-0', tone === 'default' && 'text-accent-ink')} aria-hidden="true" />
       {children}
     </button>
   );

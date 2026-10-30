@@ -2,6 +2,7 @@ import { cx } from './cx.js';
 import { expiryStatus, shortDate } from '../lib/format.js';
 import { useApp } from '../state/AppState.jsx';
 import { viewMeta } from '../shell/sections.js';
+import { initials } from '../lib/look.js';
 
 const PILL_TONES = {
   neutral: 'bg-sunken text-ink-2 border-foil',
@@ -119,6 +120,40 @@ export function IconTile({ icon: Icon, tone, size = 'md', className }) {
   );
 }
 
+/** A thin bar showing how full something is (stock against its minimum, khata against its limit). */
+export function Meter({ value, tone = 'teal', label, className }) {
+  const pct = Math.round(Math.min(Math.max(value, 0), 1) * 100);
+  return (
+    <span
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={pct}
+      className={cx('block h-1.5 overflow-hidden rounded-full bg-foil/70', className || 'w-full')}
+    >
+      <span className={cx('block h-full rounded-full', { teal: 'bg-teal', amber: 'bg-amber', red: 'bg-red', accent: 'bg-accent' }[tone])} style={{ width: `${pct}%` }} />
+    </span>
+  );
+}
+
+/** Initials on a round tile in the person's own colour (plain grey for `tone={null}`). */
+export function Avatar({ name, tone, size = 'md' }) {
+  return (
+    <span
+      data-tone={tone || undefined}
+      className={cx(
+        'flex shrink-0 items-center justify-center rounded-full font-bold',
+        tone === null ? 'bg-sunken text-ink-2' : 'bg-accent-soft text-accent-ink',
+        size === 'sm' ? 'size-8 text-xs' : 'size-10 text-sm'
+      )}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
 /** Page title with the screen's icon in its section's tone, so every screen says where you are. */
 export function PageHeader({ title, description, actions }) {
   const { view } = useApp();
@@ -185,7 +220,7 @@ export function Tabs({ tabs, value, onChange }) {
           onClick={() => onChange(t.value)}
           className={cx(
             '-mb-px border-b-2 px-3.5 pb-2.5 pt-1 text-base font-semibold transition-colors',
-            value === t.value ? 'border-teal text-teal-ink' : 'border-transparent text-ink-2 hover:text-ink'
+            value === t.value ? 'border-accent text-accent-ink' : 'border-transparent text-ink-2 hover:text-ink'
           )}
         >
           {t.label}

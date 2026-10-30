@@ -1,4 +1,4 @@
-import { Tablets, Pill, FlaskRound, Syringe, Droplets, Wind, SprayCan, Pipette, Bandage, PillBottle } from 'lucide-react';
+import { Tablets, Pill, FlaskRound, Syringe, Droplets, Wind, SprayCan, Pipette, Bandage, PillBottle, Banknote, CreditCard, Smartphone, NotebookPen } from 'lucide-react';
 import { isLowStock, isOutOfStock, expiryStatus } from './format.js';
 
 /*
@@ -30,3 +30,27 @@ export function stockLevel(product) {
 }
 
 export const STOCK_DOT = { ok: 'bg-teal', low: 'bg-amber', out: 'bg-red', expired: 'bg-red' };
+
+/** How full the shelf is: a full bar is three times the "warn below" level. */
+export const stockFill = (p) => p.stock_units / (Math.max(p.min_stock_level, 1) * 3 * Math.max(p.pack_size, 1));
+
+/** Each way of paying keeps one icon and tone wherever it appears. */
+export const PAYMENT_METHODS = [
+  { value: 'CASH', label: 'Cash', icon: Banknote, tone: 1 },
+  { value: 'CARD', label: 'Card', icon: CreditCard, tone: 2 },
+  { value: 'MOBILE WALLET', label: 'Mobile wallet', icon: Smartphone, tone: 3 },
+  { value: 'CREDIT', label: 'Khata', icon: NotebookPen, tone: 4 }
+];
+
+export const paymentMethod = (value) => PAYMENT_METHODS.find((m) => m.value === value) || { value, label: value, icon: Banknote, tone: null };
+
+/** A person or company keeps the same colour in every list (by id), with their initials on it. */
+export const idTone = (id) => ((Number(id) || 0) % 6) + 1;
+
+export const initials = (name) =>
+  String(name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('');
