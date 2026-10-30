@@ -5,7 +5,8 @@ import { useToast } from '../../ui/Toast.jsx';
 import { useDocuments, PurchaseOrder } from '../../print/Documents.jsx';
 import { Button } from '../../ui/Button.jsx';
 import { Select } from '../../ui/Field.jsx';
-import { Page, PageHeader, Segmented, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, Segmented, EmptyState, IconTile } from '../../ui/display.jsx';
+import { medicineIcon, categoryTone } from '../../lib/look.js';
 import { Table, Th, Td, Tr } from '../../ui/Table.jsx';
 import { money, isLowStock, isOutOfStock, timeReference } from '../../lib/format.js';
 
@@ -102,8 +103,13 @@ export function RestockView() {
                 return (
                   <Tr key={p.id}>
                     <Td>
-                      <div className="font-semibold text-ink">{p.title}</div>
-                      <div className="text-sm text-ink-3">{[`pack of ${p.pack_size}`, p.supplier_name].filter(Boolean).join(' · ')}</div>
+                      <div className="flex items-center gap-3">
+                        <IconTile icon={medicineIcon(p.title)} tone={categoryTone(p.category_id)} />
+                        <div className="min-w-0">
+                          <div className="font-semibold text-ink">{p.title}</div>
+                          <div className="text-sm text-ink-3">{[`pack of ${p.pack_size}`, p.supplier_name].filter(Boolean).join(' · ')}</div>
+                        </div>
+                      </div>
                     </Td>
                     <Td num>
                       <div className={isOutOfStock(p) ? 'font-bold text-red-ink' : isLowStock(p) ? 'font-semibold text-amber-ink' : 'font-semibold'}>{p.stock_packs}</div>

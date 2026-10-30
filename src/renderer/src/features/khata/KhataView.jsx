@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Pencil, FileText, HandCoins, Users } from 'lucide-react';
+import { Plus, Search, Pencil, FileText, HandCoins, Users, NotebookPen } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { WALK_IN_ID } from '../../state/Cart.jsx';
@@ -8,7 +8,8 @@ import { useDocuments, LedgerStatement } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Field, Input, Select } from '../../ui/Field.jsx';
-import { Page, PageHeader, SearchInput, Pill, EmptyState, Fact } from '../../ui/display.jsx';
+import { Page, PageHeader, SearchInput, Pill, EmptyState, Fact, Avatar, Meter } from '../../ui/display.jsx';
+import { idTone } from '../../lib/look.js';
 import { Table, Th, Td, Tr, Pagination, paginate } from '../../ui/Table.jsx';
 import { money, toCents, centsToInput } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
@@ -172,7 +173,7 @@ function CustomerDetail({ customer, onClose, onPay, onStatement, onEdit }) {
   const { can } = useApp();
   const c = customer;
   return (
-    <Modal open={Boolean(c)} onClose={onClose} title={c ? c.name : ''} description={c?.phone || undefined} id="modalCustomerDetail" size="lg">
+    <Modal open={Boolean(c)} onClose={onClose} title={c ? c.name : ''} description={c?.phone || undefined} icon={NotebookPen} id="modalCustomerDetail" size="lg">
       {c && (
         <ModalBody className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-5 bg-sunken">
           <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface shadow-card p-5">
@@ -284,12 +285,17 @@ export function KhataView() {
                 return (
                   <Tr key={c.id} data-open-customer={walkIn ? undefined : c.id} onOpen={walkIn ? undefined : () => setOpenId(c.id)}>
                     <Td>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-ink">{c.name}</span>
-                        {walkIn && <Pill>Cash only</Pill>}
-                        {over && <Pill tone="red">Over limit</Pill>}
+                      <div className="flex items-center gap-3">
+                        <Avatar name={c.name} tone={walkIn ? null : idTone(c.id)} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-ink">{c.name}</span>
+                            {walkIn && <Pill>Cash only</Pill>}
+                            {over && <Pill tone="red">Over limit</Pill>}
+                          </div>
+                          {(c.phone || c.address) && <div className="num mt-0.5 text-sm text-ink-3">{[c.phone, c.address].filter(Boolean).join(' · ')}</div>}
+                        </div>
                       </div>
-                      {(c.phone || c.address) && <div className="num mt-0.5 text-sm text-ink-3">{[c.phone, c.address].filter(Boolean).join(' · ')}</div>}
                     </Td>
                     <Td num className={c.current_debt_cents > 0 ? 'font-bold text-red-ink' : 'text-ink-2'}>
                       {owesText(c)}
@@ -298,7 +304,13 @@ export function KhataView() {
                       {walkIn ? null : (
                         <>
                           <div className="font-semibold text-ink">{money(Math.max(c.credit_limit_cents - c.current_debt_cents, 0))}</div>
-                          <div className="text-sm text-ink-3">limit {money(c.credit_limit_cents)}</div>
+                          <Meter
+                            value={c.credit_limit_cents > 0 ? c.current_debt_cents / c.credit_limit_cents : 0}
+                            tone={over ? 'red' : c.current_debt_cents > c.credit_limit_cents * 0.8 ? 'amber' : 'teal'}
+                            label="How much of the khata limit is used"
+                            className="ml-auto mt-1.5 w-28"
+                          />
+                          <div className="mt-1 text-sm text-ink-3">limit {money(c.credit_limit_cents)}</div>
                         </>
                       )}
                     </Td>

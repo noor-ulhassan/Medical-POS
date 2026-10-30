@@ -9,7 +9,8 @@ import { useDocuments, Receipt } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Field, Textarea, Checkbox } from '../../ui/Field.jsx';
-import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, SearchInput, Pill, EmptyState, IconTile } from '../../ui/display.jsx';
+import { paymentMethod } from '../../lib/look.js';
 import { Table, Th, Td, Tr, Pagination } from '../../ui/Table.jsx';
 import { money, dateTime, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
 
@@ -238,7 +239,7 @@ function SaleDetail({ saleId, refreshKey, onClose, onReturn, onVoid, onSellAgain
   const allReturned = returned && sale.returned_cents >= sale.total_cents;
 
   return (
-    <Modal open={Boolean(saleId)} onClose={onClose} title={sale ? `Sale ${sale.invoice_no}` : 'Sale'} id="modalSaleDetail" size="lg">
+    <Modal open={Boolean(saleId)} onClose={onClose} title={sale ? `Sale ${sale.invoice_no}` : 'Sale'} icon={ReceiptText} id="modalSaleDetail" size="lg">
       <ModalBody className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-5 bg-sunken">
         {sale && (
           <>
@@ -424,7 +425,12 @@ export function SalesView() {
                       {s.customer_name}
                       {s.prescription_path && <span className="ml-2 text-sm font-semibold text-ink-3">· Rx photo</span>}
                     </Td>
-                    <Td muted>{METHOD_LABELS[s.payment_method] || s.payment_method}</Td>
+                    <Td>
+                      <span className="flex items-center gap-2.5 text-ink-2">
+                        <IconTile icon={paymentMethod(s.payment_method).icon} tone={paymentMethod(s.payment_method).tone} size="sm" />
+                        {METHOD_LABELS[s.payment_method] || s.payment_method}
+                      </span>
+                    </Td>
                     <Td num className={voided ? 'line-through' : 'font-semibold text-ink'}>
                       {money(s.total_cents)}
                     </Td>

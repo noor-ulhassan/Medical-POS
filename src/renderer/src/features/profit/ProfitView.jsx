@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Wallet, TriangleAlert, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Wallet, TriangleAlert, TrendingUp, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, BarChart, Bar, LabelList } from 'recharts';
 import expensesShared from '@shared/expenses.js';
 import { call } from '../../lib/api.js';
@@ -7,7 +7,7 @@ import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { Button } from '../../ui/Button.jsx';
 import { Input } from '../../ui/Field.jsx';
-import { Page, PageHeader, Panel, Segmented, Pill, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, Panel, Segmented, Pill, EmptyState, IconTile } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, EmptyRow } from '../../ui/Table.jsx';
 import { money, compactMoney, percentText, plural } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
@@ -94,10 +94,13 @@ function LegendKey({ color, mark }) {
 }
 
 /** A money figure is never cut off: if it does not fit it wraps instead of being truncated. */
-function Tile({ label, value, note, id }) {
+function Tile({ label, value, note, id, icon, tone }) {
   return (
     <div className="flex min-w-0 flex-col bg-surface px-6 py-5">
-      <div className="text-sm font-semibold text-ink-2">{label}</div>
+      <div className="flex items-center gap-2.5 text-sm font-semibold text-ink-2">
+        <IconTile icon={icon} tone={tone} size="sm" />
+        {label}
+      </div>
       <div id={id} className="mt-1.5 break-words text-2xl font-bold tracking-[-0.02em] text-ink">
         {value}
       </div>
@@ -440,15 +443,19 @@ export function ProfitView() {
 
           <div className="grid grid-cols-1 gap-px overflow-hidden rounded-panel border border-foil bg-foil md:grid-cols-3">
             <NetProfitHero s={s} />
-            <Tile id="profitNetSales" label="Net sales" value={money(s.netSalesCents)} note={`${plural(s.salesCount, 'sale')}, average ${money(s.averageSaleCents)}`} />
+            <Tile id="profitNetSales" icon={ShoppingCart} tone={2} label="Net sales" value={money(s.netSalesCents)} note={`${plural(s.salesCount, 'sale')}, average ${money(s.averageSaleCents)}`} />
             <Tile
               id="profitGrossProfit"
+              icon={TrendingUp}
+              tone={1}
               label="Gross profit"
               value={money(s.grossProfitCents)}
               note={`${percentText(s.grossMarginPct)} margin, ${percentText(s.markupPct)} markup on cost`}
             />
             <Tile
               id="profitExpenses"
+              icon={Wallet}
+              tone={5}
               label="Expenses"
               value={money(s.expensesCents)}
               note={s.writeOffCents > 0 ? `+ ${money(s.writeOffCents)} stock written off` : plural(s.expenseCount, 'entry', 'entries')}
