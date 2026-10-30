@@ -113,12 +113,16 @@ function useJustAdded(lines) {
     const now = new Map(lines.map((l) => [`${l.productId}-${l.unitType}`, l.quantity]));
     const grown = [...now].find(([k, q]) => q > (seen.current.get(k) || 0));
     seen.current = now;
-    if (!grown) return undefined;
+    if (!grown) return;
     setKey(grown[0]);
     document.querySelector(`[data-line="${grown[0]}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [lines]);
+  // Its own effect: another change to the sale within the 900 ms must not cancel the fade.
+  useEffect(() => {
+    if (!key) return undefined;
     const timer = setTimeout(() => setKey(null), 900);
     return () => clearTimeout(timer);
-  }, [lines]);
+  }, [key]);
   return key;
 }
 
