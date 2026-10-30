@@ -135,7 +135,10 @@ const commands = {
     };
     // Set at all (even empty), it makes Electron run as plain Node with no `app`.
     delete env.ELECTRON_RUN_AS_NODE;
-    const child = spawn(electron, [ROOT, `--remote-debugging-port=${port}`], {
+    // Windows stops painting a window that other windows cover completely, and a screenshot of it
+    // would then wait forever. These Chromium switches keep it painting behind the user's windows.
+    const paintWhenCovered = ['--disable-features=CalculateNativeWinOcclusion', '--disable-backgrounding-occluded-windows'];
+    const child = spawn(electron, [ROOT, `--remote-debugging-port=${port}`, ...paintWhenCovered], {
       cwd: ROOT,
       detached: true,
       stdio: ['ignore', log, log],
@@ -209,6 +212,9 @@ const commands = {
     try {
       await setSize(session, state.size);
       await sleep(150);
+      // A hidden window paints nothing, so the capture would wait forever: fail with a reason instead.
+      const { result } = await session.send('Runtime.evaluate', { expression: 'document.visibilityState', returnByValue: true });
+      if (result.value === 'hidden') throw new Error('the app window is hidden (minimized?): restore it from the taskbar, then shoot again');
       const { data } = await session.send('Page.captureScreenshot', { format: 'png' });
       const file = path.join(state.evidence, `${name}.png`);
       fs.writeFileSync(file, Buffer.from(data, 'base64'));
