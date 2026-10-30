@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const fsp = require('fs/promises');
 const path = require('path');
 const { Database } = require('../db/Database');
 const { assertSupported } = require('../db/migrations');
@@ -10,8 +11,10 @@ const { validationError } = require('../lib/errors');
 
 const REQUIRED_TABLES = ['settings', 'users', 'products', 'sales', 'sale_items', 'customers'];
 const AUTO_BACKUPS_TO_KEEP = 14;
+/** Folder created inside the copy location chosen by the owner (USB drive, cloud folder). */
+const COPY_FOLDER_NAME = 'Noor Pharmacy POS backups';
 
-function createBackupService({ getDb, backupsDir }) {
+function createBackupService({ getDb, backupsDir, prescriptionsDir }) {
   function writeBackup(label, buffer) {
     ensureDir(backupsDir);
     const fileName = `noorpos_${label}_${timestampForFile()}.db`;
@@ -91,6 +94,53 @@ function createBackupService({ getDb, backupsDir }) {
       return created;
     },
 
+    /**
+     * Copy every backup, and the prescription photos (which are not inside the
+     * .db files), into <rootDir>/Noor Pharmacy POS backups, so the shop's data
+     * survives this computer's disk failing or being stolen. Only what is
+     * missing there is copied; daily automatic backups are rotated like here.
+     * Asynchronous so a slow USB drive does not freeze the till.
+     */
+    async copyTo(rootDir) {
+      const target = path.join(rootDir, COPY_FOLDER_NAME);
+      const targetPrescriptions = path.join(target, 'Prescriptions');
+      await fsp.mkdir(targetPrescriptions, { recursive: true });
+      // Leftovers of a copy that was interrupted (drive pulled out).
+      for (const name of await fsp.readdir(target)) {
+        if (name.endsWith('.partial')) await fsp.rm(path.join(target, name), { force: true });
+      }
+
+      const present = new Set(await fsp.readdir(target));
+      let backups = 0;
+      for (const b of list()) {
+        if (present.has(b.fileName)) continue;
+        const partial = path.join(target, `${b.fileName}.partial`);
+        await fsp.copyFile(b.filePath, partial);
+        await fsp.rename(partial, path.join(target, b.fileName));
+        backups++;
+      }
+      // File names carry the time (noorpos_auto_<ISO time>.db), so newest sort last.
+      const autos = (await fsp.readdir(target)).filter((f) => f.startsWith('noorpos_auto_') && f.toLowerCase().endsWith('.db')).sort();
+      for (const old of autos.slice(0, Math.max(autos.length - AUTO_BACKUPS_TO_KEEP, 0))) {
+        await fsp.rm(path.join(target, old), { force: true });
+      }
+
+      let prescriptions = 0;
+      if (prescriptionsDir && fs.existsSync(prescriptionsDir)) {
+        const have = new Set(await fsp.readdir(targetPrescriptions));
+        for (const name of await fsp.readdir(prescriptionsDir)) {
+          if (have.has(name)) continue;
+          const source = path.join(prescriptionsDir, name);
+          if (!(await fsp.stat(source)).isFile()) continue;
+          const partial = path.join(targetPrescriptions, `${name}.partial`);
+          await fsp.copyFile(source, partial);
+          await fsp.rename(partial, path.join(targetPrescriptions, name));
+          prescriptions++;
+        }
+      }
+      return { target, backups, prescriptions };
+    },
+
     async latestValid() {
       for (const backup of list()) {
         try {
@@ -105,4 +155,4 @@ function createBackupService({ getDb, backupsDir }) {
   };
 }
 
-module.exports = { createBackupService, AUTO_BACKUPS_TO_KEEP };
+module.exports = { createBackupService, AUTO_BACKUPS_TO_KEEP, COPY_FOLDER_NAME };

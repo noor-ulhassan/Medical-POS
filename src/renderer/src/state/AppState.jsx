@@ -20,6 +20,8 @@ export const VIEWS = [
   { id: 'suppliersView', permission: 'catalog.manage' },
   { id: 'khataView', permission: 'customers.view' },
   { id: 'dashboardView', permission: 'reports.view' },
+  { id: 'profitView', permission: 'reports.view' },
+  { id: 'expensesView', permission: 'expenses.manage' },
   { id: 'settingsView', permission: 'settings.manage' }
 ];
 

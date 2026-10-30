@@ -38,13 +38,13 @@ export function ChangePinDialog({ open, forced, onClose, onChanged, onLock }) {
           {forced && (
             <div className="flex gap-3 rounded-control bg-amber-soft px-3.5 py-3 text-sm text-amber-ink">
               <ShieldCheck className="size-5 shrink-0" aria-hidden="true" />
-              <span>Choose a new PIN that only you know before you continue.</span>
+              <span>Choose the PIN you will use from now on (any 4 to 6 digits) before you continue.</span>
             </div>
           )}
           <Field label="Current PIN">
             <Input name="currentPin" value={values.currentPin} onChange={set('currentPin')} {...pinProps} />
           </Field>
-          <Field label="New PIN" help="4 to 6 digits. Avoid 1234, 0000 and repeated digits.">
+          <Field label="New PIN" help="Any 4 to 6 digits.">
             <Input name="newPin" pattern="\d{4,6}" value={values.newPin} onChange={set('newPin')} {...pinProps} />
           </Field>
           <Field label="New PIN again">

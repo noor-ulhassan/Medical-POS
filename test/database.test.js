@@ -25,6 +25,19 @@ test('every committed write is on disk immediately', async () => {
   assert.ok(reopened.services.products.list().some((p) => p.title === 'Persisted Product'));
 });
 
+test('Database.run never uses sql.js exec(), which leaks memory on every call', async () => {
+  // exec() leaks WASM memory each time it returns rows; ~330k calls in one
+  // session (about 40k sales) made the engine fail until the app restarted.
+  const { Database } = require('../src/main/db/Database');
+  const db = await Database.inMemory();
+  db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT);');
+  db.sqlDb.exec = () => {
+    throw new Error('Database.run must not call exec()');
+  };
+  assert.deepEqual(db.run('INSERT INTO t (v) VALUES (?);', ['a']), { changes: 1, lastInsertRowid: 1 });
+  assert.equal(db.run('INSERT INTO t (v) VALUES (?);', ['b']).lastInsertRowid, 2);
+});
+
 test('a damaged database file is never overwritten', async () => {
   const dir = tempDir();
   fs.writeFileSync(dbFile(dir), 'this is not a database');
@@ -62,7 +75,7 @@ test('v1.1 databases are upgraded in place without losing data', async () => {
   const db = ctx.db;
 
   assert.equal(db.value('PRAGMA user_version;'), LATEST_VERSION);
-  assert.ok(backupsIn(dir).some((f) => f.startsWith('noorpos_pre-migration-v2_')), 'original file backed up first');
+  assert.ok(backupsIn(dir).some((f) => f.startsWith(`noorpos_pre-migration-v${LATEST_VERSION}_`)), 'original file backed up first');
 
   // Stock converted from packs + loose singles to base units.
   assert.equal(db.value('SELECT stock_units FROM products WHERE id = 1;'), 25 * 10 + 5);

@@ -23,6 +23,17 @@ function addDays(date, days) {
   return d;
 }
 
+/** Local midnight at the start of a YYYY-MM-DD calendar date. */
+function parseLocalDate(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** UTC ISO range [start, end) covering local days `fromYmd` to `toYmd`, both included. */
+function localDatesRange(fromYmd, toYmd) {
+  return { start: parseLocalDate(fromYmd).toISOString(), end: addDays(parseLocalDate(toYmd), 1).toISOString() };
+}
+
 /** UTC ISO range [start, end) covering the local day containing `date`. */
 function localDayRange(date = new Date()) {
   const start = startOfLocalDay(date);
@@ -42,4 +53,4 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-module.exports = { localDateString, startOfLocalDay, addDays, localDayRange, daysUntil, nowIso };
+module.exports = { localDateString, startOfLocalDay, addDays, parseLocalDate, localDatesRange, localDayRange, daysUntil, nowIso };

@@ -57,8 +57,8 @@ export function LockScreen({ onSession }) {
   }, [press, submit]);
 
   return (
-    <div id="modalPinAuth" className="flex h-full items-center justify-center bg-paper p-6" role="dialog" aria-modal="true" aria-labelledby="pinStoreName">
-      <div className="w-full max-w-[360px] rounded-dialog border border-foil bg-surface px-8 pb-7 pt-8 shadow-dialog">
+    <div id="modalPinAuth" className="start-backdrop scrollbar-none flex h-full flex-col items-center overflow-y-auto p-6" role="dialog" aria-modal="true" aria-labelledby="pinStoreName">
+      <div className="my-auto w-full max-w-[360px] shrink-0 rounded-dialog border border-foil bg-surface px-8 pb-7 pt-8 shadow-dialog">
         <div className="flex flex-col items-center text-center">
           <img src="./icon.png" alt="" className="size-14 rounded-xl" />
           <h1 id="pinStoreName" className="mt-4 text-xl font-bold text-ink">
@@ -115,9 +115,10 @@ export function LockScreen({ onSession }) {
           <details className="mt-4 text-center text-sm text-ink-2">
             <summary className="cursor-pointer list-none font-semibold text-ink-2 hover:text-ink">Forgot your PIN?</summary>
             <p className="mt-2 text-left text-ink-2">
-              An admin can give you a new one in Settings, under Staff and PINs. If no admin can log in, close the app and start it again with{' '}
-              <code className="rounded bg-sunken px-1 text-xs">--reset-admin-pin</code> to get a temporary admin PIN.
+              Ask the shop owner: they can give you a new PIN in Settings, under Staff and PINs.
             </p>
+            {/* The recovery steps are in the README for the installer, not on a screen every member of staff can read. */}
+            <p className="mt-2 text-left text-xs text-ink-3">If the owner's PIN is lost too, call the person who installed this software.</p>
           </details>
         )}
 

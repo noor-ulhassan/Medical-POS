@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { call, onSessionProblem } from './lib/api.js';
+import { readPrefs, writePrefs, zoomFactor, TEXT_SIZES } from './lib/prefs.js';
 import { useApp } from './state/AppState.jsx';
 import { useCart } from './state/Cart.jsx';
 import { useToast } from './ui/Toast.jsx';
 import { isAnyModalOpen } from './ui/Modal.jsx';
-import { Sidebar } from './shell/Sidebar.jsx';
+import { Sidebar, SectionTabs } from './shell/Sidebar.jsx';
+import { MeDialog } from './shell/MeDialog.jsx';
+import { HelpDialog } from './shell/HelpDialog.jsx';
+import { StartupScreen } from './shell/StartupScreen.jsx';
 import { LockScreen } from './features/auth/LockScreen.jsx';
 import { ChangePinDialog } from './features/auth/ChangePinDialog.jsx';
 import { PosView } from './features/pos/PosView.jsx';
@@ -18,10 +22,14 @@ import { ExpiryView } from './features/stock/ExpiryView.jsx';
 import { QuotationView } from './features/quotes/QuotationView.jsx';
 import { SalesView } from './features/sales/SalesView.jsx';
 import { SettingsView } from './features/settings/SettingsView.jsx';
+import { ProfitView } from './features/profit/ProfitView.jsx';
+import { ExpensesView } from './features/expenses/ExpensesView.jsx';
 
 const SCREENS = {
   posView: PosView,
   dashboardView: DashboardView,
+  profitView: ProfitView,
+  expensesView: ExpensesView,
   inventoryView: ProductsView,
   suppliersView: SuppliersView,
   khataView: KhataView,
@@ -31,28 +39,6 @@ const SCREENS = {
   salesView: SalesView,
   settingsView: SettingsView
 };
-
-function readPreference(key, fallback) {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch (_) {
-    return fallback;
-  }
-}
-
-function writePreference(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch (_) {
-    /* preferences are optional */
-  }
-}
-
-function initialTheme() {
-  const saved = readPreference('noorpos_theme', null);
-  if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
 
 /** Enter in a form field moves to the next field; on the last field the form submits as usual. */
 function moveToNextField(e) {
@@ -77,9 +63,40 @@ export function App() {
   const { toast, guard } = useToast();
   const { user, setUser, view, go, loadAll, loadAppInfo, loadSettings, setSaveProblem } = app;
   const [booted, setBooted] = useState(false);
-  const [theme, setTheme] = useState(initialTheme);
-  const [collapsed, setCollapsed] = useState(() => readPreference('noorpos_sidebar_collapsed', String(window.innerWidth < 1280)) === 'true');
+  // Always opens in light mode; dark mode can be switched on for the current session.
+  const [theme, setTheme] = useState('light');
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [meOpen, setMeOpen] = useState(false);
+  const [textSize, setTextSize] = useState(() => readPrefs().textSize);
+
+  // Text size is real browser zoom, applied by the main process and remembered on this computer.
+  useEffect(() => {
+    writePrefs({ textSize });
+    call('app.setZoom', { factor: zoomFactor(textSize) }).catch((err) => console.error('Could not set text size', err));
+  }, [textSize]);
+
+  const stepTextSize = useCallback((step) => {
+    setTextSize((current) => {
+      const i = TEXT_SIZES.findIndex((t) => t.value === current);
+      const next = step === 0 ? 0 : Math.min(Math.max(i + step, 0), TEXT_SIZES.length - 1);
+      return TEXT_SIZES[next].value;
+    });
+  }, []);
+
+  // Ctrl + / Ctrl - / Ctrl 0 change the text size everywhere, also on the lock screen.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!e.ctrlKey || e.altKey) return;
+      if (e.key === '+' || e.key === '=') stepTextSize(1);
+      else if (e.key === '-' || e.key === '_') stepTextSize(-1);
+      else if (e.key === '0') stepTextSize(0);
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [stepTextSize]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -143,14 +160,40 @@ export function App() {
 
   useEffect(() => {
     if (!window.noorpos.onWarning) return undefined;
-    return window.noorpos.onWarning(({ message }) => {
-      setSaveProblem(message);
+    return window.noorpos.onWarning(({ message, kind }) => {
+      // Only a failed save means the data is not on disk; a backup problem is shown but does not mark it.
+      if (kind !== 'backup') setSaveProblem(message);
       toast(message, 'error', { sticky: true });
     });
   }, [setSaveProblem, toast]);
 
-  // Keyboard-first operation for barcode scanners and fast cashiers.
   const ready = Boolean(user) && !user.mustChangePin;
+
+  // A till left logged in (often as the owner) lets anyone at the counter use
+  // that account, so it locks itself after a while without use. The sale in
+  // progress is kept. The delay is chosen in Settings, This computer.
+  useEffect(() => {
+    if (!ready) return undefined;
+    let lastActivity = Date.now();
+    const touch = () => {
+      lastActivity = Date.now();
+    };
+    const events = ['keydown', 'pointerdown', 'pointermove', 'wheel'];
+    events.forEach((name) => document.addEventListener(name, touch, { capture: true, passive: true }));
+    const timer = setInterval(() => {
+      const minutes = readPrefs().autoLockMinutes;
+      if (minutes > 0 && Date.now() - lastActivity >= minutes * 60 * 1000) {
+        lock();
+        toast(`Locked after ${minutes} minutes without use. The sale in progress is kept.`, 'info');
+      }
+    }, 10 * 1000);
+    return () => {
+      clearInterval(timer);
+      events.forEach((name) => document.removeEventListener(name, touch, { capture: true }));
+    };
+  }, [ready, lock, toast]);
+
+  // Keyboard-first operation for barcode scanners and fast cashiers.
   useEffect(() => {
     if (!ready) return undefined;
     const focusLater = (id) => setTimeout(() => {
@@ -180,6 +223,7 @@ export function App() {
           e.preventDefault();
           if (isAnyModalOpen()) return;
           go('posView');
+          cart.setDiscountOpen(true);
           focusLater('cartDiscountInput');
           return;
         case 'F4':
@@ -202,7 +246,7 @@ export function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [ready, go, cart, toast, lock]);
 
-  if (!booted) return <div className="h-full bg-paper" />;
+  if (!booted) return <StartupScreen />;
 
   const Screen = SCREENS[view] || PosView;
 
@@ -210,32 +254,39 @@ export function App() {
     <>
       {ready ? (
         <div className="flex h-full">
-          <Sidebar
-            collapsed={collapsed}
-            onToggleCollapsed={() => {
-              setCollapsed((c) => {
-                writePreference('noorpos_sidebar_collapsed', String(!c));
-                return !c;
-              });
-            }}
-            theme={theme}
-            onToggleTheme={() => {
-              const next = theme === 'dark' ? 'light' : 'dark';
-              setTheme(next);
-              writePreference('noorpos_theme', next);
-            }}
-            onLock={lock}
-            onChangePin={() => setPinDialog({ forced: false })}
-          />
-          <main className="min-w-0 flex-1 overflow-hidden">
-            <Screen key={view} />
+          <Sidebar onLock={lock} onHelp={() => setHelpOpen(true)} onMe={() => setMeOpen(true)} />
+          <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <SectionTabs />
+            <div className="min-h-0 flex-1">
+              <Screen key={view} />
+            </div>
           </main>
           <PaymentDialog />
+          <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+          <MeDialog
+            open={meOpen}
+            onClose={() => setMeOpen(false)}
+            theme={theme}
+            onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            textSize={textSize}
+            onCycleTextSize={() =>
+              // Step from the current value, so quick repeated clicks each count.
+              setTextSize((current) => TEXT_SIZES[(TEXT_SIZES.findIndex((t) => t.value === current) + 1) % TEXT_SIZES.length].value)
+            }
+            onChangePin={() => {
+              setMeOpen(false);
+              setPinDialog({ forced: false });
+            }}
+            onLock={() => {
+              setMeOpen(false);
+              lock();
+            }}
+          />
         </div>
       ) : (
         !user && <LockScreen onSession={acceptSession} />
       )}
-      {user && user.mustChangePin && <div className="h-full bg-paper" />}
+      {user && user.mustChangePin && <div className="start-backdrop h-full" />}
       <ChangePinDialog
         open={Boolean(pinDialog) && Boolean(user)}
         forced={Boolean(pinDialog?.forced)}
@@ -243,6 +294,8 @@ export function App() {
         onLock={lock}
         onChanged={async (u, forced) => {
           setPinDialog(null);
+          // The lock screen's "first start: PIN is 1234" hint is read from app info; refresh it once 1234 stops working.
+          loadAppInfo();
           if (forced) await unlocked(u);
           else setUser(u);
         }}

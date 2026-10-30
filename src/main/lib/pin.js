@@ -39,13 +39,14 @@ function isWeakPin(pin) {
   return WEAK_PINS.has(pin) || /^(\d)\1+$/.test(pin);
 }
 
-/** Throws unless the PIN is 4-6 digits and not trivially guessable. */
+/**
+ * Throws unless the PIN is 4-6 digits. Any digits are allowed (1234, 0000...):
+ * the shop chooses how simple its PINs are. isWeakPin() is only used to avoid
+ * handing out an obvious temporary PIN during admin recovery.
+ */
 function assertAcceptablePin(pin) {
   if (typeof pin !== 'string' || !PIN_PATTERN.test(pin)) {
     throw validationError('PIN must be 4 to 6 digits');
-  }
-  if (isWeakPin(pin)) {
-    throw validationError('This PIN is too easy to guess. Choose a different one.');
   }
   return pin;
 }

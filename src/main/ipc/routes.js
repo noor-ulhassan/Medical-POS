@@ -48,14 +48,26 @@ function createRoutes(ctx, platform) {
     'app.info': { public: true, handler: () => ({ ...platform.appInfo(), firstRun: s().auth.isFirstRun() }) },
     'settings.get': { public: true, handler: () => s().settings.get() },
     'settings.update': { permission: 'settings.manage', handler: (p, { user }) => s().settings.update(user, p) },
-    'app.print': { handler: () => platform.print() },
+    'app.print': { handler: (p) => platform.print({ silent: v.boolean(v.object(p).silent) }) },
+    // Text size for this computer; also used on the lock screen, so it needs no session.
+    'app.setZoom': {
+      public: true,
+      handler: (p) => {
+        const factor = v.number(v.object(p).factor, 'Text size');
+        if (![1, 1.15, 1.3].includes(factor)) throw validationError('Unknown text size');
+        return platform.setZoom ? platform.setZoom(factor) : { factor };
+      }
+    },
 
     // --- users ---------------------------------------------------------
     'users.list': { permission: 'users.manage', handler: () => s().auth.listUsers() },
     'users.create': { permission: 'users.manage', handler: (p, { user }) => s().auth.createUser(user, p) },
     'users.update': { permission: 'users.manage', handler: (p, { user }) => s().auth.updateUser(user, p) },
     'users.resetPin': { permission: 'users.manage', handler: (p, { user }) => s().auth.resetUserPin(user, p) },
-    'audit.list': { permission: 'users.manage', handler: (p) => s().audit.list(v.object(p)) },
+    'audit.list': {
+      permission: 'users.manage',
+      handler: (p) => s().audit.list({ limit: v.integer(v.object(p).limit ?? 200, 'Limit', { min: 1, max: 1000 }) })
+    },
 
     // --- catalog -------------------------------------------------------
     'catalog.categories': { permission: 'products.view', handler: () => s().catalog.listCategories() },
@@ -69,6 +81,7 @@ function createRoutes(ctx, platform) {
     'products.remove': { permission: 'products.manage', handler: (p, { user }) => s().products.remove(user, p) },
     'products.generateBarcode': { permission: 'products.manage', handler: () => s().products.generateBarcode() },
     'products.discardStock': { permission: 'stock.adjust', handler: (p, { user }) => s().products.discardStock(user, p) },
+    'products.receiveStock': { permission: 'stock.adjust', handler: (p, { user }) => s().products.receiveStock(user, p) },
     'products.stockHistory': { permission: 'products.view', handler: (p) => s().products.stockHistory(p) },
 
     // --- customers -----------------------------------------------------
@@ -83,6 +96,8 @@ function createRoutes(ctx, platform) {
     'sales.list': { permission: 'sales.view', handler: (p) => s().sales.list(p) },
     'sales.get': { permission: 'sales.view', handler: (p) => s().sales.get(p) },
     'sales.void': { permission: 'sales.void', handler: (p, { user }) => s().sales.void(user, p) },
+    'sales.returnQuote': { permission: 'sales.void', handler: (p) => s().sales.returnQuote(p) },
+    'sales.returnItems': { permission: 'sales.void', handler: (p, { user }) => s().sales.returnItems(user, p) },
     'sales.attachPrescription': { permission: 'sales.attachRx', handler: (p, { user }) => s().sales.attachPrescription(user, p) },
     'sales.getPrescription': { permission: 'sales.view', handler: (p) => s().sales.getPrescription(p) },
     'files.savePrescription': { permission: 'pos.sell', handler: (p) => s().files.savePrescription(p) },
@@ -96,15 +111,33 @@ function createRoutes(ctx, platform) {
     'reports.dashboard': { permission: 'reports.view', handler: () => s().reports.dashboard() },
     'reports.alerts': { permission: 'products.view', handler: () => s().reports.alertCounts() },
     'reports.expiry': { permission: 'products.view', handler: () => s().reports.expiry() },
+    'reports.profit': { permission: 'reports.view', handler: (p) => s().reports.profit(p) },
+
+    // --- expenses ------------------------------------------------------
+    'expenses.list': { permission: 'expenses.manage', handler: (p) => s().expenses.list(p) },
+    'expenses.create': { permission: 'expenses.manage', handler: (p, { user }) => s().expenses.create(user, p) },
+    'expenses.remove': { permission: 'expenses.manage', handler: (p, { user }) => s().expenses.remove(user, p) },
 
     // --- system --------------------------------------------------------
     'system.backup': {
       permission: 'backup.manage',
-      handler: () => {
+      handler: async () => {
         const { filePath } = ctx.backup.create('manual');
-        return { filePath };
+        // Also to the USB drive / cloud folder, when one is set.
+        const copy = await ctx.copyBackupsAway();
+        return { filePath, copy };
       }
     },
+    'system.chooseBackupCopyFolder': {
+      permission: 'backup.manage',
+      handler: async (p, { user }) => {
+        if (!platform.pickFolder) throw validationError('Choosing a folder is not available here');
+        const dir = await platform.pickFolder('Choose where to keep a copy of the backups (a USB drive or a cloud folder)');
+        if (!dir) return { cancelled: true };
+        return { copy: await ctx.setBackupCopyFolder(user, dir) };
+      }
+    },
+    'system.stopBackupCopies': { permission: 'backup.manage', handler: (p, { user }) => ctx.stopBackupCopies(user) },
     'system.listBackups': { permission: 'backup.manage', handler: () => ctx.backup.list() },
     'system.restore': {
       permission: 'backup.manage',

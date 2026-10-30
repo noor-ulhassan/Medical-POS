@@ -6,7 +6,7 @@ import { useToast } from '../../ui/Toast.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
 import { Field, Input, Select, Checkbox, Fieldset } from '../../ui/Field.jsx';
-import { toCents, centsToInput, addDaysIso, money } from '../../lib/format.js';
+import { toCents, centsToInput, money, plural } from '../../lib/format.js';
 import { CatalogQuickDialog } from '../catalog/Catalog.jsx';
 
 function initialValues(product) {
@@ -20,7 +20,8 @@ function initialValues(product) {
       categoryId: '',
       supplierId: '',
       packSize: '10',
-      expiryDate: addDaysIso(365),
+      // Never pre-fill: a made-up date would hide the real expiry printed on the pack.
+      expiryDate: '',
       minStockLevel: '5',
       stockPacks: '0',
       stockSingles: '0',
@@ -28,7 +29,8 @@ function initialValues(product) {
       salePrice: '',
       singlePrice: '',
       allowNegativeStock: false,
-      prescriptionRequired: false
+      prescriptionRequired: false,
+      stockChangeReason: ''
     };
   }
   return {
@@ -48,9 +50,17 @@ function initialValues(product) {
     salePrice: centsToInput(product.sale_price_cents),
     singlePrice: centsToInput(product.single_price_cents),
     allowNegativeStock: product.allow_negative_stock === 1,
-    prescriptionRequired: product.is_prescription_required === 1
+    prescriptionRequired: product.is_prescription_required === 1,
+    stockChangeReason: ''
   };
 }
+
+/** Why there is less stock than before: only damage and loss cost the shop money (they show in Profit & loss). */
+const STOCK_DECREASE_REASONS = [
+  { value: 'MISTAKE', label: 'The old number was a counting or typing mistake' },
+  { value: 'DAMAGED', label: 'Damaged or broken (counted as a loss)' },
+  { value: 'LOST', label: 'Lost or missing (counted as a loss)' }
+];
 
 function cents(value, label) {
   const c = toCents(value);
@@ -115,7 +125,8 @@ export function ProductDialog({ product, onClose }) {
       salePriceCents: cents(v.salePrice, 'Sale price'),
       singlePriceCents: cents(v.singlePrice, 'Unit price'),
       allowNegativeStock: v.allowNegativeStock,
-      prescriptionRequired: v.prescriptionRequired
+      prescriptionRequired: v.prescriptionRequired,
+      stockChangeReason: v.stockChangeReason || undefined
     });
     onClose();
     toast(`${saved.title} saved`);
@@ -124,12 +135,13 @@ export function ProductDialog({ product, onClose }) {
   });
 
   const totalUnits = Number(v.stockPacks || 0) * Number(v.packSize || 0) + Number(v.stockSingles || 0);
+  const stockGoesDown = !isNew && Number.isFinite(totalUnits) && totalUnits < Number(v.originalStockUnits);
   const margin = toCents(v.salePrice) - toCents(v.costPrice);
   const addCatalog = can('catalog.manage') && <IconButton icon={Plus} label="Add a category or supplier" data-action="manage-catalog" onClick={() => setCatalogOpen(true)} className="border border-foil-strong" />;
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={isNew ? 'Add product' : 'Edit product'} id="modalAddProduct" size="lg">
+      <Modal open={open} onClose={onClose} title={isNew ? 'Add medicine' : 'Change medicine'} id="modalAddProduct" size="lg">
         <form id="addProductForm" onSubmit={submit} className="contents">
           <ModalBody className="gap-6">
             <Fieldset legend="Medicine">
@@ -174,7 +186,7 @@ export function ProductDialog({ product, onClose }) {
                     {addCatalog}
                   </div>
                 </Field>
-                <Field label="Expiry date">
+                <Field label="Expiry date" help="As printed on the pack. Leave empty only if it never expires.">
                   <Input type="date" name="expiryDate" value={v.expiryDate} onChange={set('expiryDate')} />
                 </Field>
                 <div className="flex flex-col justify-end gap-2.5 pb-1">
@@ -200,6 +212,24 @@ export function ProductDialog({ product, onClose }) {
                 </Field>
               </div>
               <p className="num mt-2 text-sm text-ink-3">{Number.isFinite(totalUnits) ? `${totalUnits} units in stock in total.` : ''}</p>
+              {!isNew && Number.isFinite(totalUnits) && totalUnits !== Number(v.originalStockUnits) && (
+                <p className="num mt-1 rounded-control bg-amber-soft px-3 py-2 text-sm font-semibold text-amber-ink">
+                  Stock will change by {totalUnits > Number(v.originalStockUnits) ? '+' : ''}
+                  {plural(totalUnits - Number(v.originalStockUnits), 'unit')} (from {v.originalStockUnits} to {totalUnits}). To add a new delivery, use Receive stock instead.
+                </p>
+              )}
+              {stockGoesDown && (
+                <Field label="Why is there less stock?" className="mt-3">
+                  <Select name="stockChangeReason" value={v.stockChangeReason} onChange={set('stockChangeReason')} required>
+                    <option value="">Choose a reason…</option>
+                    {STOCK_DECREASE_REASONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
             </Fieldset>
 
             <Fieldset legend="Prices">
@@ -219,7 +249,7 @@ export function ProductDialog({ product, onClose }) {
           <ModalFooter>
             <Button onClick={onClose}>Cancel</Button>
             <Button type="submit" variant="primary">
-              {isNew ? 'Add product' : 'Save changes'}
+              {isNew ? 'Add medicine' : 'Save changes'}
             </Button>
           </ModalFooter>
         </form>

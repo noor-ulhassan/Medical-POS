@@ -52,6 +52,17 @@
     return { packs, singles };
   }
 
+  /**
+   * Cost of `units` base units at a cost price per pack, in whole cents
+   * (rounded once, per line). Returns null when no cost price is set: an
+   * unknown cost must never be treated as free, or profit would be overstated.
+   */
+  function costOfUnitsCents(costPerPackCents, units, packSize) {
+    const cost = Number(costPerPackCents);
+    if (!Number.isFinite(cost) || cost <= 0) return null;
+    return Math.round((cost * units) / normalizePackSize(packSize));
+  }
+
   function unitPriceCents(product, unitType) {
     return unitType === 'PACK' ? product.sale_price_cents || 0 : product.single_price_cents || 0;
   }
@@ -66,6 +77,45 @@
       cents = Math.max(Math.round(Number(discount.value) || 0), 0);
     }
     return Math.min(cents, subtotalCents);
+  }
+
+  /**
+   * True when a bill discount is no more than `limitPercent` of the subtotal.
+   * Compared with the rounded allowance, so a 10% discount always passes a 10% limit.
+   */
+  function discountWithinLimit(discountCentsValue, subtotalCents, limitPercent) {
+    if (!discountCentsValue) return true;
+    const limit = Math.min(Math.max(Number(limitPercent) || 0, 0), 100);
+    return discountCentsValue <= Math.round((subtotalCents * limit) / 100);
+  }
+
+  /**
+   * Money for returning items from a sale: the customer's share of what they
+   * paid for them (bill discount, tax and receipt fee included) and the part
+   * of it that was sales (after the discount, before tax and fee). Worked out
+   * on the running total of everything returned from the sale, so returning a
+   * whole sale in several goes adds up exactly to the bill.
+   * @param {{subtotalCents:number, discountCents:number, totalCents:number}} sale
+   * @param {{grossCents:number, refundCents:number, netCents:number}} before returned earlier
+   * @param {number} grossCents price x quantity of the lines returned now
+   */
+  function returnShares(sale, before, grossCents) {
+    const subtotal = sale.subtotalCents;
+    if (!(subtotal > 0) || !(grossCents > 0)) return { refundCents: 0, netCents: 0 };
+    const upTo = (amount, gross) => Math.round((amount * Math.min(gross, subtotal)) / subtotal);
+    const after = before.grossCents + grossCents;
+    const clamp = (value, left) => Math.min(Math.max(value, 0), Math.max(left, 0));
+    return {
+      refundCents: clamp(upTo(sale.totalCents, after) - before.refundCents, sale.totalCents - before.refundCents),
+      netCents: clamp(upTo(sale.subtotalCents - sale.discountCents, after) - before.netCents, sale.subtotalCents - sale.discountCents - before.netCents)
+    };
+  }
+
+  /** Cost of `quantity` more of a sale line being returned (null when the line's cost is unknown). */
+  function returnedCostCents(lineCostCents, lineQuantity, returnedBefore, quantity) {
+    if (lineCostCents === null || lineCostCents === undefined || !(lineQuantity > 0)) return null;
+    const upTo = (q) => Math.round((lineCostCents * q) / lineQuantity);
+    return upTo(returnedBefore + quantity) - upTo(returnedBefore);
   }
 
   /**
@@ -100,8 +150,12 @@
     normalizePackSize,
     lineUnits,
     splitUnits,
+    costOfUnitsCents,
     unitPriceCents,
     discountCents,
+    discountWithinLimit,
+    returnShares,
+    returnedCostCents,
     computeTotals
   };
 });

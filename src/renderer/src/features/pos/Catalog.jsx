@@ -1,38 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScanBarcode, SearchX, Plus } from 'lucide-react';
+import { Search, SearchX } from 'lucide-react';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
-import { Select } from '../../ui/Field.jsx';
-import { ExpiryPill, Pill, RxPill, EmptyState } from '../../ui/display.jsx';
-import { money, isLowStock, isOutOfStock } from '../../lib/format.js';
+import { isAnyModalOpen } from '../../ui/Modal.jsx';
+import { RxPill, EmptyState } from '../../ui/display.jsx';
+import { money, isLowStock, isOutOfStock, expiryStatus, shortDate } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 
 const LIMIT = 200;
-// Columns follow the list's own width (container query), not the window: the cart and sidebar take varying space.
-// Under 540px (e.g. 1024px window with the menu expanded) the fixed columns leave no room for the name, so the
-// medicine gets its own line and stock, price and the add buttons sit on a second line below it.
-const COLS =
-  'grid grid-cols-[minmax(0,1fr)_104px_136px] @[540px]:grid-cols-[minmax(0,1fr)_92px_104px_136px] @[860px]:grid-cols-[minmax(0,1fr)_112px_96px_88px_96px_136px] items-center gap-x-3 gap-y-2 @[860px]:gap-x-4';
 
-function StockCell({ product }) {
-  const out = isOutOfStock(product);
-  const low = !out && isLowStock(product);
-  return (
-    <div className="num text-left leading-tight @[540px]:text-right">
-      {out ? (
-        <Pill tone="red">Out of stock</Pill>
-      ) : (
-        <>
-          <div className={cx('font-semibold', low ? 'text-amber-ink' : 'text-ink')}>
-            {product.stock_packs} {product.stock_packs === 1 ? 'pack' : 'packs'}
-          </div>
-          <div className="text-xs text-ink-3">{product.stock_singles ? `+${product.stock_singles} loose` : low ? 'Low stock' : ' '}</div>
-        </>
-      )}
-    </div>
-  );
+/** Stock in plain words, coloured only when someone should notice. */
+function stockWords(p) {
+  if (expiryStatus(p.expiry_date).level === 'expired') return { text: `Expired ${shortDate(p.expiry_date)}`, tone: 'text-red-ink font-semibold' };
+  if (isOutOfStock(p)) return { text: 'Sold out', tone: 'text-red-ink font-semibold' };
+  const amount =
+    p.pack_size > 1
+      ? `${p.stock_packs} ${p.stock_packs === 1 ? 'pack' : 'packs'}${p.stock_singles ? ` + ${p.stock_singles} loose` : ''}`
+      : String(p.stock_units);
+  return isLowStock(p) ? { text: `Only ${amount} left`, tone: 'text-amber-ink font-semibold' } : { text: `${amount} in stock`, tone: '' };
 }
+
+const chip = (on) =>
+  cx(
+    'h-10 shrink-0 whitespace-nowrap rounded-full border px-4 text-base font-semibold transition-colors',
+    on ? 'border-ink bg-ink text-surface' : 'border-foil-strong bg-surface text-ink-2 hover:border-ink-3 hover:text-ink'
+  );
 
 export function Catalog() {
   const { products, categories, suppliers } = useApp();
@@ -71,6 +64,38 @@ export function Catalog() {
     return () => clearTimeout(t);
   }, []);
 
+  // A barcode scanner types like a keyboard. If the cashier last clicked a
+  // button or the list, the scan would be lost, so stray typing on this
+  // screen is sent to the search box (Chromium delivers the key to the newly
+  // focused field).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1 || e.key === ' ') return;
+      const el = document.activeElement;
+      if (el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)) return;
+      if (isAnyModalOpen()) return;
+      inputRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, []);
+
+  /**
+   * After an item is added, the search text stays (so the list stays filtered)
+   * but is selected: the next scan or typed name replaces it instead of being
+   * added to the end of it.
+   */
+  const readyForNextScan = () => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  };
+
+  /** Add from a click, then put the cursor back in the search box ready for the next scan. */
+  const addByClick = (product, unitType) => {
+    cart.add(product, unitType);
+    readyForNextScan();
+  };
+
   const matches = useMemo(
     () =>
       products.filter((p) => {
@@ -93,8 +118,11 @@ export function Catalog() {
 
   /** Enter in the search box: exact barcode/name match, or the only match, goes into the cart. */
   function handleEnter(e) {
-    if (active >= 0 && shown[active]) {
+    // The highlighted row only counts for the text it was chosen from. Typing
+    // (or a scan) clears it at once in onChange; this guards the same rule.
+    if (active >= 0 && shown[active] && search.trim().toLowerCase() === query) {
       cart.add(shown[active], e.shiftKey ? 'PACK' : 'SINGLE');
+      readyForNextScan();
       return;
     }
     const value = search.trim().toLowerCase();
@@ -106,7 +134,9 @@ export function Catalog() {
       setSearch('');
       setQuery('');
     } else if (candidates.length === 0) {
-      toast(`No product matches "${search.trim()}"`, 'error');
+      toast(`No medicine matches "${search.trim()}". Check the spelling or add it under Stock, Medicines.`, 'error');
+    } else {
+      toast(`${candidates.length} medicines match. Click the right one, or use the arrow keys and press Enter.`, 'info');
     }
   }
 
@@ -130,90 +160,97 @@ export function Catalog() {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex gap-3 px-6 pt-4">
-        <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-panel border border-foil-strong bg-surface px-4 transition-colors focus-within:border-teal focus-within:ring-2 focus-within:ring-teal/25">
-          <ScanBarcode className="size-5 shrink-0 text-ink-3" aria-hidden="true" />
+      <div className="px-5 pt-4">
+        <label className="flex h-14 min-w-0 items-center gap-3 rounded-panel border border-foil-strong bg-surface px-5 shadow-sm transition-colors focus-within:border-teal focus-within:ring-2 focus-within:ring-teal/25">
+          <Search className="size-6 shrink-0 text-ink-3" aria-hidden="true" />
           <input
             ref={inputRef}
             id="posSearchInput"
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              // A scanner types a whole barcode and Enter within a few milliseconds,
+              // well before the search debounce; a stale highlight would add the
+              // previously chosen medicine instead of the scanned one.
+              setSearch(e.target.value);
+              setActive(-1);
+            }}
             onKeyDown={onKeyDown}
-            placeholder="Scan a barcode or type a medicine name"
+            placeholder="Search medicine or scan barcode"
             autoComplete="off"
             spellCheck="false"
             role="combobox"
             aria-expanded="true"
             aria-controls="productGrid"
             aria-activedescendant={active >= 0 ? `product-${shown[active]?.id}` : undefined}
-            className="h-full min-w-0 flex-1 bg-transparent text-md text-ink outline-none placeholder:text-ink-3"
+            className="h-full min-w-0 flex-1 bg-transparent text-lg text-ink outline-none placeholder:text-ink-3"
           />
-          <kbd>F1</kbd>
         </label>
-        <Select id="posSupplierFilter" value={supplier} onChange={(e) => {
-            setSupplier(e.target.value);
-            setActive(-1);
-          }} className="!h-11 !w-[184px] shrink-0" aria-label="Supplier">
-          <option value="ALL">All suppliers</option>
-          {suppliers.map((s) => (
-            <option key={s.id} value={String(s.id)}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
       </div>
 
-      <div
-        className="flex shrink-0 gap-2 overflow-x-auto px-6 pt-3"
-        role="group"
-        aria-label="Category"
-        id="posCategoryChips"
-        // Categories that do not fit stay reachable with an ordinary mouse wheel.
-        onWheel={(e) => {
-          if (e.deltaY && !e.deltaX) e.currentTarget.scrollLeft += e.deltaY;
-        }}
-      >
-        {[{ id: 'ALL', name: 'All medicines' }, ...categories].map((c) => {
-          const value = String(c.id);
-          const on = category === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={on}
-              onClick={() => {
-                setCategory(value);
+      {(categories.length > 0 || suppliers.length > 0) && (
+        <div className="flex shrink-0 items-center gap-2 px-5 pt-3">
+          <div
+            className="scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto"
+            role="group"
+            aria-label="Category"
+            id="posCategoryChips"
+            // Categories that do not fit stay reachable with an ordinary mouse wheel.
+            onWheel={(e) => {
+              if (e.deltaY && !e.deltaX) e.currentTarget.scrollLeft += e.deltaY;
+            }}
+          >
+            {[{ id: 'ALL', name: 'All' }, ...categories].map((c) => {
+              const value = String(c.id);
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={category === value}
+                  onClick={() => {
+                    setCategory(value);
+                    setActive(-1);
+                  }}
+                  className={chip(category === value)}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+          {suppliers.length > 0 && (
+            <select
+              id="posSupplierFilter"
+              value={supplier}
+              onChange={(e) => {
+                setSupplier(e.target.value);
                 setActive(-1);
               }}
-              className={cx(
-                'h-8 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                on ? 'border-teal bg-teal text-teal-on' : 'border-foil-strong bg-surface text-ink-2 hover:border-ink-3 hover:text-ink'
-              )}
+              aria-label="Supplier"
+              className={cx(chip(supplier !== 'ALL'), 'control !h-10 !w-auto max-w-[200px] !rounded-full !pr-9')}
             >
-              {c.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="@container mx-6 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-foil bg-surface">
-        <div className={cx(COLS, 'border-b border-foil bg-sunken px-4 py-2 text-xs font-semibold text-ink-2')} aria-hidden="true">
-          <span>Medicine</span>
-          <span className="hidden @[860px]:block">Expiry</span>
-          <span className="hidden text-right @[540px]:block">In stock</span>
-          <span className="text-right">Unit price</span>
-          <span className="hidden text-right @[860px]:block">Pack price</span>
-          <span />
+              <option value="ALL">All suppliers</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={String(s.id)}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
+      )}
+
+      <div className="mx-5 mb-4 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-foil bg-surface shadow-sm">
         <div ref={listRef} id="productGrid" role="listbox" aria-label="Products" className="min-h-0 flex-1 overflow-y-auto">
           {shown.length === 0 ? (
-            <EmptyState icon={SearchX} title={products.length ? 'No medicine matches' : 'No products yet'}>
-              {products.length ? 'Check the spelling, try the generic name, or clear the filters.' : 'Add products under Stock, then they appear here for sale.'}
+            <EmptyState icon={SearchX} title={products.length ? 'No medicine matches' : 'No medicines yet'}>
+              {products.length ? 'Check the spelling, try the generic name, or tap All.' : 'Add medicines under Stock, then they appear here for sale.'}
             </EmptyState>
           ) : (
             shown.map((p, index) => {
               const out = isOutOfStock(p);
+              const stock = stockWords(p);
+              const urgent = expiryStatus(p.expiry_date).level === 'urgent';
               return (
                 <div
                   key={p.id}
@@ -223,77 +260,71 @@ export function Catalog() {
                   role="option"
                   aria-selected={index === active}
                   onClick={(e) => {
-                    if (!e.target.closest('button')) cart.add(p, 'SINGLE');
+                    if (!e.target.closest('button')) addByClick(p, 'SINGLE');
                   }}
                   className={cx(
-                    COLS,
-                    'product-card group cursor-pointer border-b border-foil px-4 py-2 transition-colors last:border-b-0',
+                    'product-card flex cursor-pointer items-center gap-4 border-b border-foil px-5 py-3 transition-colors last:border-b-0',
                     index === active ? 'bg-teal-soft' : 'hover:bg-sunken/70',
                     out && 'is-out'
                   )}
                 >
-                  <div className="col-span-3 min-w-0 @[540px]:col-span-1">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={cx('truncate text-base font-semibold', out ? 'text-ink-2' : 'text-ink')} title={p.title}>{p.title}</span>
+                      <span className={cx('truncate text-md font-bold', out ? 'text-ink-2' : 'text-ink')} title={p.title}>
+                        {p.title}
+                      </span>
                       {p.is_prescription_required ? <RxPill /> : null}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2 text-sm text-ink-3">
-                      <span className="truncate">{p.generic_name || p.barcode}</span>
-                      <span className="@[860px]:hidden">
-                        <ExpiryPill date={p.expiry_date} compact />
-                      </span>
+                    <div className="mt-0.5 truncate text-sm text-ink-2">
+                      {p.generic_name && `${p.generic_name} · `}
+                      <span className={stock.tone}>{stock.text}</span>
+                      {urgent && <span className="font-semibold text-red-ink"> · expires {shortDate(p.expiry_date)}</span>}
                     </div>
                   </div>
-                  <div className="hidden @[860px]:block">
-                    <ExpiryPill date={p.expiry_date} />
+                  <div className="num shrink-0 text-right">
+                    <div className={cx('text-lg font-bold leading-tight', out ? 'text-ink-2' : 'text-ink')}>{money(p.single_price_cents)}</div>
+                    {p.pack_size > 1 && (
+                      <div className="text-sm text-ink-3">
+                        {money(p.sale_price_cents)} a pack of {p.pack_size}
+                      </div>
+                    )}
                   </div>
-                  <StockCell product={p} />
-                  <div className="num text-right">
-                    <div className="font-semibold text-ink">{money(p.single_price_cents)}</div>
-                    <div className="whitespace-nowrap text-xs text-ink-3 @[860px]:hidden">Pack {money(p.sale_price_cents)}</div>
-                  </div>
-                  <div className="num hidden text-right font-semibold text-ink @[860px]:block">{money(p.sale_price_cents)}</div>
-                  <div className="flex justify-end gap-1.5">
+                  <div className="flex shrink-0 gap-2">
+                    {p.pack_size > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => addByClick(p, 'PACK')}
+                        className={cx(
+                          'h-11 rounded-control border px-4 text-base font-semibold',
+                          out ? 'border-foil bg-sunken text-ink-3' : 'border-foil-strong bg-surface text-ink hover:border-teal hover:text-teal-ink'
+                        )}
+                        title={`Add one pack of ${p.pack_size} (${money(p.sale_price_cents)})`}
+                      >
+                        Pack
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => cart.add(p, 'SINGLE')}
-                      className="inline-flex h-8 items-center gap-1 rounded-control border border-foil-strong bg-surface px-2.5 text-sm font-semibold text-ink hover:border-teal hover:text-teal-ink"
-                      title={`Add one unit (${money(p.single_price_cents)})`}
+                      onClick={() => addByClick(p, 'SINGLE')}
+                      className={cx(
+                        'h-11 rounded-control px-5 text-base font-bold',
+                        out ? 'bg-sunken text-ink-3' : 'bg-teal text-teal-on hover:bg-teal-hover'
+                      )}
+                      title={p.pack_size > 1 ? `Add one unit (${money(p.single_price_cents)})` : `Add one (${money(p.single_price_cents)})`}
                     >
-                      <Plus className="size-3.5" aria-hidden="true" />
-                      Unit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => cart.add(p, 'PACK')}
-                      className="inline-flex h-8 items-center gap-1 rounded-control border border-foil-strong bg-surface px-2.5 text-sm font-semibold text-ink hover:border-teal hover:text-teal-ink"
-                      title={`Add one pack of ${p.pack_size} (${money(p.sale_price_cents)})`}
-                    >
-                      <Plus className="size-3.5" aria-hidden="true" />
-                      Pack
+                      Add
                     </button>
                   </div>
                 </div>
               );
             })
           )}
+          {matches.length > LIMIT && (
+            <p className="num px-5 py-3 text-center text-sm text-ink-3">
+              Showing {LIMIT} of {matches.length} medicines. Type more of the name to find the rest.
+            </p>
+          )}
         </div>
-      </div>
-
-      <div className="flex items-center gap-5 px-6 py-2.5 text-xs text-ink-3">
-        <span className="flex items-center gap-1">
-          <kbd>↑</kbd>
-          <kbd>↓</kbd> choose
-        </span>
-        <span className="flex items-center gap-1">
-          <kbd>Enter</kbd> add a unit
-        </span>
-        <span className="flex items-center gap-1">
-          <kbd>Shift</kbd>+<kbd>Enter</kbd> add a pack
-        </span>
-        <span className="num ml-auto">
-          {matches.length > LIMIT ? `Showing ${LIMIT} of ${matches.length}. Type to narrow down.` : `${matches.length} ${matches.length === 1 ? 'medicine' : 'medicines'}`}
-        </span>
       </div>
     </div>
   );

@@ -27,20 +27,20 @@ module.exports = {
         sans: ['"Atkinson Hyperlegible Next"', '"Segoe UI"', 'system-ui', 'sans-serif']
       },
       fontSize: {
-        // Modular scale around a 14px UI base.
-        xs: ['12px', '16px'],
-        sm: ['13px', '18px'],
-        base: ['14px', '20px'],
-        md: ['16px', '22px'],
-        lg: ['19px', '26px'],
-        xl: ['24px', '30px'],
+        // Modular scale around a 16px base: readable at arm's length on a counter screen.
+        xs: ['13px', '18px'],
+        sm: ['14px', '20px'],
+        base: ['16px', '24px'],
+        md: ['17px', '24px'],
+        lg: ['20px', '28px'],
+        xl: ['26px', '32px'],
         '2xl': ['32px', '38px'],
         '3xl': ['44px', '48px']
       },
       borderRadius: {
-        control: '6px',
-        panel: '10px',
-        dialog: '14px'
+        control: '10px',
+        panel: '14px',
+        dialog: '18px'
       },
       boxShadow: {
         dialog: '0 24px 64px -12px rgb(var(--shadow) / 0.35), 0 0 0 1px rgb(var(--foil) / 1)',

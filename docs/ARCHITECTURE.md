@@ -46,12 +46,21 @@ src/shared/   pricing.js (money, units, totals) + permissions.js (role matrix),
 - Products with sales history are archived (`is_active = 0`) instead of deleted.
 - `customers.current_debt_cents` always equals the latest `customer_ledger.balance_after_cents`. Both are only changed by `postLedgerEntry()`. A negative balance is an advance.
 - Customer id 1 is the walk-in customer (cash only). Invoice numbers come from `settings.next_invoice_no`.
+- `stock_adjustments.kind` says what a stock change was: `OPENING`, `RECEIVED`, `CORRECTION` (a counting or typing mistake), `RETURNED` (brought back by a customer), `WRITE_OFF` (expired stock discarded) or `LOSS` (damaged or lost, including returns that cannot be sold again). Only `WRITE_OFF` and `LOSS` are losses in profit and loss, valued at cost (`value_cents`).
+- `sale_returns` / `sale_return_items` record items brought back from a sale. `refund_cents` is the customer's share of what they paid (discount, tax and fee included) and `net_cents` the part that was sales; both come from `returnShares()` in `shared/pricing.js`, worked out on the running total of everything returned from the sale, so returning a whole sale in parts adds up exactly to the bill. Profit and loss counts returns on the day they happen. A sale with returns cannot be voided (voids restore the whole sale).
+- An opening khata balance (`customer_ledger.type = 'OPENING_BALANCE'`) can only be the first entry of a customer's ledger; it is not a sale.
+- `customer_ledger.payment_method` records how a khata payment was received; only `CASH` (or `NULL`, from before v4) counts towards the cash expected in the drawer.
+- A cashier's bill discount is limited to `settings.cashier_max_discount_percent` (permission `sales.discountAnyAmount` lifts it); every discount is written to the audit log.
+- The wrong-PIN lockout lives in `settings.login_failed_attempts` / `login_locked_until_ms` / `login_last_failure_ms`, so a restart does not reset it. Login is PIN-only (PINs are unique) and every member of staff can log in, so a correct login does not reset the count either; it fades after an hour without a wrong PIN. For the same reason changing one's own PIN is limited to a few tries per user per day (each try reveals whether a PIN is free), and "this PIN is already used" counts as a wrong guess.
+- `settings.backup_copy_dir` is the optional second location (USB drive, cloud folder) that `AppContext.copyBackupsAway()` copies backups and prescription photos to, asynchronously, after each backup and every hour.
 
 ## User interface
 
 - **Design tokens** live in `src/renderer/src/index.css` as CSS variables (light and dark) and are mapped to Tailwind colours in `tailwind.config.js` (`paper`, `surface`, `sunken`, `foil`, `ink`, `teal`, `amber`, `red`). Components never hard-code colours, so the dark theme is one `data-theme` switch. Teal marks primary actions; amber marks prescription-only items and warnings; red marks expired or out-of-stock items and destructive actions.
 - **Type** is Atkinson Hyperlegible Next (bundled, SIL OFL), chosen because its characters are hard to confuse (1/l/7, 0/O), which matters for doses and prices. Numbers use tabular figures (the `num` class) so columns line up.
 - **Density** is tuned for the most common counter setup, a 1920×1080 screen at 150% scaling (1280×698 CSS pixels): the sidebar, product list and cart fit without scrolling. The product list adapts to its own width with container queries.
+- **Navigation** is five sections (`shell/Sidebar.jsx` `SECTIONS`), each a list of view ids shown as tabs by `SectionTabs`. Rail buttons carry `data-views` and tabs `data-tab`, which the smoke test and the verify skill use to navigate.
+- **Lists open detail windows.** A row with `Tr onOpen` (`ui/Table.jsx`) is a button (click, `Enter` or `Space`) that opens one window for that item, with facts on the left (`Fact` in `ui/display.jsx`) and full-width labelled actions on the right (`ActionButton` in `ui/Button.jsx`): `SaleDetail` in Past sales, `MedicineDetail` in Medicines, `CustomerDetail` in Khata. A button inside such a row stops the click so it does not also open the window.
 - **Dialogs** (`ui/Modal.jsx`) form a stack: `Esc` closes only the top one, focus is trapped inside it and restored afterwards. A locked dialog (forced PIN change) cannot be dismissed.
 - **The lock screen replaces the whole app** instead of covering it, so no store data is visible while locked.
 - Electron 22 ships **Chromium 108**, so Tailwind 3.4 is used (Tailwind 4 needs Chromium 111+ for `color-mix()` and `oklch`), and Vite builds with `target: 'chrome108'`.
@@ -60,13 +69,19 @@ src/shared/   pricing.js (money, units, totals) + permissions.js (role matrix),
 
 The app must run on 32-bit Windows 7, which pins Electron to 22 (the last version that supports Windows 7). sql.js is pure WASM, so there are no native modules to rebuild per architecture. The trade-off is that the whole database lives in memory and is rewritten on each save. That is fine for a single pharmacy (a few MB, a few writes per minute). If a store's database grows past roughly 50 MB, or Windows 7 support is dropped, move to `better-sqlite3` with WAL mode. Only `db/Database.js` needs to change.
 
+Measured growth is about 0.5 KB per sale (roughly 35 MB a year at 200 sales a day), and saving one sale took about 10 ms at 0.6 MB, 40 ms at 10 MB and 140 ms at 36 MB on a fast PC, so a busy shop reaches that point in one to two years.
+
+Never call sql.js `exec()` for anything that runs often: it leaks WASM memory on every call that returns rows, and after about 330,000 calls in one session the engine fails ("memory access out of bounds"). `Database.run()` reads `last_insert_rowid()` through a prepared statement for this reason; `exec()` is only for schema scripts and migrations.
+
 ## Electron hardening
 
 - `contextIsolation`, `sandbox`, no `nodeIntegration`. The UI is served from a custom `app://noorpos/` protocol that only exposes `src/renderer` and `src/shared`.
 - Strict CSP (`script-src 'self'`, no inline scripts or event handlers). No remote content, navigation and new windows are blocked, and there is no application menu or devtools in production.
 - Single-instance lock (two instances would overwrite each other's database writes).
 - Data lives in `%LOCALAPPDATA%\NoorPharmacyPOS`, not Documents: Windows "Controlled folder access" blocks unknown apps from writing to Documents, and OneDrive often syncs it. `src/main/legacy-data.js` adopts data left in Documents by earlier releases on first start.
-- `--reset-admin-pin` (or `npm run reset-pin`) issues a one-time admin PIN after a backup, for when no admin can log in.
+- `--reset-admin-pin` (or `npm run reset-pin`) issues a one-time admin PIN after a backup, for when no admin can log in. It is documented for the installer in the README, not on the lock screen.
+- Chromium 108 cannot be updated (Windows 7), so images are only decoded when their first bytes are JPEG, PNG, GIF or BMP; WebP (CVE-2023-4863) is never accepted (`services/files.js`).
+- The till locks itself after a while without use (Settings, This computer); receipts and dialogs close when it locks.
 - Hardware acceleration is off by default for old GPU drivers. Set `NOORPOS_GPU=1` to enable it.
 
 ## Environment variables (development / support)

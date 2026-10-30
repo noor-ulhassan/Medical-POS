@@ -39,7 +39,16 @@
   }
   const field = (form, name) => $(`#${form} [name="${name}"]`);
   const key = (target, k, extra = {}) => target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...extra }));
-  const nav = (view) => $(`.nav-item[data-target="${view}"]`).click();
+  /** Open a screen: its section in the side bar, then its tab when the section has several screens. */
+  const nav = (view) => {
+    const item = [...document.querySelectorAll('.nav-item[data-views]')].find((el) => el.dataset.views.split(' ').includes(view));
+    item.click();
+    if (item.dataset.target === view) return Promise.resolve();
+    return (async () => {
+      await waitFor(`${view} tab`, () => $(`[data-tab="${view}"]`));
+      $(`[data-tab="${view}"]`).click();
+    })();
+  };
   const button = (scope, label) => [...document.querySelectorAll(`${scope} button`)].find((b) => b.textContent.trim().startsWith(label));
 
   async function typePin(pin) {
@@ -80,7 +89,7 @@
     await waitFor('cart line', () => document.querySelectorAll('#cartItemsList .cart-item').length === 1);
     button('#cartItemsList .cart-item', 'Pack').click();
     await waitFor('pack line', () => text('#cartItemsList').includes('per pack'));
-    button(`#productGrid [data-product-id="${row.dataset.productId}"]`, 'Unit').click();
+    button(`#productGrid [data-product-id="${row.dataset.productId}"]`, 'Add').click();
     await waitFor('two lines', () => document.querySelectorAll('#cartItemsList .cart-item').length === 2);
     if (text('#summaryTotal') === 'Rs 0.00') throw new Error('total did not update');
   });
@@ -103,6 +112,36 @@
     key(input, 'Enter', { shiftKey: true });
     await waitFor('omeprazole pack', () => text('#cartItemsList') !== before && text('#cartItemsList').includes('Omeprazole'));
     type(input, '');
+  });
+
+  await step('a scan right after an arrow-key pick adds the scanned medicine, not the picked one', async () => {
+    const input = $('#posSearchInput');
+    const qty = (title) => {
+      const line = [...document.querySelectorAll('#cartItemsList .cart-item')].find((li) => li.textContent.includes(title) && li.textContent.includes('per unit'));
+      return line ? Number(line.querySelector('[data-cart-qty]').value) : 0;
+    };
+    type(input, 'Atorvastatin');
+    await sleep(150);
+    key(input, 'ArrowDown');
+    await waitFor('row highlighted', () => $('#productGrid [aria-selected="true"]'));
+    key(input, 'Enter');
+    await waitFor('picked unit', () => qty('Atorvastatin') === 1);
+    if (input.selectionStart !== 0 || input.selectionEnd !== input.value.length) throw new Error('search text is not selected for the next scan');
+    // A scanner replaces the selected text and presses Enter well within the search debounce.
+    const paracetamol = qty('Paracetamol');
+    type(input, '2000000000022');
+    key(input, 'Enter');
+    await waitFor('scanned paracetamol', () => qty('Paracetamol') === paracetamol + 1);
+    if (qty('Atorvastatin') !== 1) throw new Error(`the picked medicine was added again (x${qty('Atorvastatin')})`);
+  });
+
+  await step('quantity can be typed in the sale', async () => {
+    const qty = $('#cartItemsList [data-cart-qty]');
+    const before = text('#summaryTotal');
+    qty.focus();
+    type(qty, '3');
+    qty.blur();
+    await waitFor('quantity applied', () => $('#cartItemsList [data-cart-qty]').value === '3' && text('#summaryTotal') !== before);
   });
 
   await step('checkout prints a receipt with a sequential invoice', async () => {
@@ -134,7 +173,39 @@
     await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
   });
 
-  const views = ['dashboardView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
+  await step('payment method starts at cash for every sale (never carried over)', async () => {
+    $('#productGrid [data-product-id]:not(.is-out)').click();
+    await waitFor('item in cart', () => text('#cartItemCountBadge') === '1');
+    $('#btnOpenCheckoutModal').click();
+    await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
+    if (!$('input[name="paymentMethod"][value="CASH"]').checked) throw new Error('payment method carried over from the previous sale');
+    $('#modalCheckoutPayment button[aria-label="Close"]').click();
+    $('#btnClearCart').click();
+    await waitFor('confirm', () => exists('modalConfirm'));
+    await waitFor('safe answer focused', () => document.activeElement && document.activeElement.textContent.trim() === 'Cancel');
+    $('#confirmYes').click();
+    await waitFor('cart cleared', () => text('#cartItemCountBadge') === '0');
+  });
+
+  await step('dates are day/month/year', async () => {
+    const locale = new Intl.DateTimeFormat().resolvedOptions().locale;
+    if (!locale.startsWith('en-GB')) throw new Error(`locale is ${locale}`);
+  });
+
+  await step('text size button makes everything bigger and back', async () => {
+    const before = window.devicePixelRatio;
+    $('#btnUserMenu').click();
+    await waitFor('me window', () => exists('modalMe'));
+    $('#textSizeBtn').click();
+    await waitFor('zoomed in', () => window.devicePixelRatio > before);
+    $('#textSizeBtn').click();
+    $('#textSizeBtn').click();
+    await waitFor('back to normal', () => Math.abs(window.devicePixelRatio - before) < 0.01);
+    $('#modalMe button[aria-label="Close"]').click();
+    await waitFor('me window closed', () => !exists('modalMe'));
+  });
+
+  const views = ['dashboardView', 'profitView', 'expensesView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
   for (const view of views) {
     await step(`navigate to ${view}`, async () => {
       nav(view);
@@ -150,12 +221,44 @@
 
   await step('void the sale from sales history', async () => {
     nav('salesView');
-    await waitFor('sales row', () => $('#salesTableBody [data-void]'));
-    $('#salesTableBody [data-void]').click();
+    await waitFor('sales row', () => $('#salesTableBody [data-open-sale]'));
+    $('#salesTableBody [data-open-sale]').click();
+    await waitFor('sale window', () => $('#modalSaleDetail [data-void]'));
+    $('#modalSaleDetail [data-void]').click();
     await waitFor('void dialog', () => exists('modalVoidSale'));
     type(field('voidForm', 'reason'), 'Smoke test');
     $('#voidForm').requestSubmit();
-    await waitFor('voided badge', () => text('#salesTableBody').includes('Voided'));
+    await waitFor('voided badge', () => text('#salesTableBody').includes('Cancelled'));
+  });
+
+  await step('return one item from a sale', async () => {
+    nav('posView');
+    await waitFor('products', () => $('#productGrid [data-product-id]:not(.is-out)'));
+    const row = $('#productGrid [data-product-id]:not(.is-out)');
+    row.click();
+    row.click();
+    row.click();
+    await waitFor('3 in the sale', () => $('#cartItemsList [data-cart-qty]') && $('#cartItemsList [data-cart-qty]').value === '3');
+    $('#btnOpenCheckoutModal').click();
+    await waitFor('payment dialog', () => exists('modalCheckoutPayment'));
+    $('#checkoutPaymentForm').requestSubmit();
+    await waitFor('rx confirmation or receipt', () => exists('modalConfirm') || exists('modalReceiptPreview'));
+    if (exists('modalConfirm')) $('#confirmYes').click();
+    await waitFor('receipt', () => exists('modalReceiptPreview'));
+    $('#modalReceiptPreview button[aria-label="Close"]').click();
+    nav('salesView');
+    await waitFor('sales row', () => $('#salesTableBody [data-open-sale]'));
+    $('#salesTableBody [data-open-sale]').click();
+    await waitFor('return button', () => $('#modalSaleDetail [data-return]'));
+    $('#modalSaleDetail [data-return]').click();
+    await waitFor('return dialog', () => exists('modalReturnItems') && $('[data-return-qty]'));
+    type($('[data-return-qty]'), '1');
+    await waitFor('refund shown', () => text('#returnRefund').includes('cash back'));
+    type(field('returnForm', 'reason'), 'Smoke return');
+    $('#returnForm').requestSubmit();
+    await waitFor('receipt with the return', () => exists('modalReceiptPreview') && text('#receiptReturns').includes('-R1'));
+    $('#modalReceiptPreview button[aria-label="Close"]').click();
+    await waitFor('partly returned', () => text('#salesTableBody').includes('Partly returned'));
   });
 
   await step('add a product', async () => {
@@ -173,14 +276,45 @@
     await waitFor('row added', () => text('#inventoryTableBody').includes('Smoke Test Syrup'));
   });
 
+  await step('tap a medicine to open its window, then its stock history', async () => {
+    const row = [...document.querySelectorAll('#inventoryTableBody [data-open-product]')].find((r) => r.textContent.includes('Smoke Test Syrup'));
+    row.click();
+    await waitFor('medicine window', () => exists('modalMedicine'));
+    $('#modalMedicine [data-history]').click();
+    await waitFor('history document', () => exists('modalA4Preview') && !exists('modalMedicine'));
+    $('#modalA4Preview button[aria-label="Close"]').click();
+    await waitFor('history closed', () => !exists('modalA4Preview'));
+  });
+
   await step('add a khata customer', async () => {
     nav('khataView');
     await waitFor('khata', () => $('#btnOpenAddCustomer'));
     $('#btnOpenAddCustomer').click();
     await waitFor('customer dialog', () => exists('modalCustomer'));
     type(field('customerForm', 'name'), 'Smoke Customer');
+    type(field('customerForm', 'openingBalance'), '250'); // owed in the old khata book
     $('#customerForm').requestSubmit();
     await waitFor('customer row', () => text('#customerTableBody').includes('Smoke Customer'));
+    await waitFor('opening balance owed', () => text('#customerTableBody').includes('Rs 250.00'));
+  });
+
+  await step('app opens in light mode', async () => {
+    if (document.documentElement.dataset.theme !== 'light') throw new Error(`theme is ${document.documentElement.dataset.theme}`);
+  });
+
+  await step('record an expense, then see it in Profit & loss', async () => {
+    nav('expensesView');
+    await waitFor('expense form', () => exists('expenseForm'));
+    type(field('expenseForm', 'category'), 'RENT');
+    type(field('expenseForm', 'amount'), '1234.50');
+    type(field('expenseForm', 'note'), 'Smoke rent');
+    $('#expenseForm').requestSubmit();
+    await waitFor('expense listed', () => text('#expensesTableBody').includes('Smoke rent'));
+    if (!text('#expensesMonthTotal').includes('1,234.50')) throw new Error(`month total is ${text('#expensesMonthTotal')}`);
+    nav('profitView');
+    await waitFor('profit statement', () => exists('profitStatement'));
+    await waitFor('expense in the statement', () => text('#profitStatement').includes('1,234.50'));
+    await waitFor('net profit shown', () => text('#profitNetProfit').includes('Rs'));
   });
 
   await step('settings tabs: staff, backups and activity log', async () => {
@@ -207,16 +341,21 @@
 
   await step('theme switches between light and dark', async () => {
     const before = document.documentElement.dataset.theme;
+    $('#btnUserMenu').click();
+    await waitFor('me window', () => exists('modalMe'));
     $('#themeToggleBtn').click();
     await waitFor('theme changed', () => document.documentElement.dataset.theme !== before);
     $('#themeToggleBtn').click();
     await waitFor('theme restored', () => document.documentElement.dataset.theme === before);
+    $('#modalMe button[aria-label="Close"]').click();
+    await waitFor('me window closed', () => !exists('modalMe'));
   });
 
   await step('F12 locks the terminal', async () => {
     key(document, 'F12');
     await waitFor('locked', () => exists('modalPinAuth'));
     if (exists('posView')) throw new Error('store data still visible behind the lock screen');
+    if (exists('pinFirstRunHint')) throw new Error('lock screen still says the PIN is 1234 after it was changed');
   });
 
   return { ok: failures.length === 0, steps, failures };

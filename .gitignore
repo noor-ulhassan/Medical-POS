@@ -41,3 +41,9 @@ coverage/
 
 # Built UI (npm run build:ui)
 build/
+
+# Claude Code: per-computer settings stay local; shared skills and agents (pstack, verify-noorpos) are tracked.
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/pstack/

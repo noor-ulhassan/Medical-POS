@@ -19,7 +19,7 @@ export function Th({ num, className, children }) {
     <th
       scope="col"
       className={cx(
-        'sticky top-0 z-[1] whitespace-nowrap border-b border-foil bg-sunken px-4 py-2.5 text-left text-xs font-semibold text-ink-2',
+        'sticky top-0 z-[1] whitespace-nowrap border-b border-foil bg-sunken px-4 py-3 text-left text-sm font-semibold text-ink-2',
         num && 'text-right',
         className
       )}
@@ -40,7 +40,17 @@ export function Td({ num, muted, className, children, ...props }) {
   );
 }
 
-export function Tr({ tone, className, children, ...props }) {
+/** `onOpen` makes the whole row a button (click, Enter or Space) that opens its detail window. */
+export function Tr({ tone, onOpen, className, children, ...props }) {
+  const open = onOpen && {
+    onClick: onOpen,
+    onKeyDown: (e) => {
+      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      onOpen();
+    },
+    tabIndex: 0
+  };
   return (
     <tr
       className={cx(
@@ -48,8 +58,10 @@ export function Tr({ tone, className, children, ...props }) {
         tone === 'danger' && 'bg-red-soft/40',
         tone === 'warn' && 'bg-amber-soft/40',
         tone === 'muted' && 'text-ink-3',
+        onOpen && 'cursor-pointer',
         className
       )}
+      {...open}
       {...props}
     >
       {children}

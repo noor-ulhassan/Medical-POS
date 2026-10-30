@@ -10,9 +10,9 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: 'h-8 px-2.5 text-sm gap-1.5 [&_svg]:size-4',
-  md: 'h-9 px-3.5 text-base gap-2 [&_svg]:size-[18px]',
-  lg: 'h-11 px-5 text-md gap-2 [&_svg]:size-5'
+  sm: 'h-9 px-3 text-sm gap-1.5 [&_svg]:size-4',
+  md: 'h-11 px-4 text-base gap-2 [&_svg]:size-5',
+  lg: 'h-12 px-5 text-md gap-2 [&_svg]:size-5'
 };
 
 export const Button = forwardRef(function Button(
@@ -52,7 +52,7 @@ export const IconButton = forwardRef(function IconButton(
       aria-label={label}
       className={cx(
         'inline-flex shrink-0 items-center justify-center rounded-control transition-colors disabled:pointer-events-none disabled:opacity-40',
-        size === 'sm' ? 'size-8 [&_svg]:size-4' : 'size-9 [&_svg]:size-[18px]',
+        size === 'sm' ? 'size-9 [&_svg]:size-[18px]' : 'size-11 [&_svg]:size-5',
         tone === 'danger' ? 'text-ink-3 hover:bg-red-soft hover:text-red-ink' : 'text-ink-2 hover:bg-sunken hover:text-ink',
         className
       )}
@@ -62,3 +62,22 @@ export const IconButton = forwardRef(function IconButton(
     </button>
   );
 });
+
+/** Full-width labelled action, for the list of things you can do in a detail window. */
+export function ActionButton({ icon: Icon, tone = 'default', children, ...props }) {
+  return (
+    <button
+      type="button"
+      className={cx(
+        'flex h-12 w-full items-center gap-3 rounded-control px-4 text-left text-base font-semibold transition-colors',
+        tone === 'primary' && 'bg-teal text-teal-on hover:bg-teal-hover',
+        tone === 'danger' && 'text-red-ink ring-1 ring-red/30 hover:bg-red-soft',
+        tone === 'default' && 'bg-sunken text-ink hover:bg-foil'
+      )}
+      {...props}
+    >
+      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      {children}
+    </button>
+  );
+}

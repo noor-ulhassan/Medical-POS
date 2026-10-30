@@ -50,11 +50,11 @@ test('generated barcodes are valid in-store EAN-13 codes', () => {
   assert.equal(code[0], '2');
 });
 
-test('PIN rules reject weak PINs and hashes verify', () => {
-  assert.throws(() => assertAcceptablePin('1234'), /too easy/);
-  assert.throws(() => assertAcceptablePin('7777'), /too easy/);
+test('any 4 to 6 digit PIN is accepted and hashes verify', () => {
+  for (const pin of ['1234', '0000', '7777', '123456', '7391']) assert.equal(assertAcceptablePin(pin), pin);
   assert.throws(() => assertAcceptablePin('12a4'), /4 to 6 digits/);
-  assert.equal(assertAcceptablePin('7391'), '7391');
+  assert.throws(() => assertAcceptablePin('123'), /4 to 6 digits/);
+  assert.throws(() => assertAcceptablePin('1234567'), /4 to 6 digits/);
   const hash = hashPin('7391');
   assert.ok(!hash.includes('7391'));
   assert.ok(verifyPin('7391', hash));

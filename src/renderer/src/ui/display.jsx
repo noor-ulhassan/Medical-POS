@@ -11,7 +11,7 @@ const PILL_TONES = {
 export function Pill({ tone = 'neutral', className, children, ...props }) {
   return (
     <span
-      className={cx('inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-semibold', PILL_TONES[tone], className)}
+      className={cx('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 text-sm font-semibold', PILL_TONES[tone], className)}
       {...props}
     >
       {children}
@@ -22,7 +22,7 @@ export function Pill({ tone = 'neutral', className, children, ...props }) {
 /** "Rx" marker for prescription-only medicines. */
 export function RxPill() {
   return (
-    <Pill tone="amber" title="Prescription required" className="h-[18px] px-1.5 text-[11px]">
+    <Pill tone="amber" title="Prescription required" className="h-5 px-1.5 text-xs">
       Rx
     </Pill>
   );
@@ -74,8 +74,8 @@ export function Page({ id, children }) {
 /** Search box used in page toolbars. */
 export function SearchInput({ id, value, onChange, placeholder, icon: Icon, className }) {
   return (
-    <label className={cx('flex h-9 min-w-[280px] items-center gap-2 rounded-control border border-foil-strong bg-surface px-3 transition-colors focus-within:border-teal focus-within:ring-2 focus-within:ring-teal/25', className)}>
-      {Icon && <Icon className="size-4 shrink-0 text-ink-3" aria-hidden="true" />}
+    <label className={cx('flex h-11 min-w-[300px] items-center gap-2.5 rounded-control border border-foil-strong bg-surface px-3.5 transition-colors focus-within:border-teal focus-within:ring-2 focus-within:ring-teal/25', className)}>
+      {Icon && <Icon className="size-5 shrink-0 text-ink-3" aria-hidden="true" />}
       <input
         id={id}
         type="search"
@@ -86,6 +86,16 @@ export function SearchInput({ id, value, onChange, placeholder, icon: Icon, clas
         className="h-full min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-3"
       />
     </label>
+  );
+}
+
+/** One labelled value in a detail window. */
+export function Fact({ label, className, children }) {
+  return (
+    <div className={cx('min-w-0', className)}>
+      <dt className="text-sm text-ink-3">{label}</dt>
+      <dd className="mt-0.5 text-md font-semibold text-ink">{children}</dd>
+    </div>
   );
 }
 
@@ -127,7 +137,7 @@ export function Segmented({ options, value, onChange, size = 'md', label, classN
           onClick={() => onChange(o.value)}
           className={cx(
             'whitespace-nowrap rounded-[4px] font-semibold transition-colors',
-            size === 'xs' ? 'h-6 px-2 text-xs' : size === 'sm' ? 'h-7 px-2.5 text-sm' : 'h-8 px-3 text-sm',
+            size === 'xs' ? 'h-8 px-2.5 text-sm' : size === 'sm' ? 'h-9 px-3 text-sm' : 'h-10 px-3.5 text-base',
             value === o.value ? 'bg-surface text-ink shadow-sm ring-1 ring-foil' : 'text-ink-2 hover:text-ink'
           )}
         >
@@ -158,8 +168,4 @@ export function Tabs({ tabs, value, onChange }) {
       ))}
     </div>
   );
-}
-
-export function Kbd({ children }) {
-  return <kbd>{children}</kbd>;
 }

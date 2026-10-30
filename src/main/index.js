@@ -22,6 +22,11 @@ const isSmokeTest = process.env.NOORPOS_SMOKE === '1';
 // Dev/smoke runs use their own Chromium profile so they never touch a real install.
 if (process.env.NOORPOS_USER_DATA_DIR) app.setPath('userData', process.env.NOORPOS_USER_DATA_DIR);
 
+// Dates in day/month/year (as used in Pakistan), also in date boxes: with
+// Windows set to English (US), Chromium would show 10/16/2026 and an expiry
+// typed as 05/06/2027 would be saved as 6 May instead of 5 June.
+app.commandLine.appendSwitch('lang', 'en-GB');
+
 // Old 32-bit Windows PCs often have GPU drivers that render Chromium windows
 // blank; software rendering is the reliable default. NOORPOS_GPU=1 opts back in.
 if (process.env.NOORPOS_GPU !== '1') app.disableHardwareAcceleration();
@@ -110,9 +115,10 @@ function notifyRenderer(channel, payload) {
 
 const platform = {
   appInfo: () => ({ version: app.getVersion(), dataDir: ctx.paths.dataDir, isDev }),
-  print: () =>
+  /** `silent` prints straight to the default printer, without the print window. */
+  print: ({ silent = false } = {}) =>
     new Promise((resolve) => {
-      mainWindow.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+      mainWindow.webContents.print({ silent: Boolean(silent), printBackground: true }, (success, failureReason) => {
         resolve({ printed: success, reason: success ? null : failureReason });
       });
     }),
@@ -125,7 +131,16 @@ const platform = {
     });
     return canceled || filePaths.length === 0 ? null : filePaths[0];
   },
-  openFolder: (folder) => shell.openPath(folder).then((error) => ({ opened: !error }))
+  pickFolder: async (title) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, { title, properties: ['openDirectory', 'createDirectory'] });
+    return canceled || filePaths.length === 0 ? null : filePaths[0];
+  },
+  openFolder: (folder) => shell.openPath(folder).then((error) => ({ opened: !error })),
+  /** Real browser zoom (not CSS zoom), so layout, charts and mouse positions all scale together. */
+  setZoom: (factor) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.setZoomFactor(factor);
+    return { factor };
+  }
 };
 
 function createWindow() {
@@ -152,6 +167,23 @@ function createWindow() {
   if (!isDev) Menu.setApplicationMenu(null);
   mainWindow.maximize();
   mainWindow.once('ready-to-show', () => mainWindow.show());
+
+  // A shop PC is often closed by accident (the X is easy to hit). Completed
+  // sales are already saved, but a sale still being rung up would be lost.
+  mainWindow.on('close', (event) => {
+    if (isSmokeTest || isDev) return;
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: 'question',
+      title: 'Close Noor Pharmacy POS?',
+      message: 'Close Noor Pharmacy POS?',
+      detail: 'All completed sales are already saved. A sale you have not finished yet will be lost.',
+      buttons: ['Keep working', 'Close the app'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true
+    });
+    if (choice === 0) event.preventDefault();
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -212,6 +244,7 @@ async function main() {
     onPersistError: (err) => {
       console.error('[db] could not save to disk:', err);
       notifyRenderer('app:warning', {
+        kind: 'save',
         message: `Could not save data to disk (${err.code || err.message}). Your work is kept in memory; do not close the app until this is fixed.`
       });
     }
@@ -245,6 +278,24 @@ async function main() {
   });
 
   createWindow();
+
+  // Shops leave the app open for days, so the daily backup cannot rely on a
+  // restart. autoDaily() is a no-op when today's backup already exists.
+  // The copy to the USB drive / cloud folder is retried every hour too (the
+  // drive may be plugged in later); a failure is announced once a day, with
+  // the day's new backup, and is always shown in Settings and Today's report.
+  setInterval(() => {
+    let created = null;
+    try {
+      if (ctx.db) created = ctx.backup.autoDaily();
+    } catch (err) {
+      console.error('[backup] automatic daily backup failed:', err);
+      notifyRenderer('app:warning', { kind: 'backup', message: `Automatic backup failed (${err.code || err.message}). Use Settings, Backup now.` });
+    }
+    ctx.copyBackupsAway().then((copy) => {
+      if (copy && !copy.ok && created) notifyRenderer('app:warning', { kind: 'backup', message: `${copy.error} Today's backup is only on this computer.` });
+    });
+  }, 60 * 60 * 1000);
 
   app.on('second-instance', () => {
     if (mainWindow) {

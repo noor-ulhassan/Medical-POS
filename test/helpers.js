@@ -9,8 +9,23 @@ const { createDispatcher } = require('../src/main/ipc/dispatcher');
 const { hashPin } = require('../src/main/lib/pin');
 const { nowIso } = require('../src/main/lib/dates');
 
+// Every test makes a throwaway data folder (database + backups); remove them
+// when the test file finishes, so test runs do not fill the disk.
+const createdDirs = [];
+process.on('exit', () => {
+  for (const dir of createdDirs) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch (_) {
+      /* still in use: the OS cleans its temp folder eventually */
+    }
+  }
+});
+
 function tempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'noorpos-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'noorpos-test-'));
+  createdDirs.push(dir);
+  return dir;
 }
 
 const silentLogger = { error() {}, log() {}, warn() {} };
@@ -25,7 +40,7 @@ async function createTestApp({ dataDir = tempDir(), decide, platform = {} } = {}
   return { ctx, call, dataDir, db: () => ctx.db, services: () => ctx.services };
 }
 
-/** Insert a user directly (bypassing the weak-PIN rules) for tests. */
+/** Insert a user directly (bypassing validation) for tests. */
 function addUser(ctx, { name, role, pin, mustChangePin = false }) {
   return ctx.db.transaction(
     () =>

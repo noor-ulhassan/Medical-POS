@@ -5,7 +5,9 @@ const path = require('path');
 const { Database, DatabaseCorruptError } = require('./db/Database');
 const { migrate, pendingMigrations, LegacySchemaError, NewerSchemaError } = require('./db/migrations');
 const { ensureEssentialRows, seedDemoData } = require('./db/seed');
-const { ensureDir, timestampForFile, atomicWriteFileSync } = require('./lib/fsutil');
+const { ensureDir, timestampForFile, atomicWriteFileSync, isInside } = require('./lib/fsutil');
+const { validationError } = require('./lib/errors');
+const { nowIso } = require('./lib/dates');
 const { createAuthService } = require('./services/auth');
 const { createSettingsService } = require('./services/settings');
 const { createCatalogService } = require('./services/catalog');
@@ -17,6 +19,7 @@ const { createReportsService } = require('./services/reports');
 const { createFilesService } = require('./services/files');
 const { createBackupService } = require('./services/backup');
 const { createAuditService, recordAudit } = require('./services/audit');
+const { createExpensesService } = require('./services/expenses');
 
 class QuitRequested extends Error {
   constructor() {
@@ -26,6 +29,11 @@ class QuitRequested extends Error {
 }
 
 const DB_FILE_NAME = 'noor_pharmacy_pos.db';
+
+/** Set (or with '' clear) the backup copy folder; the previous outcome no longer applies. Inside a transaction. */
+function setCopyFolder(db, dir) {
+  db.run("UPDATE settings SET backup_copy_dir = ?, backup_copy_last_at = NULL, backup_copy_last_error = '' WHERE id = 1;", [dir]);
+}
 
 function storagePaths(dataDir) {
   return {
@@ -53,7 +61,12 @@ class AppContext {
     this.services = null;
     this.session = { user: null };
     this.files = createFilesService(this.paths);
-    this.backup = createBackupService({ getDb: () => this.db, backupsDir: this.paths.backupsDir });
+    this.backup = createBackupService({
+      getDb: () => this.db,
+      backupsDir: this.paths.backupsDir,
+      prescriptionsDir: this.paths.prescriptionsDir
+    });
+    this.copying = null;
   }
 
   async start() {
@@ -87,7 +100,70 @@ class AppContext {
     }
 
     this.backup.autoDaily();
+    this.copyBackupsAway(); // in the background; the outcome is shown in Settings and on Today's report
     return this;
+  }
+
+  /**
+   * Copy the backups and prescription photos to the folder chosen in Settings
+   * (USB drive, cloud folder), if there is one, and record how it went.
+   * Resolves to null (no folder), { ok: true, ... } or { ok: false, error }.
+   */
+  copyBackupsAway() {
+    if (this.copying) return this.copying;
+    const run = async () => {
+      const db = this.db;
+      const settings = db && db.get('SELECT backup_copy_dir, backup_copy_last_at, backup_copy_last_error FROM settings WHERE id = 1;');
+      if (!settings || !settings.backup_copy_dir) return null;
+      const dir = settings.backup_copy_dir;
+      let outcome;
+      try {
+        outcome = { ok: true, dir, ...(await this.backup.copyTo(dir)) };
+      } catch (err) {
+        const reason = ['ENOENT', 'ENODEV', 'EBUSY'].includes(err.code) ? 'the folder cannot be reached; is the USB drive plugged in?' : err.message;
+        outcome = { ok: false, dir, error: `Could not copy backups to ${dir}: ${reason}` };
+      }
+      // A restore or reset may have replaced the database meanwhile; its own settings then apply.
+      if (this.db === db) {
+        const changed = outcome.ok
+          ? outcome.backups > 0 || outcome.prescriptions > 0 || settings.backup_copy_last_error || !settings.backup_copy_last_at
+          : outcome.error !== settings.backup_copy_last_error;
+        if (changed) {
+          db.transaction(() =>
+            outcome.ok
+              ? db.run("UPDATE settings SET backup_copy_last_at = ?, backup_copy_last_error = '' WHERE id = 1;", [nowIso()])
+              : db.run('UPDATE settings SET backup_copy_last_error = ? WHERE id = 1;', [outcome.error])
+          );
+        }
+      }
+      return outcome;
+    };
+    this.copying = run().finally(() => {
+      this.copying = null;
+    });
+    return this.copying;
+  }
+
+  /** Use `dir` (picked by an admin) for backup copies, then copy straight away. */
+  async setBackupCopyFolder(actor, dir) {
+    const { dataDir } = this.paths;
+    const chosen = path.resolve(dir);
+    if (chosen === path.resolve(dataDir) || isInside(dataDir, chosen)) {
+      throw validationError("Choose a folder outside the app's own data folder, for example on a USB drive or in a OneDrive or Google Drive folder.");
+    }
+    this.db.transaction(() => {
+      setCopyFolder(this.db, chosen);
+      recordAudit(this.db, actor, 'system.backup_copy_folder', { dir: chosen });
+    });
+    if (this.copying) await this.copying.catch(() => null);
+    return this.copyBackupsAway();
+  }
+
+  stopBackupCopies(actor) {
+    this.db.transaction(() => {
+      setCopyFolder(this.db, '');
+      recordAudit(this.db, actor, 'system.backup_copy_stopped');
+    });
   }
 
   openFile() {
@@ -117,8 +193,9 @@ class AppContext {
       products: createProductsService(db),
       customers: createCustomersService(db),
       sales: createSalesService(db, { files }),
-      parked: createParkedService(db),
+      parked: createParkedService(db, { files }),
       reports: createReportsService(db),
+      expenses: createExpensesService(db),
       audit: createAuditService(db),
       files,
       backup: this.backup
@@ -155,8 +232,13 @@ class AppContext {
     const safety = this.backup.create('pre-restore');
     this.db.close();
     this.db = null;
-    atomicWriteFileSync(this.paths.dbPath, buffer);
-    this.prepare(await this.openFile());
+    try {
+      atomicWriteFileSync(this.paths.dbPath, buffer);
+      this.prepare(await this.openFile());
+    } catch (err) {
+      await this.reopenAfterFailure(safety.filePath);
+      throw err;
+    }
     this.db.transaction(() => recordAudit(this.db, actor, 'system.restore', { from: path.basename(filePath), safetyBackup: safety.fileName }));
     this.session.user = null;
     return { safetyBackup: safety.filePath };
@@ -167,11 +249,39 @@ class AppContext {
     const safety = this.backup.create('pre-reset'); // throws (aborting the reset) if it cannot be written
     this.db.close();
     this.db = null;
-    fs.unlinkSync(this.paths.dbPath);
-    this.prepare(await this.openFile());
+    try {
+      fs.unlinkSync(this.paths.dbPath);
+      this.prepare(await this.openFile());
+    } catch (err) {
+      await this.reopenAfterFailure(safety.filePath);
+      throw err;
+    }
     this.db.transaction(() => recordAudit(this.db, actor, 'system.factory_reset', { safetyBackup: safety.fileName }));
     this.session.user = null;
     return { safetyBackup: safety.filePath };
+  }
+
+  /**
+   * A restore or reset failed after the live database was closed (file locked
+   * by antivirus, disk full...). Open whatever is on disk again, or else the
+   * safety backup just taken, so the till keeps working instead of every
+   * operation failing until the app is restarted.
+   */
+  async reopenAfterFailure(safetyBackupPath) {
+    if (this.db) {
+      try {
+        this.db.sqlDb.close();
+      } catch (_) {
+        /* already closed */
+      }
+      this.db = null;
+    }
+    try {
+      this.prepare(await this.openFile());
+    } catch (_) {
+      atomicWriteFileSync(this.paths.dbPath, fs.readFileSync(safetyBackupPath));
+      this.prepare(await this.openFile());
+    }
   }
 
   shutdown() {

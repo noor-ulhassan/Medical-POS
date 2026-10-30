@@ -6,16 +6,19 @@ Maintained by **Noor ul Hassan** (noorulhassan01.dev@gmail.com).
 
 ## Features
 
+The app has five sections in a side bar: **Sell**, **Sales**, **Stock**, **Khata** and **Reports**. Each list opens one window per item (a sale, a medicine, a customer) with everything you can do with it, in plain words.
+
 | Area | What it does |
 | --- | --- |
 | **POS terminal** | Barcode/keyboard-driven checkout, sell by pack or single unit, flat or % discount, cash/card/wallet/credit, held (parked) carts, 80mm receipts and reprints |
 | **Inventory** | Products with pack size, expiry, cost/sale prices, low-stock levels, audited stock corrections, auto-generated in-store EAN-13 barcodes |
-| **Customer khata** | Credit accounts with limits, payments, running ledger and printable A4 statements |
+| **Profit & expenses** | Profit and loss by day or month with charts: net sales, cost of medicines sold (recorded at the time of each sale), gross and net profit, margins, expenses by type, write-offs, most profitable medicines and categories |
+| **Customer khata** | Credit accounts with limits, opening balances from the old khata book, payments (cash, card, wallet or bank), running ledger and printable A4 statements |
 | **Expiry center** | Stock expiring within 30/90/180 days, write-off of expired stock |
 | **Restock** | Low/out-of-stock lists per supplier and printable purchase orders |
-| **Sales log** | Search, reprint, re-order into cart, void (restores stock and khata), prescription images |
-| **Users** | PIN login, Admin / Manager / Cashier roles enforced by the app, forced PIN change, lockout after wrong PINs, audit log |
-| **Data safety** | Every change is saved immediately with crash-safe writes, daily automatic backups (14 kept), backups before every restore/reset/upgrade, damaged files are never overwritten |
+| **Sales log** | Search, reprint, re-order into cart, return some of the items (refund or khata credit, back into stock or recorded as damaged), cancel a whole sale (restores stock and khata), prescription images |
+| **Users** | PIN login, Admin / Manager / Cashier roles enforced by the app, forced PIN change, lockout after wrong PINs (kept after a restart), automatic lock when the till is left unused, a discount limit for cashiers, audit log of logins, discounts, stock changes and prices |
+| **Data safety** | Every change is saved immediately with crash-safe writes, daily automatic backups (14 kept), backups before every restore/reset/upgrade, a copy of every backup and prescription photo on a USB drive or cloud folder, damaged files are never overwritten |
 
 ## Install
 
@@ -27,8 +30,8 @@ Download the installer from this repository's **Releases** page and run it.
 
 | Role | Can do |
 | --- | --- |
-| Cashier | Sell, hold carts, reprint receipts, attach prescriptions, view stock and customers, make quotations |
-| Manager | Everything a cashier can, plus inventory, suppliers, khata accounts and payments, voids, write-offs, dashboard, restock |
+| Cashier | Sell (discounts up to the limit the owner sets, 10% unless changed), hold carts, reprint receipts, attach prescriptions, view stock and customers, make quotations |
+| Manager | Everything a cashier can, plus any discount, inventory, suppliers, khata accounts and payments, returns, voids, write-offs, dashboard, restock |
 | Admin | Everything, plus store settings, users, backup/restore and factory reset |
 
 ### Where data lives
@@ -41,7 +44,7 @@ Backups\            automatic and manual backups (.db)
 Prescriptions\      attached prescription images
 ```
 
-Copy the `Backups` folder to a USB drive or cloud folder regularly. To restore, use **Settings → Restore From Backup**.
+Under **Settings → Backup and restore → Choose a USB drive or cloud folder**, pick a USB drive that stays plugged in, or a OneDrive / Google Drive folder. Every backup and prescription photo is then also copied to its `Noor Pharmacy POS backups` folder (retried every hour); Today's report warns when the copy fails or was never set up. To restore, use **Settings → Restore a backup**.
 
 ### Why not the Documents folder?
 
@@ -64,7 +67,7 @@ Any admin can reset another user's PIN under **Settings → Staff and PINs**. If
 | `F1` | Sell screen search box (scan a barcode, then `Enter`) |
 | `↑` / `↓` in the search box | Choose a medicine from the list; `Enter` adds a unit, `Shift`+`Enter` adds a pack |
 | `F2` | Open checkout (press again to confirm the sale) |
-| `F3` | Discount field |
+| `F3` | Discount box |
 | `F4` | Customer selector |
 | `F12` | Lock the terminal |
 | `Esc` | Close the current dialog |
@@ -72,7 +75,7 @@ Any admin can reset another user's PIN under **Settings → Staff and PINs**. If
 
 ## Upgrading from 1.x
 
-The first start of 2.0 moves the previous release's data from the Documents folder into `%LOCALAPPDATA%\NoorPharmacyPOS` (if Windows does not allow the move it is copied instead, leaving the original untouched) and upgrades the database in place. The original database file is copied to `Backups\noorpos_pre-migration-v2_*.db` first.
+The first start of 2.0 moves the previous release's data from the Documents folder into `%LOCALAPPDATA%\NoorPharmacyPOS` (if Windows does not allow the move it is copied instead, leaving the original untouched) and upgrades the database in place. The original database file is copied to `Backups\noorpos_pre-migration-v*_*.db` first (every later upgrade makes the same kind of copy).
 
 - PINs are now stored hashed. Users who still had a published default PIN (`1234`, `5678`, `0000`) must choose a new one at their next login.
 - Stock is now tracked in units (tablets); packs and loose units are calculated from it.
