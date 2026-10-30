@@ -5,12 +5,13 @@ import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { useDocuments, StockHistory } from '../../print/Documents.jsx';
-import { Button, IconButton } from '../../ui/Button.jsx';
+import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
 import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState } from '../../ui/display.jsx';
-import { Table, Th, Td, Tr, RowActions, Pagination, paginate } from '../../ui/Table.jsx';
+import { Table, Th, Td, Tr, Pagination, paginate } from '../../ui/Table.jsx';
 import { money, isLowStock, isOutOfStock, splitUnits, toCents, centsToInput, shortDate } from '../../lib/format.js';
+import { cx } from '../../ui/cx.js';
 import { ProductDialog } from './ProductDialog.jsx';
 
 const PAGE_SIZE = 25;
@@ -114,6 +115,71 @@ function ReceiveStockDialog({ product, onClose }) {
   );
 }
 
+function Fact({ label, children }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-sm text-ink-3">{label}</dt>
+      <dd className="mt-0.5 text-md font-semibold text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/** One medicine: what the shop knows about it next to everything that can be done with it. */
+function MedicineDetail({ product, onClose, onReceive, onEdit, onHistory, onRemove }) {
+  const { can } = useApp();
+  const out = product && isOutOfStock(product);
+  const low = product && !out && isLowStock(product);
+  return (
+    <Modal open={Boolean(product)} onClose={onClose} title={product ? product.title : ''} description={product?.generic_name || undefined} id="modalMedicine" size="lg">
+      {product && (
+        <ModalBody className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-5 bg-sunken">
+          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface p-5">
+            <Fact label="In stock">
+              {out ? <Pill tone="red">Out of stock</Pill> : <span className={cx('num', low && 'text-amber-ink')}>{stockText(product.stock_units, product.pack_size)}</span>}
+              {low && <span className="block text-sm font-normal text-amber-ink">Running low</span>}
+            </Fact>
+            <Fact label="Expires">
+              <ExpiryPill date={product.expiry_date} />
+            </Fact>
+            <Fact label="Price of one">
+              <span className="num">{money(product.single_price_cents)}</span>
+            </Fact>
+            <Fact label={`Price of a pack of ${product.pack_size}`}>
+              <span className="num">{money(product.sale_price_cents)}</span>
+            </Fact>
+            <Fact label="Category">{product.category_name || 'None'}</Fact>
+            <Fact label="Supplier">{product.supplier_name || 'None'}</Fact>
+            <Fact label="Prescription">{product.is_prescription_required ? 'Needed' : 'Not needed'}</Fact>
+            <Fact label="Barcode">
+              <span className="num whitespace-nowrap text-base">{product.barcode}</span>
+            </Fact>
+          </dl>
+          <div className="flex flex-col gap-2.5">
+            {can('stock.adjust') && (
+              <ActionButton icon={PackagePlus} tone="primary" data-receive={product.id} onClick={() => onReceive(product)}>
+                Receive a delivery
+              </ActionButton>
+            )}
+            {can('products.manage') && (
+              <ActionButton icon={Pencil} data-edit={product.id} onClick={() => onEdit(product)}>
+                Change details, stock or prices
+              </ActionButton>
+            )}
+            <ActionButton icon={History} data-history={product.id} onClick={() => onHistory(product)}>
+              See stock history
+            </ActionButton>
+            {can('products.manage') && (
+              <ActionButton icon={Trash2} tone="danger" data-remove={product.id} onClick={() => onRemove(product.id)}>
+                Remove this medicine
+              </ActionButton>
+            )}
+          </div>
+        </ModalBody>
+      )}
+    </Modal>
+  );
+}
+
 export function ProductsView() {
   const { products, can, productById, loadProducts, refreshAlerts } = useApp();
   const { toast, guard } = useToast();
@@ -124,6 +190,7 @@ export function ProductsView() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null); // null | 'new' | product
   const [receiving, setReceiving] = useState(null);
+  const [openId, setOpenId] = useState(null);
   const manage = can('products.manage');
   const canReceive = can('stock.adjust');
 
@@ -158,12 +225,12 @@ export function ProductsView() {
   return (
     <Page id="inventoryView">
       <PageHeader
-        title="Medicines & stock"
-        description="Everything you sell, with prices, stock and expiry. When a delivery arrives, press Receive on that medicine."
+        title="Medicines"
+        description={canReceive ? 'Tap a medicine to change it or see its history. When a delivery comes, press Receive.' : 'Tap a medicine to see its details and stock history.'}
         actions={
           manage && (
             <Button variant="primary" icon={Plus} id="btnOpenAddProduct" onClick={() => setEditing('new')}>
-              Add product
+              Add medicine
             </Button>
           )
         }
@@ -178,7 +245,7 @@ export function ProductsView() {
             setSearch(v);
             setPage(1);
           }}
-          placeholder="Search by name, generic name or barcode"
+          placeholder="Search name, generic name or barcode"
           className="w-[360px]"
         />
         <Segmented
@@ -206,12 +273,10 @@ export function ProductsView() {
             <thead>
               <tr>
                 <Th>Medicine</Th>
-                <Th>Category</Th>
-                <Th>Expiry</Th>
-                <Th num>In stock</Th>
-                <Th num>Unit price</Th>
-                <Th num>Pack price</Th>
-                <Th />
+                <Th>In stock</Th>
+                <Th>Expires</Th>
+                <Th num>Price</Th>
+                {canReceive && <Th />}
               </tr>
             </thead>
             <tbody id="inventoryTableBody">
@@ -219,56 +284,77 @@ export function ProductsView() {
                 const out = isOutOfStock(p);
                 const low = !out && isLowStock(p);
                 return (
-                  <Tr key={p.id} tone={out ? 'danger' : low ? 'warn' : undefined}>
+                  <Tr key={p.id} tone={out ? 'danger' : low ? 'warn' : undefined} data-open-product={p.id} onOpen={() => setOpenId(p.id)}>
                     <Td className="min-w-[260px]">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-ink">{p.title}</span>
                         {p.is_prescription_required ? <RxPill /> : null}
                       </div>
-                      <div className="mt-0.5 flex gap-3 whitespace-nowrap text-sm text-ink-3">
-                        {p.generic_name && <span className="truncate">{p.generic_name}</span>}
-                        <span className="num">{p.barcode}</span>
-                      </div>
+                      {(p.generic_name || p.category_name) && (
+                        <div className="mt-0.5 truncate text-sm text-ink-3">{[p.generic_name, p.category_name].filter(Boolean).join(' · ')}</div>
+                      )}
                     </Td>
-                    <Td muted className="max-w-[160px]">{p.category_name || '—'}</Td>
+                    <Td className="whitespace-nowrap">
+                      {out ? (
+                        <Pill tone="red">Out of stock</Pill>
+                      ) : (
+                        <>
+                          <div className={cx('num font-semibold', low && 'text-amber-ink')}>{stockText(p.stock_units, p.pack_size)}</div>
+                          {low && <div className="text-sm text-amber-ink">Running low</div>}
+                        </>
+                      )}
+                    </Td>
                     <Td>
                       <ExpiryPill date={p.expiry_date} compact />
                     </Td>
                     <Td num>
-                      {out ? (
-                        <Pill tone="red">Out of stock</Pill>
-                      ) : (
-                        <div className="leading-tight">
-                          <div className={low ? 'font-semibold text-amber-ink' : 'font-semibold'}>
-                            {p.stock_packs} × {p.pack_size}
-                          </div>
-                          <div className="text-xs text-ink-3">{p.stock_singles ? `+${p.stock_singles} loose` : low ? 'Low stock' : `${p.stock_units} units`}</div>
-                        </div>
-                      )}
+                      <div className="font-semibold text-ink">{money(p.single_price_cents)}</div>
+                      {p.pack_size > 1 && <div className="text-sm text-ink-3">{money(p.sale_price_cents)} a pack</div>}
                     </Td>
-                    <Td num>{money(p.single_price_cents)}</Td>
-                    <Td num>{money(p.sale_price_cents)}</Td>
-                    <Td className="w-[240px]">
-                      <RowActions>
-                        {canReceive && (
-                          <Button size="sm" variant="secondary" icon={PackagePlus} data-receive={p.id} onClick={() => setReceiving(p)}>
-                            Receive
-                          </Button>
-                        )}
-                        {manage && <IconButton icon={Pencil} label={`Edit ${p.title}`} size="sm" data-edit={p.id} onClick={() => setEditing(p)} />}
-                        <IconButton icon={History} label="Stock history" size="sm" data-history={p.id} onClick={() => history(p)} />
-                        {manage && <IconButton icon={Trash2} label={`Remove ${p.title}`} size="sm" tone="danger" data-remove={p.id} onClick={() => remove(p.id)} />}
-                      </RowActions>
-                    </Td>
+                    {canReceive && (
+                      <Td className="w-[1%] text-right">
+                        <Button
+                          size="sm"
+                          icon={PackagePlus}
+                          data-receive={p.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReceiving(p);
+                          }}
+                        >
+                          Receive
+                        </Button>
+                      </Td>
+                    )}
                   </Tr>
                 );
               })}
             </tbody>
           </Table>
         )}
-        <Pagination page={view.page} pageSize={PAGE_SIZE} total={filtered.length} noun="products" onChange={setPage} />
+        <Pagination page={view.page} pageSize={PAGE_SIZE} total={filtered.length} noun="medicines" onChange={setPage} />
       </div>
 
+      <MedicineDetail
+        product={openId ? productById(openId) : null}
+        onClose={() => setOpenId(null)}
+        onReceive={(p) => {
+          setOpenId(null);
+          setReceiving(p);
+        }}
+        onEdit={(p) => {
+          setOpenId(null);
+          setEditing(p);
+        }}
+        onHistory={(p) => {
+          setOpenId(null);
+          history(p);
+        }}
+        onRemove={(id) => {
+          setOpenId(null);
+          remove(id);
+        }}
+      />
       <ProductDialog product={editing} onClose={() => setEditing(null)} />
       <ReceiveStockDialog product={receiving} onClose={() => setReceiving(null)} />
     </Page>

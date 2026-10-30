@@ -62,3 +62,22 @@ export const IconButton = forwardRef(function IconButton(
     </button>
   );
 });
+
+/** Full-width labelled action, for the list of things you can do in a detail window. */
+export function ActionButton({ icon: Icon, tone = 'default', children, ...props }) {
+  return (
+    <button
+      type="button"
+      className={cx(
+        'flex h-12 w-full items-center gap-3 rounded-control px-4 text-left text-base font-semibold transition-colors',
+        tone === 'primary' && 'bg-teal text-teal-on hover:bg-teal-hover',
+        tone === 'danger' && 'text-red-ink ring-1 ring-red/30 hover:bg-red-soft',
+        tone === 'default' && 'bg-sunken text-ink hover:bg-foil'
+      )}
+      {...props}
+    >
+      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      {children}
+    </button>
+  );
+}

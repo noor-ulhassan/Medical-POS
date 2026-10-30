@@ -7,12 +7,11 @@ import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { useDocuments, Receipt } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
-import { Button } from '../../ui/Button.jsx';
+import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Field, Textarea, Checkbox } from '../../ui/Field.jsx';
 import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, Pagination } from '../../ui/Table.jsx';
 import { money, dateTime, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
-import { cx } from '../../ui/cx.js';
 
 const PAGE_SIZE = 25;
 const METHOD_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wallet', CREDIT: 'Khata' };
@@ -222,24 +221,6 @@ function ReturnDialog({ saleId, onClose, onReturned }) {
   );
 }
 
-function DetailAction({ icon: Icon, tone = 'default', children, ...props }) {
-  return (
-    <button
-      type="button"
-      className={cx(
-        'flex h-12 w-full items-center gap-3 rounded-control px-4 text-left text-base font-semibold transition-colors',
-        tone === 'primary' && 'bg-teal text-teal-on hover:bg-teal-hover',
-        tone === 'danger' && 'text-red-ink ring-1 ring-red/30 hover:bg-red-soft',
-        tone === 'default' && 'bg-sunken text-ink hover:bg-foil'
-      )}
-      {...props}
-    >
-      <Icon className="size-5 shrink-0" aria-hidden="true" />
-      {children}
-    </button>
-  );
-}
-
 /** One past sale: its receipt next to everything that can be done with it. */
 function SaleDetail({ saleId, refreshKey, onClose, onReturn, onVoid, onSellAgain, onViewRx, onAttachRx }) {
   const { can } = useApp();
@@ -273,37 +254,37 @@ function SaleDetail({ saleId, refreshKey, onClose, onReturn, onVoid, onSellAgain
                 )}
                 {voided && sale.void && <p className="mt-1.5 text-sm text-ink-2">Reason: {sale.void.reason}</p>}
               </div>
-              <DetailAction icon={Printer} tone="primary" data-reprint={sale.id} onClick={print}>
+              <ActionButton icon={Printer} tone="primary" data-reprint={sale.id} onClick={print}>
                 Print receipt
-              </DetailAction>
+              </ActionButton>
               {can('pos.sell') && (
-                <DetailAction icon={RotateCcw} data-reorder={sale.id} onClick={() => onSellAgain(sale.id)}>
+                <ActionButton icon={RotateCcw} data-reorder={sale.id} onClick={() => onSellAgain(sale.id)}>
                   Sell these again
-                </DetailAction>
+                </ActionButton>
               )}
               {sale.prescription_path ? (
                 <>
-                  <DetailAction icon={Eye} data-rx-view={sale.id} onClick={() => onViewRx(sale.id)}>
+                  <ActionButton icon={Eye} data-rx-view={sale.id} onClick={() => onViewRx(sale.id)}>
                     See prescription photo
-                  </DetailAction>
-                  <DetailAction icon={Camera} data-rx-attach={sale.id} onClick={() => onAttachRx(sale.id)}>
+                  </ActionButton>
+                  <ActionButton icon={Camera} data-rx-attach={sale.id} onClick={() => onAttachRx(sale.id)}>
                     Replace prescription photo
-                  </DetailAction>
+                  </ActionButton>
                 </>
               ) : (
-                <DetailAction icon={Camera} data-rx-attach={sale.id} onClick={() => onAttachRx(sale.id)}>
+                <ActionButton icon={Camera} data-rx-attach={sale.id} onClick={() => onAttachRx(sale.id)}>
                   Add prescription photo
-                </DetailAction>
+                </ActionButton>
               )}
               {!voided && !allReturned && can('sales.void') && (
-                <DetailAction icon={Undo2} data-return={sale.id} onClick={() => onReturn(sale.id)}>
+                <ActionButton icon={Undo2} data-return={sale.id} onClick={() => onReturn(sale.id)}>
                   Customer returns items
-                </DetailAction>
+                </ActionButton>
               )}
               {!voided && !returned && can('sales.void') && (
-                <DetailAction icon={Ban} tone="danger" data-void={sale.id} onClick={() => onVoid(sale)}>
+                <ActionButton icon={Ban} tone="danger" data-void={sale.id} onClick={() => onVoid(sale)}>
                   Cancel the whole sale
-                </DetailAction>
+                </ActionButton>
               )}
             </div>
           </>
@@ -431,15 +412,7 @@ export function SalesView() {
                     key={s.id}
                     tone={voided ? 'muted' : undefined}
                     data-open-sale={s.id}
-                    onClick={() => setOpenSale(s.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setOpenSale(s.id);
-                      }
-                    }}
-                    tabIndex={0}
-                    className="cursor-pointer"
+                    onOpen={() => setOpenSale(s.id)}
                   >
                     <Td>
                       <div className="num font-semibold text-ink">{s.invoice_no}</div>

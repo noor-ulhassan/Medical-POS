@@ -141,7 +141,7 @@ export function ProductDialog({ product, onClose }) {
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={isNew ? 'Add product' : 'Edit product'} id="modalAddProduct" size="lg">
+      <Modal open={open} onClose={onClose} title={isNew ? 'Add medicine' : 'Change medicine'} id="modalAddProduct" size="lg">
         <form id="addProductForm" onSubmit={submit} className="contents">
           <ModalBody className="gap-6">
             <Fieldset legend="Medicine">
@@ -249,7 +249,7 @@ export function ProductDialog({ product, onClose }) {
           <ModalFooter>
             <Button onClick={onClose}>Cancel</Button>
             <Button type="submit" variant="primary">
-              {isNew ? 'Add product' : 'Save changes'}
+              {isNew ? 'Add medicine' : 'Save changes'}
             </Button>
           </ModalFooter>
         </form>

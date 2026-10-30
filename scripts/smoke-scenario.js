@@ -276,6 +276,16 @@
     await waitFor('row added', () => text('#inventoryTableBody').includes('Smoke Test Syrup'));
   });
 
+  await step('tap a medicine to open its window, then its stock history', async () => {
+    const row = [...document.querySelectorAll('#inventoryTableBody [data-open-product]')].find((r) => r.textContent.includes('Smoke Test Syrup'));
+    row.click();
+    await waitFor('medicine window', () => exists('modalMedicine'));
+    $('#modalMedicine [data-history]').click();
+    await waitFor('history document', () => exists('modalA4Preview') && !exists('modalMedicine'));
+    $('#modalA4Preview button[aria-label="Close"]').click();
+    await waitFor('history closed', () => !exists('modalA4Preview'));
+  });
+
   await step('add a khata customer', async () => {
     nav('khataView');
     await waitFor('khata', () => $('#btnOpenAddCustomer'));
