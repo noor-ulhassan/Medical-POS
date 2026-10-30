@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { call, onSessionProblem } from './lib/api.js';
 import { readPrefs, writePrefs, zoomFactor, TEXT_SIZES } from './lib/prefs.js';
 import { useApp } from './state/AppState.jsx';
 import { useCart } from './state/Cart.jsx';
 import { useToast } from './ui/Toast.jsx';
 import { isAnyModalOpen } from './ui/Modal.jsx';
-import { Sidebar } from './shell/Sidebar.jsx';
+import { Sidebar, SectionTabs } from './shell/Sidebar.jsx';
+import { MeDialog } from './shell/MeDialog.jsx';
 import { HelpDialog } from './shell/HelpDialog.jsx';
 import { StartupScreen } from './shell/StartupScreen.jsx';
 import { LockScreen } from './features/auth/LockScreen.jsx';
@@ -39,31 +40,6 @@ const SCREENS = {
   settingsView: SettingsView
 };
 
-function readPreference(key, fallback) {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch (_) {
-    return fallback;
-  }
-}
-
-function removePreference(key) {
-  try {
-    localStorage.removeItem(key);
-  } catch (_) {
-    /* preferences are optional */
-  }
-}
-
-function writePreference(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch (_) {
-    /* preferences are optional */
-  }
-}
-
-
 /** Enter in a form field moves to the next field; on the last field the form submits as usual. */
 function moveToNextField(e) {
   const field = e.target;
@@ -89,29 +65,13 @@ export function App() {
   const [booted, setBooted] = useState(false);
   // Always opens in light mode; dark mode can be switched on for the current session.
   const [theme, setTheme] = useState('light');
-  // The menu folds to icons by itself when the window (or enlarged text) leaves too little room,
-  // unless someone has folded or opened it by hand.
-  const [collapsedChoice, setCollapsedChoice] = useState(() => readPreference('noorpos_sidebar_collapsed', null));
-  const [narrow, setNarrow] = useState(() => window.innerWidth < 1200);
-  useEffect(() => {
-    const onResize = () => setNarrow(window.innerWidth < 1200);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  const collapsed = collapsedChoice === null ? narrow : collapsedChoice === 'true';
   const [pinDialog, setPinDialog] = useState(null); // null | { forced }
   const [helpOpen, setHelpOpen] = useState(false);
+  const [meOpen, setMeOpen] = useState(false);
   const [textSize, setTextSize] = useState(() => readPrefs().textSize);
 
   // Text size is real browser zoom, applied by the main process and remembered on this computer.
-  const firstTextSize = useRef(true);
   useEffect(() => {
-    // A new text size changes how much fits, so the menu goes back to folding by itself.
-    if (firstTextSize.current) firstTextSize.current = false;
-    else {
-      setCollapsedChoice(null);
-      removePreference('noorpos_sidebar_collapsed');
-    }
     writePrefs({ textSize });
     call('app.setZoom', { factor: zoomFactor(textSize) }).catch((err) => console.error('Could not set text size', err));
   }, [textSize]);
@@ -263,6 +223,7 @@ export function App() {
           e.preventDefault();
           if (isAnyModalOpen()) return;
           go('posView');
+          cart.setDiscountOpen(true);
           focusLater('cartDiscountInput');
           return;
         case 'F4':
@@ -293,31 +254,34 @@ export function App() {
     <>
       {ready ? (
         <div className="flex h-full">
-          <Sidebar
-            collapsed={collapsed}
-            onToggleCollapsed={() => {
-              const next = String(!collapsed);
-              writePreference('noorpos_sidebar_collapsed', next);
-              setCollapsedChoice(next);
-            }}
+          <Sidebar onLock={lock} onHelp={() => setHelpOpen(true)} onMe={() => setMeOpen(true)} />
+          <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <SectionTabs />
+            <div className="min-h-0 flex-1">
+              <Screen key={view} />
+            </div>
+          </main>
+          <PaymentDialog />
+          <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+          <MeDialog
+            open={meOpen}
+            onClose={() => setMeOpen(false)}
             theme={theme}
-            onToggleTheme={() => {
-              setTheme(theme === 'dark' ? 'light' : 'dark');
-            }}
-            onLock={lock}
-            onChangePin={() => setPinDialog({ forced: false })}
-            onHelp={() => setHelpOpen(true)}
+            onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             textSize={textSize}
             onCycleTextSize={() =>
               // Step from the current value, so quick repeated clicks each count.
               setTextSize((current) => TEXT_SIZES[(TEXT_SIZES.findIndex((t) => t.value === current) + 1) % TEXT_SIZES.length].value)
             }
+            onChangePin={() => {
+              setMeOpen(false);
+              setPinDialog({ forced: false });
+            }}
+            onLock={() => {
+              setMeOpen(false);
+              lock();
+            }}
           />
-          <main className="min-w-0 flex-1 overflow-hidden">
-            <Screen key={view} />
-          </main>
-          <PaymentDialog />
-          <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
         </div>
       ) : (
         !user && <LockScreen onSession={acceptSession} />
@@ -330,6 +294,8 @@ export function App() {
         onLock={lock}
         onChanged={async (u, forced) => {
           setPinDialog(null);
+          // The lock screen's "first start: PIN is 1234" hint is read from app info; refresh it once 1234 stops working.
+          loadAppInfo();
           if (forced) await unlocked(u);
           else setUser(u);
         }}

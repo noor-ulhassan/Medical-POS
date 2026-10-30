@@ -14,7 +14,7 @@ const CartContext = createContext(null);
 
 const noPriceMessage = (product, unitType) => {
   const by = unitType === 'PACK' ? 'pack' : 'unit';
-  return `${product.title} has no price per ${by}, so it cannot be sold by the ${by}. Set the price under Medicines & stock.`;
+  return `${product.title} has no price per ${by}, so it cannot be sold by the ${by}. Set the price under Stock, Medicines.`;
 };
 
 export function CartProvider({ children }) {
@@ -26,6 +26,8 @@ export function CartProvider({ children }) {
   const [discountInput, setDiscountInput] = useState('0');
   const [prescriptionPath, setPrescriptionPath] = useState('');
   const [paymentOpen, setPaymentOpen] = useState(false);
+  // The discount box is shown on demand (Discount button or F3) so the till stays uncluttered.
+  const [discountOpen, setDiscountOpen] = useState(false);
   const confirmPaymentRef = useRef(null);
   const linesRef = useRef(lines);
   linesRef.current = lines;
@@ -155,6 +157,7 @@ export function CartProvider({ children }) {
     setPrescriptionPath('');
     setDiscountInput('0');
     setDiscountType('FLAT');
+    setDiscountOpen(false);
     setCustomerId(WALK_IN_ID);
   }, []);
 
@@ -195,6 +198,8 @@ export function CartProvider({ children }) {
     setDiscountType,
     discountInput,
     setDiscountInput,
+    discountOpen,
+    setDiscountOpen,
     prescriptionPath,
     setPrescriptionPath,
     paymentOpen,

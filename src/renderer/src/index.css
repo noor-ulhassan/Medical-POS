@@ -145,8 +145,9 @@
 }
 
 @layer components {
+  /* Fields are 44px tall: easy to hit with a mouse in a hurry or on a touch screen. */
   .control {
-    @apply h-9 w-full rounded-control border border-foil-strong bg-surface px-3 text-base text-ink placeholder:text-ink-3
+    @apply h-11 w-full rounded-control border border-foil-strong bg-surface px-3.5 text-base text-ink placeholder:text-ink-3
       transition-colors hover:border-ink-3 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/25
       disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-3;
   }
@@ -172,6 +173,12 @@
     background-position: center;
     background-repeat: no-repeat;
   }
+}
+
+/* A dialog's buttons sit along its bottom edge, so while one is open toasts move to the top. */
+body:has([data-modal-overlay]) #toastContainer {
+  top: 1.25rem;
+  bottom: auto;
 }
 
 /* Printing: only the receipt / A4 document being previewed is printed. */

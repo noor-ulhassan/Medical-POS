@@ -60,7 +60,7 @@ export function DocumentsProvider({ children }) {
   }, [receipt, printWhenShown]);
 
   return (
-    <DocumentsContext.Provider value={{ showReceipt, showDocument }}>
+    <DocumentsContext.Provider value={{ showReceipt, showDocument, print }}>
       {children}
       <Modal open={Boolean(receipt)} onClose={() => setReceipt(null)} title="Receipt" id="modalReceiptPreview" size="receipt">
         <ModalBody className="items-center bg-sunken">{receipt && <Receipt sale={receipt} />}</ModalBody>

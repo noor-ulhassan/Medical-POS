@@ -39,7 +39,16 @@
   }
   const field = (form, name) => $(`#${form} [name="${name}"]`);
   const key = (target, k, extra = {}) => target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...extra }));
-  const nav = (view) => $(`.nav-item[data-target="${view}"]`).click();
+  /** Open a screen: its section in the side bar, then its tab when the section has several screens. */
+  const nav = (view) => {
+    const item = [...document.querySelectorAll('.nav-item[data-views]')].find((el) => el.dataset.views.split(' ').includes(view));
+    item.click();
+    if (item.dataset.target === view) return Promise.resolve();
+    return (async () => {
+      await waitFor(`${view} tab`, () => $(`[data-tab="${view}"]`));
+      $(`[data-tab="${view}"]`).click();
+    })();
+  };
   const button = (scope, label) => [...document.querySelectorAll(`${scope} button`)].find((b) => b.textContent.trim().startsWith(label));
 
   async function typePin(pin) {
@@ -80,7 +89,7 @@
     await waitFor('cart line', () => document.querySelectorAll('#cartItemsList .cart-item').length === 1);
     button('#cartItemsList .cart-item', 'Pack').click();
     await waitFor('pack line', () => text('#cartItemsList').includes('per pack'));
-    button(`#productGrid [data-product-id="${row.dataset.productId}"]`, 'Unit').click();
+    button(`#productGrid [data-product-id="${row.dataset.productId}"]`, 'Add').click();
     await waitFor('two lines', () => document.querySelectorAll('#cartItemsList .cart-item').length === 2);
     if (text('#summaryTotal') === 'Rs 0.00') throw new Error('total did not update');
   });
@@ -185,11 +194,15 @@
 
   await step('text size button makes everything bigger and back', async () => {
     const before = window.devicePixelRatio;
+    $('#btnUserMenu').click();
+    await waitFor('me window', () => exists('modalMe'));
     $('#textSizeBtn').click();
     await waitFor('zoomed in', () => window.devicePixelRatio > before);
     $('#textSizeBtn').click();
     $('#textSizeBtn').click();
     await waitFor('back to normal', () => Math.abs(window.devicePixelRatio - before) < 0.01);
+    $('#modalMe button[aria-label="Close"]').click();
+    await waitFor('me window closed', () => !exists('modalMe'));
   });
 
   const views = ['dashboardView', 'profitView', 'expensesView', 'inventoryView', 'suppliersView', 'khataView', 'ordersView', 'expiryView', 'quotationView', 'salesView', 'settingsView', 'posView'];
@@ -208,8 +221,10 @@
 
   await step('void the sale from sales history', async () => {
     nav('salesView');
-    await waitFor('sales row', () => $('#salesTableBody [data-void]'));
-    $('#salesTableBody [data-void]').click();
+    await waitFor('sales row', () => $('#salesTableBody [data-open-sale]'));
+    $('#salesTableBody [data-open-sale]').click();
+    await waitFor('sale window', () => $('#modalSaleDetail [data-void]'));
+    $('#modalSaleDetail [data-void]').click();
     await waitFor('void dialog', () => exists('modalVoidSale'));
     type(field('voidForm', 'reason'), 'Smoke test');
     $('#voidForm').requestSubmit();
@@ -232,8 +247,10 @@
     await waitFor('receipt', () => exists('modalReceiptPreview'));
     $('#modalReceiptPreview button[aria-label="Close"]').click();
     nav('salesView');
-    await waitFor('return button', () => $('#salesTableBody [data-return]'));
-    $('#salesTableBody [data-return]').click();
+    await waitFor('sales row', () => $('#salesTableBody [data-open-sale]'));
+    $('#salesTableBody [data-open-sale]').click();
+    await waitFor('return button', () => $('#modalSaleDetail [data-return]'));
+    $('#modalSaleDetail [data-return]').click();
     await waitFor('return dialog', () => exists('modalReturnItems') && $('[data-return-qty]'));
     type($('[data-return-qty]'), '1');
     await waitFor('refund shown', () => text('#returnRefund').includes('cash back'));
@@ -257,6 +274,16 @@
     await waitFor('unit price filled', () => field('addProductForm', 'singlePrice').value === '150.00');
     $('#addProductForm').requestSubmit();
     await waitFor('row added', () => text('#inventoryTableBody').includes('Smoke Test Syrup'));
+  });
+
+  await step('tap a medicine to open its window, then its stock history', async () => {
+    const row = [...document.querySelectorAll('#inventoryTableBody [data-open-product]')].find((r) => r.textContent.includes('Smoke Test Syrup'));
+    row.click();
+    await waitFor('medicine window', () => exists('modalMedicine'));
+    $('#modalMedicine [data-history]').click();
+    await waitFor('history document', () => exists('modalA4Preview') && !exists('modalMedicine'));
+    $('#modalA4Preview button[aria-label="Close"]').click();
+    await waitFor('history closed', () => !exists('modalA4Preview'));
   });
 
   await step('add a khata customer', async () => {
@@ -314,16 +341,21 @@
 
   await step('theme switches between light and dark', async () => {
     const before = document.documentElement.dataset.theme;
+    $('#btnUserMenu').click();
+    await waitFor('me window', () => exists('modalMe'));
     $('#themeToggleBtn').click();
     await waitFor('theme changed', () => document.documentElement.dataset.theme !== before);
     $('#themeToggleBtn').click();
     await waitFor('theme restored', () => document.documentElement.dataset.theme === before);
+    $('#modalMe button[aria-label="Close"]').click();
+    await waitFor('me window closed', () => !exists('modalMe'));
   });
 
   await step('F12 locks the terminal', async () => {
     key(document, 'F12');
     await waitFor('locked', () => exists('modalPinAuth'));
     if (exists('posView')) throw new Error('store data still visible behind the lock screen');
+    if (exists('pinFirstRunHint')) throw new Error('lock screen still says the PIN is 1234 after it was changed');
   });
 
   return { ok: failures.length === 0, steps, failures };

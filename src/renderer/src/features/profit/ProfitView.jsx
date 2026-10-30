@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Wallet, TriangleAlert, TrendingUp } from 'lucide-react';
+import { RefreshCw, Wallet, TriangleAlert, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, BarChart, Bar, LabelList } from 'recharts';
 import expensesShared from '@shared/expenses.js';
 import { call } from '../../lib/api.js';
@@ -333,6 +333,7 @@ export function ProfitView() {
   const [custom, setCustom] = useState(() => presetRange('thisMonth'));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [more, setMore] = useState(false);
 
   const range = preset === 'custom' ? custom : presetRange(preset);
 
@@ -412,13 +413,13 @@ export function ProfitView() {
               {data.productsMissingCost > 0 && (
                 <>
                   {' '}
-                  {plural(data.productsMissingCost, 'medicine')} still {data.productsMissingCost === 1 ? 'has' : 'have'} no cost price. Add it under Medicines & stock so future sales are counted.
+                  {plural(data.productsMissingCost, 'medicine')} still {data.productsMissingCost === 1 ? 'has' : 'have'} no cost price. Add it under Stock, Medicines so future sales are counted.
                 </>
               )}
               {can('products.manage') && data.productsMissingCost > 0 && (
                 <div className="mt-2">
                   <Button size="sm" onClick={() => go('inventoryView')}>
-                    Open Medicines & stock
+                    Open Medicines
                   </Button>
                 </div>
               )}
@@ -427,7 +428,7 @@ export function ProfitView() {
           {s.uncostedSalesCount === 0 && data.productsMissingCost > 0 && (
             <Notice>
               {plural(data.productsMissingCost, 'medicine')} {data.productsMissingCost === 1 ? 'has' : 'have'} no cost price yet. Sales of{' '}
-              {data.productsMissingCost === 1 ? 'it' : 'them'} will be left out of profit until you add one under Medicines & stock.
+              {data.productsMissingCost === 1 ? 'it' : 'them'} will be left out of profit until you add one under Stock, Medicines.
             </Notice>
           )}
           {s.writeOffUnknownCount > 0 && (
@@ -502,99 +503,98 @@ export function ProfitView() {
             </Panel>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-2">
-            <Panel
-              title="Expenses by type"
-              actions={
-                can('expenses.manage') && (
-                  <Button size="sm" icon={Wallet} onClick={() => go('expensesView')}>
-                    Record an expense
-                  </Button>
-                )
-              }
-            >
-              {data.expensesByCategory.length === 0 ? (
-                <EmptyState icon={Wallet} title="No expenses recorded for this period" className="py-6">
-                  Record rent, salaries and bills under Expenses to see your true profit.
-                </EmptyState>
-              ) : (
-                <ExpensesChart rows={data.expensesByCategory} />
-              )}
-            </Panel>
-            <Panel title="Gross profit by category">
-              {data.byCategory.length === 0 ? (
-                <div className="text-base text-ink-3">No sales with a known cost in this period.</div>
-              ) : (
-                <>
-                  <CategoryProfit rows={data.byCategory} />
-                  <p className="mt-4 text-sm text-ink-3">Before discounts on the whole bill, so these add up to a little more than gross profit.</p>
-                </>
-              )}
-            </Panel>
-          </div>
+          <Button id="btnProfitMore" icon={more ? ChevronUp : ChevronDown} aria-expanded={more} onClick={() => setMore((v) => !v)} className="self-start">
+            {more ? 'Show less' : 'Show more: expenses by type, best medicines, day by day'}
+          </Button>
 
-          <Panel title="Most profitable medicines" flush>
-            {data.topProducts.length === 0 ? (
-              <div className="p-5 text-base text-ink-3">No sales with a known cost in this period.</div>
-            ) : (
-              <>
-                <ProfitRanking rows={data.topProducts} nameHeader="Medicine" showUnits />
-                <p className="border-t border-foil px-5 py-2.5 text-sm text-ink-3">
-                  Per medicine, before discounts on the whole bill. Units are single tablets, capsules or bottles; a pack counts as all of its units.
-                </p>
-              </>
-            )}
-          </Panel>
+          {more && (
+            <>
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Panel title="Expenses by type">
+                  {data.expensesByCategory.length === 0 ? (
+                    <EmptyState icon={Wallet} title="No expenses recorded for this period" className="py-6">
+                      Record rent, salaries and bills under Expenses to see your true profit.
+                    </EmptyState>
+                  ) : (
+                    <ExpensesChart rows={data.expensesByCategory} />
+                  )}
+                </Panel>
+                <Panel title="Gross profit by category">
+                  {data.byCategory.length === 0 ? (
+                    <div className="text-base text-ink-3">No sales with a known cost in this period.</div>
+                  ) : (
+                    <>
+                      <CategoryProfit rows={data.byCategory} />
+                      <p className="mt-4 text-sm text-ink-3">Before discounts on the whole bill, so these add up to a little more than gross profit.</p>
+                    </>
+                  )}
+                </Panel>
+              </div>
 
-          <Panel title={`Numbers for each ${unit}`} flush>
-            <Table maxHeight={420}>
-              <thead>
-                <tr>
-                  <Th>{unit === 'month' ? 'Month' : 'Day'}</Th>
-                  <Th num>Net sales</Th>
-                  {s.uncostedSalesCount > 0 && <Th num>Used for profit</Th>}
-                  <Th num>Cost of medicines</Th>
-                  <Th num>Gross profit</Th>
-                  <Th num>Expenses</Th>
-                  <Th num>Written off</Th>
-                  <Th num>Net profit</Th>
-                </tr>
-              </thead>
-              <tbody id="profitTableBody">
-                {chart.length === 0 && <EmptyRow colSpan={8}>Nothing in this period.</EmptyRow>}
-                {chart.map((b) => (
-                  <Tr key={b.key}>
-                    <Td className="whitespace-nowrap">
-                      {b.rowLabel}
-                      <div className="text-xs text-ink-3">{plural(b.salesCount, 'sale')}</div>
-                    </Td>
-                    <Td num>{money(b.netSalesCents)}</Td>
-                    {s.uncostedSalesCount > 0 && <Td num muted>{money(b.costedNetSalesCents)}</Td>}
-                    <Td num muted>{money(b.cogsCents)}</Td>
-                    <Td num>{money(b.grossProfitCents)}</Td>
-                    <Td num muted>{money(b.expensesCents)}</Td>
-                    <Td num muted>{money(b.writeOffCents)}</Td>
-                    <Td num className={cx('font-semibold', b.netProfitCents < 0 ? 'text-red-ink' : 'text-ink')}>{money(b.netProfitCents)}</Td>
-                  </Tr>
-                ))}
-                {chart.length > 1 && (
-                  <Tr className="[&>td]:border-t-2 [&>td]:border-foil-strong [&>td]:font-bold">
-                    <Td>
-                      Total
-                      <div className="text-xs font-normal text-ink-3">{plural(s.salesCount, 'sale')}</div>
-                    </Td>
-                    <Td num>{money(s.netSalesCents)}</Td>
-                    {s.uncostedSalesCount > 0 && <Td num>{money(s.costedNetSalesCents)}</Td>}
-                    <Td num>{money(s.cogsCents)}</Td>
-                    <Td num>{money(s.grossProfitCents)}</Td>
-                    <Td num>{money(s.expensesCents)}</Td>
-                    <Td num>{money(s.writeOffCents)}</Td>
-                    <Td num>{money(s.netProfitCents)}</Td>
-                  </Tr>
+              <Panel title="Most profitable medicines" flush>
+                {data.topProducts.length === 0 ? (
+                  <div className="p-5 text-base text-ink-3">No sales with a known cost in this period.</div>
+                ) : (
+                  <>
+                    <ProfitRanking rows={data.topProducts} nameHeader="Medicine" showUnits />
+                    <p className="border-t border-foil px-5 py-2.5 text-sm text-ink-3">
+                      Per medicine, before discounts on the whole bill. Units are single tablets, capsules or bottles; a pack counts as all of its units.
+                    </p>
+                  </>
                 )}
-              </tbody>
-            </Table>
-          </Panel>
+              </Panel>
+
+              <Panel title={`Numbers for each ${unit}`} flush>
+                <Table maxHeight={420}>
+                  <thead>
+                    <tr>
+                      <Th>{unit === 'month' ? 'Month' : 'Day'}</Th>
+                      <Th num>Net sales</Th>
+                      {s.uncostedSalesCount > 0 && <Th num>Used for profit</Th>}
+                      <Th num>Cost of medicines</Th>
+                      <Th num>Gross profit</Th>
+                      <Th num>Expenses</Th>
+                      <Th num>Written off</Th>
+                      <Th num>Net profit</Th>
+                    </tr>
+                  </thead>
+                  <tbody id="profitTableBody">
+                    {chart.length === 0 && <EmptyRow colSpan={8}>Nothing in this period.</EmptyRow>}
+                    {chart.map((b) => (
+                      <Tr key={b.key}>
+                        <Td className="whitespace-nowrap">
+                          {b.rowLabel}
+                          <div className="text-xs text-ink-3">{plural(b.salesCount, 'sale')}</div>
+                        </Td>
+                        <Td num>{money(b.netSalesCents)}</Td>
+                        {s.uncostedSalesCount > 0 && <Td num muted>{money(b.costedNetSalesCents)}</Td>}
+                        <Td num muted>{money(b.cogsCents)}</Td>
+                        <Td num>{money(b.grossProfitCents)}</Td>
+                        <Td num muted>{money(b.expensesCents)}</Td>
+                        <Td num muted>{money(b.writeOffCents)}</Td>
+                        <Td num className={cx('font-semibold', b.netProfitCents < 0 ? 'text-red-ink' : 'text-ink')}>{money(b.netProfitCents)}</Td>
+                      </Tr>
+                    ))}
+                    {chart.length > 1 && (
+                      <Tr className="[&>td]:border-t-2 [&>td]:border-foil-strong [&>td]:font-bold">
+                        <Td>
+                          Total
+                          <div className="text-xs font-normal text-ink-3">{plural(s.salesCount, 'sale')}</div>
+                        </Td>
+                        <Td num>{money(s.netSalesCents)}</Td>
+                        {s.uncostedSalesCount > 0 && <Td num>{money(s.costedNetSalesCents)}</Td>}
+                        <Td num>{money(s.cogsCents)}</Td>
+                        <Td num>{money(s.grossProfitCents)}</Td>
+                        <Td num>{money(s.expensesCents)}</Td>
+                        <Td num>{money(s.writeOffCents)}</Td>
+                        <Td num>{money(s.netProfitCents)}</Td>
+                      </Tr>
+                    )}
+                  </tbody>
+                </Table>
+              </Panel>
+            </>
+          )}
         </div>
       )}
     </Page>

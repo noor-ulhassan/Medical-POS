@@ -6,6 +6,8 @@ Maintained by **Noor ul Hassan** (noorulhassan01.dev@gmail.com).
 
 ## Features
 
+The app has five sections in a side bar: **Sell**, **Sales**, **Stock**, **Khata** and **Reports**. Each list opens one window per item (a sale, a medicine, a customer) with everything you can do with it, in plain words.
+
 | Area | What it does |
 | --- | --- |
 | **POS terminal** | Barcode/keyboard-driven checkout, sell by pack or single unit, flat or % discount, cash/card/wallet/credit, held (parked) carts, 80mm receipts and reprints |
@@ -65,7 +67,7 @@ Any admin can reset another user's PIN under **Settings → Staff and PINs**. If
 | `F1` | Sell screen search box (scan a barcode, then `Enter`) |
 | `↑` / `↓` in the search box | Choose a medicine from the list; `Enter` adds a unit, `Shift`+`Enter` adds a pack |
 | `F2` | Open checkout (press again to confirm the sale) |
-| `F3` | Discount field |
+| `F3` | Discount box |
 | `F4` | Customer selector |
 | `F12` | Lock the terminal |
 | `Esc` | Close the current dialog |

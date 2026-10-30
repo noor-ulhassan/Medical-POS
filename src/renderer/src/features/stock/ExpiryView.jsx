@@ -18,15 +18,20 @@ function Status({ days }) {
 
 function Count({ id, label, note, value, tone }) {
   return (
-    <div className="bg-surface px-6 py-5">
+    <div className="bg-surface px-5 py-4">
       <div className="text-sm font-semibold text-ink-2">{label}</div>
-      <div id={id} className={cx('num mt-1.5 text-2xl font-bold', value > 0 && tone === 'red' ? 'text-red-ink' : value > 0 && tone === 'amber' ? 'text-amber-ink' : 'text-ink')}>
+      <div id={id} className={cx('num mt-1 text-2xl font-bold', value > 0 && tone === 'red' ? 'text-red-ink' : value > 0 && tone === 'amber' ? 'text-amber-ink' : 'text-ink')}>
         {value}
       </div>
-      <div className="mt-1 text-sm text-ink-3">{note}</div>
+      <div className="mt-0.5 text-sm text-ink-3">{note}</div>
     </div>
   );
 }
+
+const stockWords = (units, packSize) => {
+  const { packs, singles } = splitUnits(units, packSize);
+  return `${packs} ${packs === 1 ? 'pack' : 'packs'}${singles ? ` + ${singles} loose` : ''}`;
+};
 
 export function ExpiryView() {
   const { can, loadProducts, refreshAlerts } = useApp();
@@ -40,14 +45,14 @@ export function ExpiryView() {
 
   const discard = guard(async (p) => {
     const ok = await confirm({
-      title: `Write off ${p.title}?`,
-      message: 'All remaining stock of this product will be removed. This is recorded in its stock history.',
-      confirmText: 'Write off stock',
+      title: `Throw away all of ${p.title}?`,
+      message: `${stockWords(p.stock_units, p.pack_size)} come off the stock and are counted as a loss in Profit & loss. This is written in its stock history.`,
+      confirmText: 'Throw away',
       danger: true
     });
     if (!ok) return;
     await call('products.discardStock', { id: p.id, reason: 'Expired / near-expiry stock discarded' });
-    toast(`${p.title} written off`);
+    toast(`${p.title} thrown away`);
     await loadProducts();
     await load();
     refreshAlerts();
@@ -56,56 +61,48 @@ export function ExpiryView() {
   const c = data?.counts || { expired: 0, within30: 0, within90: 0, within180: 0 };
   return (
     <Page id="expiryView">
-      <PageHeader title="Expiry" description="Stock that has expired or expires within the next 6 months." />
+      <PageHeader title="Expiring" description="Medicines that have expired or expire in the next 6 months. Sell the soonest first." />
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-foil bg-foil xl:grid-cols-4">
         <Count id="statExpired" label="Expired" note="Take off the shelf" value={c.expired} tone="red" />
-        <Count id="statExp30" label="Within 30 days" note="Sell first or return" value={c.within30} tone="red" />
-        <Count id="statExp90" label="Within 90 days" note="Plan to sell" value={c.within90} tone="amber" />
-        <Count id="statExp180" label="Within 6 months" note="Keep an eye on" value={c.within180} />
+        <Count id="statExp30" label="In 30 days" note="Sell first or return" value={c.within30} tone="red" />
+        <Count id="statExp90" label="In 90 days" note="Plan to sell" value={c.within90} tone="amber" />
+        <Count id="statExp180" label="In 6 months" note="Keep an eye on" value={c.within180} />
       </div>
       <div className="overflow-hidden rounded-panel border border-foil bg-surface">
         {data && data.rows.length === 0 ? (
           <EmptyState icon={CalendarCheck} title="Nothing is close to expiry">
-            No stock expires within the next 6 months.
+            No stock expires in the next 6 months.
           </EmptyState>
         ) : (
           <Table>
             <thead>
               <tr>
                 <Th>Medicine</Th>
-                <Th>Expiry date</Th>
-                <Th>Status</Th>
-                <Th num>In stock</Th>
-                <Th />
+                <Th>Expires</Th>
+                <Th>In stock</Th>
+                {can('stock.adjust') && <Th />}
               </tr>
             </thead>
             <tbody id="expiryTableBody">
-              {data?.rows.map((p) => {
-                const { packs, singles } = splitUnits(p.stock_units, p.pack_size);
-                return (
-                  <Tr key={p.id} tone={p.days_left < 0 ? 'danger' : undefined}>
-                    <Td>
-                      <div className="font-semibold text-ink">{p.title}</div>
-                      <div className="num text-sm text-ink-3">{p.barcode}</div>
-                    </Td>
-                    <Td className="num">{shortDate(p.expiry_date)}</Td>
-                    <Td>
+              {data?.rows.map((p) => (
+                <Tr key={p.id} tone={p.days_left < 0 ? 'danger' : undefined}>
+                  <Td className="font-semibold text-ink">{p.title}</Td>
+                  <Td>
+                    <div className="flex items-center gap-3">
                       <Status days={p.days_left} />
+                      <span className="num text-sm text-ink-2">{shortDate(p.expiry_date)}</span>
+                    </div>
+                  </Td>
+                  <Td className="num whitespace-nowrap">{stockWords(p.stock_units, p.pack_size)}</Td>
+                  {can('stock.adjust') && (
+                    <Td className="w-[1%] text-right">
+                      <Button size="sm" variant="danger-ghost" icon={Trash2} data-discard={p.id} onClick={() => discard(p)}>
+                        Throw away
+                      </Button>
                     </Td>
-                    <Td num>
-                      {packs} {packs === 1 ? 'pack' : 'packs'}
-                      {singles ? <span className="text-ink-3"> +{singles}</span> : null}
-                    </Td>
-                    <Td className="w-[160px] text-right">
-                      {can('stock.adjust') && (
-                        <Button size="sm" variant="danger-ghost" icon={Trash2} data-discard={p.id} onClick={() => discard(p)}>
-                          Write off
-                        </Button>
-                      )}
-                    </Td>
-                  </Tr>
-                );
-              })}
+                  )}
+                </Tr>
+              ))}
             </tbody>
           </Table>
         )}

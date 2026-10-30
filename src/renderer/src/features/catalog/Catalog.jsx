@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Pencil, Truck, Tag } from 'lucide-react';
+import { Plus, Truck, Tag } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
-import { Button, IconButton } from '../../ui/Button.jsx';
+import { Button } from '../../ui/Button.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Page, PageHeader, Panel, EmptyState } from '../../ui/display.jsx';
@@ -26,12 +26,17 @@ function useSave(method, label, reset) {
   });
 }
 
-export function useSupplierForm({ id, compact = false }) {
+export function useSupplierForm({ id, compact = false, onDone }) {
   const [values, setValues] = useState(EMPTY_SUPPLIER);
-  const save = useSave('catalog.saveSupplier', 'Supplier', () => setValues(EMPTY_SUPPLIER));
+  const save = useSave('catalog.saveSupplier', 'Supplier', () => {
+    setValues(EMPTY_SUPPLIER);
+    onDone?.();
+  });
   const set = (name) => (e) => setValues((v) => ({ ...v, [name]: e.target.value }));
   const editing = Boolean(values.id);
   return {
+    startNew: () => setValues(EMPTY_SUPPLIER),
+    editing,
     startEdit: (s) => setValues({ id: s.id, name: s.name, contactPerson: s.contact_person || '', phone: s.phone || '', email: s.email || '', address: s.address || '' }),
     editingId: values.id,
     form: (
@@ -61,7 +66,16 @@ export function useSupplierForm({ id, compact = false }) {
           </Field>
         </div>
         <div className="flex justify-end gap-2">
-          {editing && <Button onClick={() => setValues(EMPTY_SUPPLIER)}>Cancel</Button>}
+          {(editing || onDone) && (
+            <Button
+              onClick={() => {
+                setValues(EMPTY_SUPPLIER);
+                onDone?.();
+              }}
+            >
+              Cancel
+            </Button>
+          )}
           <Button type="submit" variant="primary">
             {editing ? 'Save supplier' : 'Add supplier'}
           </Button>
@@ -99,7 +113,7 @@ export function useCategoryForm({ id }) {
   };
 }
 
-function SupplierTable({ supplier, maxHeight, showAddress = true }) {
+function SupplierTable({ supplier, maxHeight, showAddress = true, onEdit = supplier.startEdit }) {
   const { suppliers } = useApp();
   if (suppliers.length === 0) return <EmptyState icon={Truck} title="No suppliers yet" className="py-8">Add the companies and distributors you buy from.</EmptyState>;
   return (
@@ -120,8 +134,10 @@ function SupplierTable({ supplier, maxHeight, showAddress = true }) {
             <Td muted>{s.contact_person || '—'}</Td>
             <Td muted className="num">{s.phone || '—'}</Td>
             {showAddress && <Td muted>{s.address || '—'}</Td>}
-            <Td className="w-12 text-right">
-              <IconButton icon={Pencil} label={`Edit ${s.name}`} size="sm" onClick={() => supplier.startEdit(s)} />
+            <Td className="w-[1%] text-right">
+              <Button size="sm" variant="ghost" aria-label={`Edit ${s.name}`} onClick={() => onEdit(s)}>
+                Edit
+              </Button>
             </Td>
           </Tr>
         ))}
@@ -132,7 +148,7 @@ function SupplierTable({ supplier, maxHeight, showAddress = true }) {
 
 function CategoryTable({ category, maxHeight, bodyId }) {
   const { categories } = useApp();
-  if (categories.length === 0) return <EmptyState icon={Tag} title="No categories yet" className="py-8">Group products, for example Antibiotics or Vitamins.</EmptyState>;
+  if (categories.length === 0) return <EmptyState icon={Tag} title="No categories yet" className="py-8">Group medicines, for example Antibiotics or Vitamins.</EmptyState>;
   return (
     <Table maxHeight={maxHeight}>
       <thead>
@@ -145,8 +161,10 @@ function CategoryTable({ category, maxHeight, bodyId }) {
         {categories.map((c) => (
           <Tr key={c.id} className={cx(String(category.editingId) === String(c.id) && '!bg-teal-soft')}>
             <Td className="font-semibold">{c.name}</Td>
-            <Td className="w-12 text-right">
-              <IconButton icon={Pencil} label={`Edit ${c.name}`} size="sm" onClick={() => category.startEdit(c)} />
+            <Td className="w-[1%] text-right">
+              <Button size="sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => category.startEdit(c)}>
+                Edit
+              </Button>
             </Td>
           </Tr>
         ))}
@@ -156,21 +174,56 @@ function CategoryTable({ category, maxHeight, bodyId }) {
 }
 
 export function SuppliersView() {
-  const supplier = useSupplierForm({ id: 'pageSupplierForm' });
+  const [supplierOpen, setSupplierOpen] = useState(false);
+  const supplier = useSupplierForm({ id: 'pageSupplierForm', onDone: () => setSupplierOpen(false) });
   const category = useCategoryForm({ id: 'pageCategoryForm' });
   return (
     <Page id="suppliersView">
-      <PageHeader title="Suppliers and categories" description="Who you buy from, and how your products are grouped." />
+      <PageHeader
+        title="Suppliers and categories"
+        description="Who you buy from, and the groups your medicines are sorted into."
+        actions={
+          <Button
+            variant="primary"
+            icon={Plus}
+            id="btnAddSupplier"
+            onClick={() => {
+              supplier.startNew();
+              setSupplierOpen(true);
+            }}
+          >
+            Add supplier
+          </Button>
+        }
+      />
       <div className="grid items-start gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel title="Suppliers" flush>
-          <div className="border-b border-foil p-5">{supplier.form}</div>
-          <SupplierTable supplier={supplier} maxHeight={460} />
+          <SupplierTable
+            supplier={supplier}
+            maxHeight={560}
+            onEdit={(s) => {
+              supplier.startEdit(s);
+              setSupplierOpen(true);
+            }}
+          />
         </Panel>
         <Panel title="Categories" flush>
           <div className="border-b border-foil p-5">{category.form}</div>
           <CategoryTable category={category} maxHeight={460} bodyId="pageCategoriesTableBody" />
         </Panel>
       </div>
+      <Modal
+        open={supplierOpen}
+        onClose={() => {
+          supplier.startNew();
+          setSupplierOpen(false);
+        }}
+        title={supplier.editing ? 'Change supplier' : 'Add supplier'}
+        id="modalSupplier"
+        size="md"
+      >
+        <ModalBody>{supplier.form}</ModalBody>
+      </Modal>
     </Page>
   );
 }
@@ -180,7 +233,7 @@ export function CatalogQuickDialog({ open, onClose }) {
   const supplier = useSupplierForm({ id: 'addSupplierForm', compact: true });
   const category = useCategoryForm({ id: 'addCategoryForm' });
   return (
-    <Modal open={open} onClose={onClose} title="Suppliers and categories" description="Anything you add here is available in the product form straight away." id="modalManageSuppliers" size="lg">
+    <Modal open={open} onClose={onClose} title="Suppliers and categories" description="Anything you add here can be picked for the medicine straight away." id="modalManageSuppliers" size="lg">
       <ModalBody className="gap-5">
         <section className="flex flex-col gap-3">
           {category.form}

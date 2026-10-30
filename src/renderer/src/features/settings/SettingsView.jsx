@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, KeyRound, Download, Upload, Folder, RefreshCw, TriangleAlert } from 'lucide-react';
+import { Plus, Download, Upload, Folder, RefreshCw, TriangleAlert } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
-import { Button, IconButton } from '../../ui/Button.jsx';
+import { Button } from '../../ui/Button.jsx';
 import { Field, Input, Select, Textarea, Checkbox, Fieldset } from '../../ui/Field.jsx';
 import { Page, PageHeader, Panel, Tabs, Pill } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, RowActions, EmptyRow } from '../../ui/Table.jsx';
@@ -233,10 +233,14 @@ function StaffTab() {
               <Td>{u.role}</Td>
               <Td>{u.isActive ? <Pill tone="teal">Active</Pill> : <Pill>Can't log in</Pill>}</Td>
               <Td>{u.mustChangePin ? <Pill tone="amber">Must change</Pill> : <span className="text-ink-2">Set</span>}</Td>
-              <Td className="w-[100px]">
+              <Td className="w-[1%]">
                 <RowActions>
-                  <IconButton icon={Pencil} label={`Edit ${u.name}`} size="sm" onClick={() => setDialog({ mode: 'edit', user: u })} />
-                  <IconButton icon={KeyRound} label={`Reset PIN for ${u.name}`} size="sm" onClick={() => setDialog({ mode: 'pin', user: u })} />
+                  <Button size="sm" variant="ghost" aria-label={`Edit ${u.name}`} onClick={() => setDialog({ mode: 'edit', user: u })}>
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" aria-label={`Reset PIN for ${u.name}`} onClick={() => setDialog({ mode: 'pin', user: u })}>
+                    New PIN
+                  </Button>
                 </RowActions>
               </Td>
             </Tr>

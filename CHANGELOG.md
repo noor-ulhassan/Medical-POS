@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased (branch ui/simplify-pos)
+
+A simpler interface that anyone at the counter can use. Only the screens changed: every feature, permission and stored record works as before.
+
+- **Five sections instead of twelve menu items.** A narrow side bar with Sell, Sales, Stock, Khata and Reports, each with a large icon and a one-word label. Sections with more than one screen show tabs at the top (Sales: Past sales, Price quote. Stock: Medicines, Expiring, Reorder, Suppliers. Reports: Today, Profit & loss, Expenses). Help, Settings, your name and Lock sit at the bottom; your name opens PIN change, text size and dark screen.
+- **Bigger, clearer text.** Body text is 16px and nothing is smaller than 13px; buttons and inputs are taller and easier to hit.
+- **Sell.** A big search box, category chips and one row per medicine in plain words ("24 packs in stock", "expires 24 Nov 2026") with Add and Pack buttons. The sale shows the customer at the top, a quantity stepper on each line, and Discount, Prescription and Hold as labelled buttons above Charge.
+- **Lists open one window per item.** Tap a past sale, a medicine or a khata customer to see its details next to big labelled actions (for a sale: print, sell again, prescription photo, customer returns items, cancel the whole sale; for a medicine: receive a delivery, change, stock history, remove; for a customer: take a payment, statement, change). Rows no longer carry strips of small icon buttons; the most common action (Receive, Take payment) stays on the row.
+- **Plain words.** "Write off" is now "Throw away", "Restock" is "Reorder", "Receive" on khata is "Take payment", and screen titles match their tabs. Profit & loss shows the summary, chart and statement, with the detail panels behind Show more.
+- **Help** steps name the new screens and buttons, with new steps for prescription medicines and holding a sale.
+- While a dialog is open, messages appear at the top so they no longer cover the dialog's buttons.
+- Fixed: after the first PIN change, the lock screen kept saying the administrator PIN is 1234 until the app was restarted.
+
 ## Unreleased (branch ux/non-technical-owner)
 
 Fixes that protect money and stock, and a simpler interface for an owner who is not used to computers.

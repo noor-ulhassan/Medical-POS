@@ -48,11 +48,11 @@ export function RestockView() {
   return (
     <Page id="ordersView">
       <PageHeader
-        title="Restock"
-        description="Choose quantities, then print a purchase order for your supplier."
+        title="Reorder"
+        description="Medicines running low. Check how many packs to order, then print the order for your supplier."
         actions={
           <Button variant="primary" icon={Printer} id="btnGeneratePO" onClick={createOrder}>
-            Create purchase order
+            Print order
           </Button>
         }
       />
@@ -72,7 +72,7 @@ export function RestockView() {
           options={[
             { value: 'LOW', label: 'Low stock' },
             { value: 'OUT', label: 'Out of stock' },
-            { value: 'ALL', label: 'All products' }
+            { value: 'ALL', label: 'All medicines' }
           ]}
         />
         {rows.length > 0 && (
@@ -84,18 +84,16 @@ export function RestockView() {
       <div className="overflow-hidden rounded-panel border border-foil bg-surface">
         {rows.length === 0 ? (
           <EmptyState icon={ClipboardCheck} title="Nothing to reorder">
-            No products match this filter. Stock above the minimum level doesn't need reordering.
+            Every medicine here has more than its minimum stock.
           </EmptyState>
         ) : (
           <Table>
             <thead>
               <tr>
                 <Th>Medicine</Th>
-                <Th>Supplier</Th>
-                <Th num>Packs in stock</Th>
-                <Th num>Minimum</Th>
-                <Th num>Order (packs)</Th>
-                <Th num>Estimated cost</Th>
+                <Th num>Packs left</Th>
+                <Th num>Packs to order</Th>
+                <Th num>Cost</Th>
               </tr>
             </thead>
             <tbody id="restockTableBody">
@@ -105,19 +103,18 @@ export function RestockView() {
                   <Tr key={p.id}>
                     <Td>
                       <div className="font-semibold text-ink">{p.title}</div>
-                      <div className="text-sm text-ink-3">{p.pack_size} units per pack</div>
+                      <div className="text-sm text-ink-3">{[`pack of ${p.pack_size}`, p.supplier_name].filter(Boolean).join(' · ')}</div>
                     </Td>
-                    <Td muted>{p.supplier_name || '—'}</Td>
-                    <Td num className={isOutOfStock(p) ? 'font-bold text-red-ink' : isLowStock(p) ? 'font-semibold text-amber-ink' : 'font-semibold'}>
-                      {p.stock_packs}
+                    <Td num>
+                      <div className={isOutOfStock(p) ? 'font-bold text-red-ink' : isLowStock(p) ? 'font-semibold text-amber-ink' : 'font-semibold'}>{p.stock_packs}</div>
+                      <div className="text-sm text-ink-3">minimum {p.min_stock_level}</div>
                     </Td>
-                    <Td num muted>{p.min_stock_level}</Td>
-                    <Td num className="w-[140px]">
+                    <Td num className="w-[160px]">
                       <input
                         type="number"
                         min="0"
                         aria-label={`Packs of ${p.title} to order`}
-                        className="control po-qty-input num ml-auto !h-8 !w-24 text-right"
+                        className="control po-qty-input num ml-auto !w-24 text-right"
                         value={packsFor(p)}
                         onChange={(e) => setQuantities((q) => ({ ...q, [p.id]: e.target.value }))}
                       />
