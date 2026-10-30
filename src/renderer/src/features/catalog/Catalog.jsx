@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Truck, Tag } from 'lucide-react';
+import { Plus, Truck, Tag, Building2 } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
@@ -230,7 +230,7 @@ export function SuppliersView() {
           setSupplierOpen(false);
         }}
         title={supplier.editing ? 'Change supplier' : 'Add supplier'}
-        id="modalSupplier"
+        icon={Building2} id="modalSupplier"
         size="md"
       >
         <ModalBody>{supplier.form}</ModalBody>
@@ -244,7 +244,7 @@ export function CatalogQuickDialog({ open, onClose }) {
   const supplier = useSupplierForm({ id: 'addSupplierForm', compact: true });
   const category = useCategoryForm({ id: 'addCategoryForm' });
   return (
-    <Modal open={open} onClose={onClose} title="Suppliers and categories" description="Anything you add here can be picked for the medicine straight away." id="modalManageSuppliers" size="lg">
+    <Modal open={open} onClose={onClose} title="Suppliers and categories" description="Anything you add here can be picked for the medicine straight away." icon={Building2} id="modalManageSuppliers" size="lg">
       <ModalBody className="gap-5">
         <section className="flex flex-col gap-3">
           {category.form}

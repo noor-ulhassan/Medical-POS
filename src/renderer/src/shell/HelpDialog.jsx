@@ -1,15 +1,20 @@
+import { CircleHelp, UserRound } from 'lucide-react';
 import { Modal, ModalBody, ModalFooter } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
 import { useApp } from '../state/AppState.jsx';
+import { IconTile } from '../ui/display.jsx';
+import { SECTIONS } from './sections.js';
 
 /**
  * Step-by-step answers to the everyday questions at a pharmacy counter,
  * written for someone who is not used to computers. Guides for screens the
- * current user cannot open are hidden.
+ * current user cannot open are hidden. Each guide wears the icon and tone of the
+ * section it happens in, so the picture says where to go before the words do.
  */
 const GUIDES = [
   {
     title: 'Sell medicine (cash)',
+    section: 'sell',
     steps: [
       'Click Sell on the left (or press F1).',
       'Scan the barcode on the box, or type the medicine name and click it.',
@@ -22,6 +27,7 @@ const GUIDES = [
   },
   {
     title: 'Sell on khata (credit)',
+    section: 'khata',
     permission: 'customers.view',
     steps: [
       'Add the medicines as for a normal sale.',
@@ -32,6 +38,7 @@ const GUIDES = [
   },
   {
     title: 'A customer pays what they owe',
+    section: 'khata',
     permission: 'customers.payment',
     steps: [
       'Open Khata on the left.',
@@ -41,6 +48,7 @@ const GUIDES = [
   },
   {
     title: 'Medicine that needs a prescription (Rx)',
+    section: 'sell',
     steps: [
       'These medicines show an Rx mark.',
       'Click Prescription under the sale and choose the photo of the prescription.',
@@ -49,6 +57,7 @@ const GUIDES = [
   },
   {
     title: 'Keep a sale for later (customer will come back)',
+    section: 'sell',
     steps: [
       'Click Hold under the sale. The till is empty for the next customer.',
       'To bring it back, click Held at the top of the sale, then Resume next to it.'
@@ -56,6 +65,7 @@ const GUIDES = [
   },
   {
     title: 'Give a discount',
+    section: 'sell',
     steps: [
       'Click Discount under the sale (or press F3) and type the discount. Choose Rs or %.',
       'A cashier can give up to the limit set by the owner (10% unless changed). For more, press F12 and let a manager log in: the sale stays in the cart.',
@@ -64,6 +74,7 @@ const GUIDES = [
   },
   {
     title: 'A delivery of medicine arrived',
+    section: 'stock',
     permission: 'stock.adjust',
     steps: [
       'Open Stock on the left. Medicines opens first: find the medicine.',
@@ -75,6 +86,7 @@ const GUIDES = [
   },
   {
     title: 'A new medicine the shop has never sold',
+    section: 'stock',
     permission: 'products.manage',
     steps: [
       'Open Stock and click Add medicine.',
@@ -85,6 +97,7 @@ const GUIDES = [
   },
   {
     title: 'A customer brings back some of what they bought',
+    section: 'sales',
     permission: 'sales.void',
     steps: [
       'Open Sales on the left and find the sale (search by invoice number or customer).',
@@ -95,6 +108,7 @@ const GUIDES = [
   },
   {
     title: 'A whole sale was a mistake',
+    section: 'sales',
     permission: 'sales.void',
     steps: [
       'Open Sales and click the sale.',
@@ -104,6 +118,7 @@ const GUIDES = [
   },
   {
     title: 'A customer already owed money in the old khata book',
+    section: 'khata',
     permission: 'customers.manage',
     steps: [
       'Open Khata and click Add customer. (For a customer who has no entries yet, click them, then Change details or limit.)',
@@ -113,6 +128,7 @@ const GUIDES = [
   },
   {
     title: 'End of the day: check the cash',
+    section: 'reports',
     permission: 'reports.view',
     steps: [
       'Open Reports on the left. Today opens first.',
@@ -122,6 +138,7 @@ const GUIDES = [
   },
   {
     title: 'Record a shop expense (rent, salaries, bills)',
+    section: 'reports',
     permission: 'expenses.manage',
     steps: [
       'Open Reports on the left, then Expenses at the top.',
@@ -132,6 +149,7 @@ const GUIDES = [
   },
   {
     title: 'See how much profit the shop made',
+    section: 'reports',
     permission: 'reports.view',
     steps: [
       'Open Reports on the left, then Profit & loss at the top, and choose a period (for example This month).',
@@ -142,6 +160,7 @@ const GUIDES = [
   },
   {
     title: 'Expired or nearly expired medicine',
+    section: 'stock',
     permission: 'products.view',
     steps: [
       'Open Stock on the left, then Expiring at the top. Red means expired or expiring within 30 days.',
@@ -151,6 +170,7 @@ const GUIDES = [
   },
   {
     title: 'Keep your data safe',
+    section: 'settings',
     permission: 'backup.manage',
     steps: [
       'The software saves every sale immediately and makes a backup every day by itself.',
@@ -168,6 +188,7 @@ const GUIDES = [
   },
   {
     title: 'Print receipts automatically',
+    section: 'settings',
     permission: 'settings.manage',
     steps: [
       'Open Settings, then This computer.',
@@ -177,6 +198,7 @@ const GUIDES = [
   },
   {
     title: 'Someone forgot their PIN',
+    section: 'settings',
     steps: [
       'The owner (Admin) opens Settings, Staff and PINs, and clicks New PIN next to that person.',
       'They will choose their own PIN the next time they log in.'
@@ -184,16 +206,20 @@ const GUIDES = [
   }
 ];
 
+const PERSONAL = { icon: UserRound, tone: null };
+const sectionOf = (guide) => SECTIONS.find((sec) => sec.id === guide.section) || PERSONAL;
+
 export function HelpDialog({ open, onClose }) {
   const { can } = useApp();
   const guides = GUIDES.filter((g) => !g.permission || can(g.permission));
   return (
-    <Modal open={open} onClose={onClose} title="How do I…?" description="Click a question to see the steps." id="modalHelp" size="lg">
+    <Modal open={open} onClose={onClose} title="How do I…?" description="Click a question to see the steps." icon={CircleHelp} id="modalHelp" size="lg">
       <ModalBody className="gap-2">
         {guides.map((g, i) => (
           <details key={g.title} open={i === 0} className="group rounded-panel border border-foil bg-surface shadow-card open:border-teal">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-md font-semibold text-ink hover:bg-sunken">
-              {g.title}
+            <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-md font-semibold text-ink hover:bg-sunken">
+              <IconTile icon={sectionOf(g).icon} tone={sectionOf(g).tone} size="sm" />
+              <span className="flex-1">{g.title}</span>
               <span className="text-ink-3 group-open:rotate-90" aria-hidden="true">
                 ›
               </span>

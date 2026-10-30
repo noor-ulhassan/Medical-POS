@@ -219,10 +219,11 @@ export function Tabs({ tabs, value, onChange }) {
           aria-selected={value === t.value}
           onClick={() => onChange(t.value)}
           className={cx(
-            '-mb-px border-b-2 px-3.5 pb-2.5 pt-1 text-base font-semibold transition-colors',
+            '-mb-px flex items-center gap-2 border-b-2 px-3.5 pb-2.5 pt-1 text-base font-semibold transition-colors',
             value === t.value ? 'border-accent text-accent-ink' : 'border-transparent text-ink-2 hover:text-ink'
           )}
         >
+          {t.icon && <t.icon className="size-[18px]" aria-hidden="true" />}
           {t.label}
         </button>
       ))}

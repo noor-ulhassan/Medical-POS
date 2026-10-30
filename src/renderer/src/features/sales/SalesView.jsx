@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, Printer, RotateCcw, Ban, Eye, Camera, ReceiptText, Info, Undo2 } from 'lucide-react';
+import { Search, Printer, RotateCcw, Ban, Eye, Camera, ReceiptText, Info, Undo2, FileImage } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
@@ -45,7 +45,7 @@ function VoidDialog({ sale, onClose, onVoided }) {
       onClose={onClose}
       title={`Cancel sale ${sale?.invoice_no || ''}`}
       description="Use this when the whole sale was a mistake or everything comes back. For some of the items, use Return instead."
-      id="modalVoidSale"
+      icon={Ban} id="modalVoidSale"
       size="sm"
     >
       <form id="voidForm" onSubmit={submit} className="contents">
@@ -134,7 +134,7 @@ function ReturnDialog({ saleId, onClose, onReturned }) {
       onClose={onClose}
       title={`Return items from ${sale?.invoice_no || ''}`}
       description="When a customer brings back some of what they bought."
-      id="modalReturnItems"
+      icon={Undo2} id="modalReturnItems"
       size="lg"
     >
       <form id="returnForm" onSubmit={submit} className="contents">
@@ -475,7 +475,7 @@ export function SalesView() {
       />
       <VoidDialog sale={voiding} onClose={() => setVoiding(null)} onVoided={afterVoid} />
       <ReturnDialog saleId={returning} onClose={() => setReturning(null)} onReturned={afterVoid} />
-      <Modal open={Boolean(rx)} onClose={() => setRx(null)} title={`Prescription for ${rx?.invoiceNo || ''}`} id="modalPrescriptionViewer" size="lg">
+      <Modal open={Boolean(rx)} onClose={() => setRx(null)} title={`Prescription for ${rx?.invoiceNo || ''}`} icon={FileImage} id="modalPrescriptionViewer" size="lg">
         <ModalBody className="items-center bg-sunken">
           {rx && <img id="prescriptionImageElement" src={rx.dataUrl} alt={`Prescription for ${rx.invoiceNo}`} className="max-h-[60vh] max-w-full rounded-panel border border-foil" />}
         </ModalBody>

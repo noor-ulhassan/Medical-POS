@@ -1,4 +1,32 @@
-import { Tablets, Pill, FlaskRound, Syringe, Droplets, Wind, SprayCan, Pipette, Bandage, PillBottle, Banknote, CreditCard, Smartphone, NotebookPen } from 'lucide-react';
+import {
+  Tablets,
+  Pill,
+  FlaskRound,
+  Syringe,
+  Droplets,
+  Wind,
+  SprayCan,
+  Pipette,
+  Bandage,
+  PillBottle,
+  Banknote,
+  CreditCard,
+  Smartphone,
+  NotebookPen,
+  Store,
+  Users,
+  Zap,
+  Flame,
+  Wifi,
+  Truck,
+  Wrench,
+  ShoppingBasket,
+  Landmark,
+  FileBadge,
+  Megaphone,
+  Coffee,
+  CircleEllipsis
+} from 'lucide-react';
 import { isLowStock, isOutOfStock, expiryStatus } from './format.js';
 
 /*
@@ -43,6 +71,24 @@ export const PAYMENT_METHODS = [
 ];
 
 export const paymentMethod = (value) => PAYMENT_METHODS.find((m) => m.value === value) || { value, label: value, icon: Banknote, tone: null };
+
+/** A picture and tone for each kind of shop expense (ids from shared/expenses.js). */
+const EXPENSE_LOOK = {
+  RENT: { icon: Store, tone: 2 },
+  SALARIES: { icon: Users, tone: 3 },
+  ELECTRICITY: { icon: Zap, tone: 5 },
+  GAS_WATER: { icon: Flame, tone: 5 },
+  PHONE_INTERNET: { icon: Wifi, tone: 6 },
+  TRANSPORT: { icon: Truck, tone: 6 },
+  REPAIRS: { icon: Wrench, tone: 2 },
+  SUPPLIES: { icon: ShoppingBasket, tone: 1 },
+  BANK_CHARGES: { icon: Landmark, tone: 2 },
+  LICENCES_FEES: { icon: FileBadge, tone: 3 },
+  MARKETING: { icon: Megaphone, tone: 4 },
+  REFRESHMENTS: { icon: Coffee, tone: 5 }
+};
+
+export const expenseLook = (category) => EXPENSE_LOOK[category] || { icon: CircleEllipsis, tone: null };
 
 /** A person or company keeps the same colour in every list (by id), with their initials on it. */
 export const idTone = (id) => ((Number(id) || 0) % 6) + 1;

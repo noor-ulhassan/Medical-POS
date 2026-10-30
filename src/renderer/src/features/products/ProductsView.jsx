@@ -75,7 +75,7 @@ function ReceiveStockDialog({ product, onClose }) {
   });
 
   return (
-    <Modal open={Boolean(product)} onClose={onClose} title="Receive stock" description={product ? product.title : ''} id="modalReceiveStock" size="sm">
+    <Modal open={Boolean(product)} onClose={onClose} title="Receive stock" description={product ? product.title : ''} icon={PackagePlus} id="modalReceiveStock" size="sm">
       <form id="receiveStockForm" onSubmit={submit} className="contents">
         {product && (
           <ModalBody>

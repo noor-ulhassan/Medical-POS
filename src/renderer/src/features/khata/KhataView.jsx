@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Pencil, FileText, HandCoins, Users, NotebookPen } from 'lucide-react';
+import { Plus, Search, Pencil, FileText, HandCoins, Users, NotebookPen, UserRound } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { WALK_IN_ID } from '../../state/Cart.jsx';
@@ -60,7 +60,7 @@ function CustomerDialog({ customer, onClose }) {
   });
 
   return (
-    <Modal open={Boolean(customer)} onClose={onClose} title={isNew ? 'Add customer' : 'Change customer'} id="modalCustomer" size="sm">
+    <Modal open={Boolean(customer)} onClose={onClose} title={isNew ? 'Add customer' : 'Change customer'} icon={UserRound} id="modalCustomer" size="sm">
       <form id="customerForm" onSubmit={submit} className="contents">
         <ModalBody>
           <Field label="Full name">
@@ -124,7 +124,7 @@ function PaymentDialog({ customer, onClose }) {
   });
 
   return (
-    <Modal open={Boolean(customer)} onClose={onClose} title="Take a payment" id="modalRecordPayment" size="sm">
+    <Modal open={Boolean(customer)} onClose={onClose} title="Take a payment" icon={HandCoins} id="modalRecordPayment" size="sm">
       <form id="paymentForm" onSubmit={submit} className="contents">
         <ModalBody>
           {customer && (
