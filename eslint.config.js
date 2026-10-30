@@ -14,7 +14,8 @@ const sharedRules = {
 };
 
 module.exports = [
-  { ignores: ['node_modules/**', 'dist/**', 'build/**', '.devdata/**', 'coverage/**'] },
+  // .claude/ holds third-party agent skills (pstack), not app code.
+  { ignores: ['node_modules/**', 'dist/**', 'build/**', '.devdata/**', 'coverage/**', '.claude/**'] },
   js.configs.recommended,
   {
     // Main process, preload, scripts, tests (CommonJS on Node/Electron)

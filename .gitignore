@@ -41,3 +41,4 @@ coverage/
 
 # Built UI (npm run build:ui)
 build/
+.claude/
