@@ -1,46 +1,7 @@
-import { ShoppingCart, ReceiptText, Package, NotebookPen, ChartColumn, Settings, Lock, CircleHelp, TriangleAlert } from 'lucide-react';
+import { Lock, CircleHelp, TriangleAlert, Settings } from 'lucide-react';
 import { useApp, VIEWS } from '../state/AppState.jsx';
 import { cx } from '../ui/cx.js';
-
-/*
- * Five sections instead of a long menu, like the POS apps people already know.
- * A section with several screens shows them as tabs at the top (SectionTabs).
- * Screens keep their ids (posView, salesView...), so `go(id)` works as before.
- */
-export const SECTIONS = [
-  { id: 'sell', label: 'Sell', icon: ShoppingCart, views: [{ id: 'posView', label: 'Sell' }] },
-  {
-    id: 'sales',
-    label: 'Sales',
-    icon: ReceiptText,
-    views: [
-      { id: 'salesView', label: 'Past sales' },
-      { id: 'quotationView', label: 'Price quote' }
-    ]
-  },
-  {
-    id: 'stock',
-    label: 'Stock',
-    icon: Package,
-    views: [
-      { id: 'inventoryView', label: 'Medicines', badge: 'lowStock' },
-      { id: 'expiryView', label: 'Expiring', badge: 'expiring' },
-      { id: 'ordersView', label: 'Reorder' },
-      { id: 'suppliersView', label: 'Suppliers' }
-    ]
-  },
-  { id: 'khata', label: 'Khata', icon: NotebookPen, views: [{ id: 'khataView', label: 'Khata' }] },
-  {
-    id: 'reports',
-    label: 'Reports',
-    icon: ChartColumn,
-    views: [
-      { id: 'dashboardView', label: 'Today' },
-      { id: 'profitView', label: 'Profit & loss' },
-      { id: 'expensesView', label: 'Expenses' }
-    ]
-  }
-];
+import { SECTIONS } from './sections.js';
 
 const BADGE_TITLES = {
   lowStock: (n) => `${n} medicines are running low`,
@@ -50,26 +11,28 @@ const BADGE_TITLES = {
 const permissionOf = (viewId) => VIEWS.find((v) => v.id === viewId).permission;
 
 /** The screens of each section this user may open. */
-function useSections() {
+export function useSections() {
   const { can } = useApp();
   return SECTIONS.map((s) => ({ ...s, views: s.views.filter((v) => can(permissionOf(v.id))) })).filter((s) => s.views.length > 0);
 }
 
-function RailButton({ icon: Icon, label, active, dot, className, ...props }) {
+/** A rail button. With a tone its icon wears that colour; without one it stays plain (Help, Lock). */
+function RailButton({ icon: Icon, label, active, dot, tone, className, ...props }) {
   return (
     <button
       type="button"
+      data-tone={tone}
       aria-current={active ? 'page' : undefined}
       className={cx(
-        'relative flex w-[76px] shrink-0 flex-col items-center gap-1 rounded-panel py-2 text-sm font-semibold transition-colors [@media(max-height:620px)]:py-1',
-        active ? 'bg-teal-soft text-teal-ink' : 'text-ink-2 hover:bg-sunken hover:text-ink',
+        'group relative flex w-[76px] shrink-0 flex-col items-center gap-1 rounded-panel py-2 text-sm font-semibold transition-colors [@media(max-height:620px)]:py-1',
+        active ? 'bg-accent text-accent-on shadow-pop' : 'text-rail-ink-2 hover:bg-rail-ink/10 hover:text-rail-ink',
         className
       )}
       {...props}
     >
       <span className="relative">
-        <Icon className="size-6" aria-hidden="true" strokeWidth={active ? 2.25 : 2} />
-        {dot && <span className="absolute -right-1.5 -top-1 size-2.5 rounded-full bg-amber ring-2 ring-surface" aria-hidden="true" />}
+        <Icon className={cx('size-6', !active && tone && 'text-accent-glow')} aria-hidden="true" strokeWidth={active ? 2.25 : 2} />
+        {dot && <span className="absolute -right-1.5 -top-1 size-2.5 rounded-full bg-amber ring-2 ring-rail" aria-hidden="true" />}
       </span>
       {label}
     </button>
@@ -78,11 +41,11 @@ function RailButton({ icon: Icon, label, active, dot, className, ...props }) {
 
 export function Sidebar({ onLock, onHelp, onMe }) {
   const { user, view, go, can, alerts, saveProblem } = useApp();
-  const sections = useSections();
+  const sections = useSections().filter((s) => s.id !== 'settings');
   const needsAttention = alerts.lowStock > 0 || alerts.expiring > 0;
 
   return (
-    <aside id="appSidebar" className="flex h-full w-[92px] shrink-0 flex-col items-center border-r border-foil bg-surface py-3">
+    <aside id="appSidebar" className="flex h-full w-[92px] shrink-0 flex-col items-center bg-rail py-3">
       <img src="./icon.png" alt="" className="mb-2 size-10 shrink-0 rounded-panel object-cover [@media(max-height:620px)]:hidden" />
       <nav className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto scrollbar-none" aria-label="Main">
         {sections.map((s) => {
@@ -92,6 +55,7 @@ export function Sidebar({ onLock, onHelp, onMe }) {
               key={s.id}
               icon={s.icon}
               label={s.label}
+              tone={s.tone}
               active={active}
               dot={s.id === 'stock' && needsAttention}
               title={s.id === 'stock' && needsAttention ? 'Some medicines are running low or expiring' : undefined}
@@ -115,6 +79,7 @@ export function Sidebar({ onLock, onHelp, onMe }) {
           <RailButton
             icon={Settings}
             label="Settings"
+            tone={6}
             active={view === 'settingsView'}
             className="nav-item"
             data-target="settingsView"
@@ -127,9 +92,9 @@ export function Sidebar({ onLock, onHelp, onMe }) {
           id="btnUserMenu"
           onClick={onMe}
           title={`${user?.name} (${user?.role}): PIN, text size, dark mode`}
-          className="flex w-[76px] flex-col items-center gap-1 rounded-panel py-2 text-sm font-semibold text-ink-2 hover:bg-sunken hover:text-ink [@media(max-height:620px)]:py-1"
+          className="flex w-[76px] flex-col items-center gap-1 rounded-panel py-2 text-sm font-semibold text-rail-ink-2 hover:bg-rail-ink/10 hover:text-rail-ink [@media(max-height:620px)]:py-1"
         >
-          <span className="flex size-7 items-center justify-center rounded-full bg-teal text-sm font-bold text-teal-on" id="userAvatar">
+          <span className="flex size-7 items-center justify-center rounded-full bg-rail-ink text-sm font-bold text-rail" id="userAvatar">
             {user ? user.name.charAt(0).toUpperCase() : '?'}
           </span>
           <span className="max-w-full truncate px-1 text-xs" id="userName">
@@ -148,7 +113,7 @@ export function SectionTabs() {
   const section = useSections().find((s) => s.views.some((v) => v.id === view));
   if (!section || section.views.length < 2) return null;
   return (
-    <div role="tablist" aria-label={section.label} className="flex shrink-0 items-center gap-1.5 border-b border-foil bg-surface px-6 py-2.5">
+    <div role="tablist" aria-label={section.label} data-tone={section.tone} className="flex shrink-0 items-center gap-1.5 border-b border-foil bg-surface px-6 py-2.5">
       {section.views.map((v) => {
         const active = v.id === view;
         const count = v.badge ? alerts[v.badge] : 0;
@@ -162,9 +127,10 @@ export function SectionTabs() {
             onClick={() => go(v.id)}
             className={cx(
               'flex h-10 items-center gap-2 rounded-full px-4 text-base font-semibold transition-colors',
-              active ? 'bg-ink text-surface' : 'text-ink-2 hover:bg-sunken hover:text-ink'
+              active ? 'bg-accent text-accent-on' : 'text-ink-2 hover:bg-accent-soft hover:text-accent-ink'
             )}
           >
+            <v.icon className="size-[18px]" aria-hidden="true" />
             {v.label}
             {count > 0 && (
               <span

@@ -386,7 +386,7 @@ export function SalesView() {
         }
       />
       <input ref={fileRef} type="file" accept={PRESCRIPTION_FILE_TYPES} className="hidden" id="invoiceRxFileInput" onChange={attachRx} />
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {result && rows.length === 0 ? (
           <EmptyState icon={ReceiptText} title={query ? 'No sales match' : 'No sales yet'}>
             {query ? 'Check the invoice number or customer name.' : 'Every sale appears here as soon as it is completed.'}

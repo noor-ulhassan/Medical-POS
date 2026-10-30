@@ -175,7 +175,7 @@ function CustomerDetail({ customer, onClose, onPay, onStatement, onEdit }) {
     <Modal open={Boolean(c)} onClose={onClose} title={c ? c.name : ''} description={c?.phone || undefined} id="modalCustomerDetail" size="lg">
       {c && (
         <ModalBody className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-5 bg-sunken">
-          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface p-5">
+          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface shadow-card p-5">
             <Fact label="Owes">
               <span className={cx('num text-lg', c.current_debt_cents > 0 && 'text-red-ink')}>{owesText(c)}</span>
             </Fact>
@@ -262,7 +262,7 @@ export function KhataView() {
         placeholder="Search name or phone"
         className="w-[360px]"
       />
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {view.rows.length === 0 ? (
           <EmptyState icon={Users} title="No customers found">
             Add customers who buy on credit to keep track of what they owe.

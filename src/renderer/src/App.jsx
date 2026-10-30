@@ -6,6 +6,7 @@ import { useCart } from './state/Cart.jsx';
 import { useToast } from './ui/Toast.jsx';
 import { isAnyModalOpen } from './ui/Modal.jsx';
 import { Sidebar, SectionTabs } from './shell/Sidebar.jsx';
+import { sectionOfView } from './shell/sections.js';
 import { MeDialog } from './shell/MeDialog.jsx';
 import { HelpDialog } from './shell/HelpDialog.jsx';
 import { StartupScreen } from './shell/StartupScreen.jsx';
@@ -101,6 +102,11 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Dialogs are portalled to <body>, so the current section's tone goes on the root for them too.
+  useEffect(() => {
+    document.documentElement.dataset.tone = String(sectionOfView(view).tone);
+  }, [view]);
 
   useEffect(() => {
     document.title = app.settings.store_name ? `${app.settings.store_name} POS` : 'Noor Pharmacy POS';

@@ -1,5 +1,7 @@
 import { cx } from './cx.js';
 import { expiryStatus, shortDate } from '../lib/format.js';
+import { useApp } from '../state/AppState.jsx';
+import { viewMeta } from '../shell/sections.js';
 
 const PILL_TONES = {
   neutral: 'bg-sunken text-ink-2 border-foil',
@@ -99,12 +101,35 @@ export function Fact({ label, className, children }) {
   );
 }
 
-export function PageHeader({ title, description, actions }) {
+/** A rounded tile holding an icon, in the tone around it, the one given, or plain grey for `tone={null}`. */
+export function IconTile({ icon: Icon, tone, size = 'md', className }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-xl font-bold tracking-[-0.01em] text-ink">{title}</h1>
-        {description && <p className="mt-1 text-base text-ink-2">{description}</p>}
+    <span
+      data-tone={tone || undefined}
+      className={cx(
+        'flex shrink-0 items-center justify-center',
+        tone === null ? 'bg-sunken text-ink-2' : 'bg-accent-soft text-accent-ink',
+        size === 'lg' ? 'size-12 rounded-panel [&>svg]:size-6' : size === 'sm' ? 'size-8 rounded-control [&>svg]:size-4' : 'size-10 rounded-control [&>svg]:size-5',
+        className
+      )}
+      aria-hidden="true"
+    >
+      <Icon strokeWidth={2} />
+    </span>
+  );
+}
+
+/** Page title with the screen's icon in its section's tone, so every screen says where you are. */
+export function PageHeader({ title, description, actions }) {
+  const { view } = useApp();
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <IconTile icon={viewMeta(view).icon} size="lg" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-[-0.01em] text-ink">{title}</h1>
+          {description && <p className="mt-0.5 text-base text-ink-2">{description}</p>}
+        </div>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </header>
@@ -113,7 +138,7 @@ export function PageHeader({ title, description, actions }) {
 
 export function Panel({ title, actions, flush = false, tone, className, children }) {
   return (
-    <section className={cx('min-w-0 rounded-panel border bg-surface', tone === 'danger' ? 'border-red/40' : 'border-foil', className)}>
+    <section className={cx('min-w-0 rounded-panel border bg-surface shadow-card', tone === 'danger' ? 'border-red/40' : 'border-foil', className)}>
       {(title || actions) && (
         <div className={cx('flex min-h-[52px] items-center justify-between gap-3 px-5', flush ? 'border-b border-foil' : 'pt-4')}>
           {title && <h2 className="text-md font-bold text-ink">{title}</h2>}

@@ -124,7 +124,7 @@ function MedicineDetail({ product, onClose, onReceive, onEdit, onHistory, onRemo
     <Modal open={Boolean(product)} onClose={onClose} title={product ? product.title : ''} description={product?.generic_name || undefined} id="modalMedicine" size="lg">
       {product && (
         <ModalBody className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-5 bg-sunken">
-          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface p-5">
+          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface shadow-card p-5">
             <Fact label="In stock">
               {out ? <Pill tone="red">Out of stock</Pill> : <span className={cx('num', low && 'text-amber-ink')}>{stockText(product.stock_units, product.pack_size)}</span>}
               {low && <span className="block text-sm font-normal text-amber-ink">Running low</span>}
@@ -254,7 +254,7 @@ export function ProductsView() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {view.rows.length === 0 ? (
           <EmptyState icon={PackageOpen} title={products.length ? 'No products match' : 'No products yet'}>
             {products.length ? 'Try a different search or filter.' : 'Add your first product to start selling.'}

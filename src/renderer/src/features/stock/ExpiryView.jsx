@@ -68,7 +68,7 @@ export function ExpiryView() {
         <Count id="statExp90" label="In 90 days" note="Plan to sell" value={c.within90} tone="amber" />
         <Count id="statExp180" label="In 6 months" note="Keep an eye on" value={c.within180} />
       </div>
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {data && data.rows.length === 0 ? (
           <EmptyState icon={CalendarCheck} title="Nothing is close to expiry">
             No stock expires in the next 6 months.

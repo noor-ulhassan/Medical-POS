@@ -81,7 +81,7 @@ export function RestockView() {
           </span>
         )}
       </div>
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {rows.length === 0 ? (
           <EmptyState icon={ClipboardCheck} title="Nothing to reorder">
             Every medicine here has more than its minimum stock.

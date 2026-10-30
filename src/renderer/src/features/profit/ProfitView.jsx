@@ -161,7 +161,7 @@ function TrendTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null;
   const row = payload[0].payload;
   return (
-    <div className="min-w-[220px] rounded-panel border border-foil bg-surface px-3.5 py-3 text-sm shadow-pop">
+    <div className="min-w-[220px] rounded-panel border border-foil bg-surface shadow-card px-3.5 py-3 text-sm shadow-pop">
       <div className="mb-2 font-semibold text-ink-2">{row.fullLabel}</div>
       {SERIES.map((s) => (
         <div key={s.key} className="flex items-center gap-2 py-0.5">
@@ -208,7 +208,7 @@ function ExpenseTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null;
   const row = payload[0].payload;
   return (
-    <div className="rounded-panel border border-foil bg-surface px-3.5 py-2.5 text-sm shadow-pop">
+    <div className="rounded-panel border border-foil bg-surface shadow-card px-3.5 py-2.5 text-sm shadow-pop">
       <div className="num font-bold text-ink">{money(row.amountCents)}</div>
       <div className="text-ink-3">
         {row.label}, {plural(row.count, 'entry', 'entries')}

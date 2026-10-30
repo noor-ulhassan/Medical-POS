@@ -191,7 +191,7 @@ export function HelpDialog({ open, onClose }) {
     <Modal open={open} onClose={onClose} title="How do I…?" description="Click a question to see the steps." id="modalHelp" size="lg">
       <ModalBody className="gap-2">
         {guides.map((g, i) => (
-          <details key={g.title} open={i === 0} className="group rounded-panel border border-foil bg-surface open:border-teal">
+          <details key={g.title} open={i === 0} className="group rounded-panel border border-foil bg-surface shadow-card open:border-teal">
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-md font-semibold text-ink hover:bg-sunken">
               {g.title}
               <span className="text-ink-3 group-open:rotate-90" aria-hidden="true">

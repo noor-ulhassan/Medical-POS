@@ -60,7 +60,7 @@ function StoreTab() {
   });
 
   return (
-    <form id="settingsForm" onSubmit={submit} className="max-w-[880px] rounded-panel border border-foil bg-surface">
+    <form id="settingsForm" onSubmit={submit} className="max-w-[880px] rounded-panel border border-foil bg-surface shadow-card">
       <div className="flex flex-col gap-6 p-6">
         <Fieldset legend="Shown on receipts">
           <div className="grid grid-cols-2 gap-4">
