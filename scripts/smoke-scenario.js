@@ -355,6 +355,7 @@
     key(document, 'F12');
     await waitFor('locked', () => exists('modalPinAuth'));
     if (exists('posView')) throw new Error('store data still visible behind the lock screen');
+    if (exists('pinFirstRunHint')) throw new Error('lock screen still says the PIN is 1234 after it was changed');
   });
 
   return { ok: failures.length === 0, steps, failures };

@@ -14,7 +14,7 @@ const CartContext = createContext(null);
 
 const noPriceMessage = (product, unitType) => {
   const by = unitType === 'PACK' ? 'pack' : 'unit';
-  return `${product.title} has no price per ${by}, so it cannot be sold by the ${by}. Set the price under Medicines & stock.`;
+  return `${product.title} has no price per ${by}, so it cannot be sold by the ${by}. Set the price under Stock, Medicines.`;
 };
 
 export function CartProvider({ children }) {

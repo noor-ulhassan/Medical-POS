@@ -175,6 +175,12 @@
   }
 }
 
+/* A dialog's buttons sit along its bottom edge, so while one is open toasts move to the top. */
+body:has([data-modal-overlay]) #toastContainer {
+  top: 1.25rem;
+  bottom: auto;
+}
+
 /* Printing: only the receipt / A4 document being previewed is printed. */
 @media print {
   @page {

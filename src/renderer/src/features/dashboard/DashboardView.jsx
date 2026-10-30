@@ -165,9 +165,9 @@ export function DashboardView() {
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-foil bg-foil xl:grid-cols-4">
         <Stat label="Today's sales" id="dashTodaySales" noteId="dashTodayInvoices" value={money(d?.todayRevenueCents)} note={d ? (d.todayInvoices ? plural(d.todayInvoices, 'sale') + ' today' : 'No sales yet today') : ' '} />
-        <Stat label="All-time sales" id="dashTotalSales" noteId="dashTotalInvoices" value={money(d?.totalRevenueCents)} note={d ? plural(d.totalInvoices, 'completed invoice') : ' '} />
+        <Stat label="All-time sales" id="dashTotalSales" noteId="dashTotalInvoices" value={money(d?.totalRevenueCents)} note={d ? plural(d.totalInvoices, 'sale') : ' '} />
         <Stat label="Owed on khata" id="dashCustomerDebt" value={money(d?.outstandingDebtCents)} note="Outstanding customer balances" />
-        <Stat label="Products needing attention" id="dashRiskAlerts" value={d ? d.riskCount : 0} note="Low stock or expiring within 6 months" tone={d?.riskCount ? 'danger' : undefined} />
+        <Stat label="Medicines needing attention" id="dashRiskAlerts" value={d ? d.riskCount : 0} note="Running low or expiring in 6 months" tone={d?.riskCount ? 'danger' : undefined} />
       </div>
 
       <BackupCopyWarning copy={d?.backupCopy} />

@@ -294,6 +294,8 @@ export function App() {
         onLock={lock}
         onChanged={async (u, forced) => {
           setPinDialog(null);
+          // The lock screen's "first start: PIN is 1234" hint is read from app info; refresh it once 1234 stops working.
+          loadAppInfo();
           if (forced) await unlocked(u);
           else setUser(u);
         }}

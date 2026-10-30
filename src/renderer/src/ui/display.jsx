@@ -89,6 +89,16 @@ export function SearchInput({ id, value, onChange, placeholder, icon: Icon, clas
   );
 }
 
+/** One labelled value in a detail window. */
+export function Fact({ label, className, children }) {
+  return (
+    <div className={cx('min-w-0', className)}>
+      <dt className="text-sm text-ink-3">{label}</dt>
+      <dd className="mt-0.5 text-md font-semibold text-ink">{children}</dd>
+    </div>
+  );
+}
+
 export function PageHeader({ title, description, actions }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">

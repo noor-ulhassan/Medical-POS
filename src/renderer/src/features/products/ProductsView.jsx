@@ -8,7 +8,7 @@ import { useDocuments, StockHistory } from '../../print/Documents.jsx';
 import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
-import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState, Fact } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr, Pagination, paginate } from '../../ui/Table.jsx';
 import { money, isLowStock, isOutOfStock, splitUnits, toCents, centsToInput, shortDate } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
@@ -112,15 +112,6 @@ function ReceiveStockDialog({ product, onClose }) {
         </ModalFooter>
       </form>
     </Modal>
-  );
-}
-
-function Fact({ label, children }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-sm text-ink-3">{label}</dt>
-      <dd className="mt-0.5 text-md font-semibold text-ink">{children}</dd>
-    </div>
   );
 }
 

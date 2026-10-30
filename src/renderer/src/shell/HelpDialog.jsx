@@ -25,7 +25,7 @@ const GUIDES = [
     permission: 'customers.view',
     steps: [
       'Add the medicines as for a normal sale.',
-      'Under Customer at the top of the sale, choose the customer. (New customer? Add them first in Khata.)',
+      'At the top of the sale, click Walk-in customer and choose the customer. (New customer? Add them first in Khata.)',
       'Click Charge, choose Khata, then Complete sale.',
       'If the sale is over their limit, take part of it in cash or raise their limit in Khata.'
     ]
@@ -34,15 +34,30 @@ const GUIDES = [
     title: 'A customer pays what they owe',
     permission: 'customers.payment',
     steps: [
-      'Open Khata (credit) on the left.',
-      'Find the customer and click Receive.',
+      'Open Khata on the left.',
+      'Find the customer and click Take payment.',
       'Type the amount they paid, choose how they paid (cash, card, mobile wallet or bank transfer), and click Record payment.'
+    ]
+  },
+  {
+    title: 'Medicine that needs a prescription (Rx)',
+    steps: [
+      'These medicines show an Rx mark.',
+      'Click Prescription under the sale and choose the photo of the prescription.',
+      'No photo? The till asks you to confirm before it completes the sale. You can add the photo later: open Sales, click the sale, then Add prescription photo.'
+    ]
+  },
+  {
+    title: 'Keep a sale for later (customer will come back)',
+    steps: [
+      'Click Hold under the sale. The till is empty for the next customer.',
+      'To bring it back, click Held at the top of the sale, then Resume next to it.'
     ]
   },
   {
     title: 'Give a discount',
     steps: [
-      'Type the discount in the Discount box under the sale (or press F3). Choose Rs or %.',
+      'Click Discount under the sale (or press F3) and type the discount. Choose Rs or %.',
       'A cashier can give up to the limit set by the owner (10% unless changed). For more, press F12 and let a manager log in: the sale stays in the cart.',
       "Every discount, and who gave it, is shown in the activity log and on Today's report."
     ]
@@ -51,7 +66,7 @@ const GUIDES = [
     title: 'A delivery of medicine arrived',
     permission: 'stock.adjust',
     steps: [
-      'Open Medicines & stock on the left and find the medicine.',
+      'Open Stock on the left. Medicines opens first: find the medicine.',
       'Click Receive on that line.',
       'Type how many packs arrived. Do not add them up yourself: they are added to what is already there.',
       'If no older packs are left on the shelf, change the expiry date to the one printed on the new packs.',
@@ -62,17 +77,18 @@ const GUIDES = [
     title: 'A new medicine the shop has never sold',
     permission: 'products.manage',
     steps: [
-      'Open Medicines & stock and click Add product.',
+      'Open Stock and click Add medicine.',
       'Type the name, scan the barcode (or click Generate), and enter the expiry date from the pack.',
-      'Enter how many packs you have, and the prices. Click Add product.'
+      'Enter how many packs you have, and the prices. Click Add medicine.',
+      'To change it later, click the medicine in the list and then Change details, stock or prices.'
     ]
   },
   {
     title: 'A customer brings back some of what they bought',
     permission: 'sales.void',
     steps: [
-      'Open Past sales and find the sale (search by invoice number or customer).',
-      'Click Return. Type how many of each item came back (or click All), and write why.',
+      'Open Sales on the left and find the sale (search by invoice number or customer).',
+      'Click the sale, then Customer returns items. Type how many of each item came back (or click All), and write why.',
       'If the medicine cannot be sold again (opened, damaged, not kept cold), untick "Put the medicine back on the shelf".',
       'The screen tells you how much money to give back (or how much comes off their khata). Click Save the return, then print the receipt for the customer.'
     ]
@@ -81,8 +97,8 @@ const GUIDES = [
     title: 'A whole sale was a mistake',
     permission: 'sales.void',
     steps: [
-      'Open Past sales and find the sale.',
-      'Click Cancel sale and write why. (Once something was returned from a sale, use Return for the rest instead.)',
+      'Open Sales and click the sale.',
+      'Click Cancel the whole sale and write why. (Once something was returned from a sale, use Customer returns items for the rest instead.)',
       'The screen tells you how much money to give back. The medicines go back into stock by themselves.'
     ]
   },
@@ -90,7 +106,7 @@ const GUIDES = [
     title: 'A customer already owed money in the old khata book',
     permission: 'customers.manage',
     steps: [
-      'Open Khata (credit) and click Add customer (or the pencil next to a customer who has no entries yet).',
+      'Open Khata and click Add customer. (For a customer who has no entries yet, click them, then Change details or limit.)',
       'Type what they owe from the old book under "Already owes" and save.',
       'It is added to their khata as the opening balance. Payments they make later are taken off it as usual.'
     ]
@@ -99,7 +115,7 @@ const GUIDES = [
     title: 'End of the day: check the cash',
     permission: 'reports.view',
     steps: [
-      "Open Today's report.",
+      'Open Reports on the left. Today opens first.',
       'Look at "Cash that should be in the drawer".',
       'Add the cash you started the day with. Count the drawer: the two should match.'
     ]
@@ -108,7 +124,7 @@ const GUIDES = [
     title: 'Record a shop expense (rent, salaries, bills)',
     permission: 'expenses.manage',
     steps: [
-      'Open Expenses on the left.',
+      'Open Reports on the left, then Expenses at the top.',
       'Choose the date and what the money was for, and type the amount.',
       "If you paid it with cash from the shop's drawer, tick the box, so the end-of-day cash count stays right.",
       'Click Save expense. Do not enter payments to suppliers for medicines: their cost is counted automatically when you sell them.'
@@ -118,18 +134,19 @@ const GUIDES = [
     title: 'See how much profit the shop made',
     permission: 'reports.view',
     steps: [
-      'Open Profit & loss on the left and choose a period at the top (for example This month).',
+      'Open Reports on the left, then Profit & loss at the top, and choose a period (for example This month).',
       'Net profit is what is left after the cost of the medicines sold, your expenses and stock that expired, broke or went missing.',
-      'Every medicine needs a cost price (Medicines & stock) for its sales to be counted. The screen tells you if any are missing.'
+      'Every medicine needs a cost price (Stock, Medicines) for its sales to be counted. The screen tells you if any are missing.',
+      'Click Show more for expenses by type, the best medicines and the numbers day by day.'
     ]
   },
   {
     title: 'Expired or nearly expired medicine',
     permission: 'products.view',
     steps: [
-      'Open Expiring soon. Red means expired or expiring within 30 days.',
+      'Open Stock on the left, then Expiring at the top. Red means expired or expiring within 30 days.',
       'Expired medicine cannot be sold: the till refuses it.',
-      'Take expired packs off the shelf, then click Write off so the stock count is correct.'
+      'Take expired packs off the shelf, then click Throw away so the stock count is correct.'
     ]
   },
   {
@@ -145,7 +162,7 @@ const GUIDES = [
   {
     title: 'Make the writing bigger',
     steps: [
-      'Click the Aa button at the bottom of the menu. Each click makes the text bigger, then back to normal.',
+      'Click your name at the bottom of the menu, then Text size. Each click makes the text bigger, then back to normal.',
       'Or hold Ctrl and press + (bigger) or − (smaller). Ctrl and 0 goes back to normal.'
     ]
   },
@@ -161,7 +178,7 @@ const GUIDES = [
   {
     title: 'Someone forgot their PIN',
     steps: [
-      'The owner (Admin) opens Settings, Staff and PINs, and clicks the key next to that person to give a new PIN.',
+      'The owner (Admin) opens Settings, Staff and PINs, and clicks New PIN next to that person.',
       'They will choose their own PIN the next time they log in.'
     ]
   }

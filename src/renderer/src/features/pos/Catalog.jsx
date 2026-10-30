@@ -134,7 +134,7 @@ export function Catalog() {
       setSearch('');
       setQuery('');
     } else if (candidates.length === 0) {
-      toast(`No medicine matches "${search.trim()}". Check the spelling or add it under Medicines & stock.`, 'error');
+      toast(`No medicine matches "${search.trim()}". Check the spelling or add it under Stock, Medicines.`, 'error');
     } else {
       toast(`${candidates.length} medicines match. Click the right one, or use the arrow keys and press Enter.`, 'info');
     }

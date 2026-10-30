@@ -6,11 +6,12 @@ import { WALK_IN_ID } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { useDocuments, LedgerStatement } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
-import { Button, IconButton } from '../../ui/Button.jsx';
+import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Field, Input, Select } from '../../ui/Field.jsx';
-import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
-import { Table, Th, Td, Tr, RowActions, Pagination, paginate } from '../../ui/Table.jsx';
+import { Page, PageHeader, SearchInput, Pill, EmptyState, Fact } from '../../ui/display.jsx';
+import { Table, Th, Td, Tr, Pagination, paginate } from '../../ui/Table.jsx';
 import { money, toCents, centsToInput } from '../../lib/format.js';
+import { cx } from '../../ui/cx.js';
 
 const PAGE_SIZE = 25;
 
@@ -58,7 +59,7 @@ function CustomerDialog({ customer, onClose }) {
   });
 
   return (
-    <Modal open={Boolean(customer)} onClose={onClose} title={isNew ? 'Add customer' : 'Edit customer'} id="modalCustomer" size="sm">
+    <Modal open={Boolean(customer)} onClose={onClose} title={isNew ? 'Add customer' : 'Change customer'} id="modalCustomer" size="sm">
       <form id="customerForm" onSubmit={submit} className="contents">
         <ModalBody>
           <Field label="Full name">
@@ -122,7 +123,7 @@ function PaymentDialog({ customer, onClose }) {
   });
 
   return (
-    <Modal open={Boolean(customer)} onClose={onClose} title="Receive payment" id="modalRecordPayment" size="sm">
+    <Modal open={Boolean(customer)} onClose={onClose} title="Take a payment" id="modalRecordPayment" size="sm">
       <form id="paymentForm" onSubmit={submit} className="contents">
         <ModalBody>
           {customer && (
@@ -164,6 +165,57 @@ function PaymentDialog({ customer, onClose }) {
   );
 }
 
+const owesText = (c) => (c.current_debt_cents < 0 ? `${money(-c.current_debt_cents)} paid in advance` : money(c.current_debt_cents));
+
+/** One khata customer: what they owe next to everything that can be done with the account. */
+function CustomerDetail({ customer, onClose, onPay, onStatement, onEdit }) {
+  const { can } = useApp();
+  const c = customer;
+  return (
+    <Modal open={Boolean(c)} onClose={onClose} title={c ? c.name : ''} description={c?.phone || undefined} id="modalCustomerDetail" size="lg">
+      {c && (
+        <ModalBody className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-5 bg-sunken">
+          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface p-5">
+            <Fact label="Owes">
+              <span className={cx('num text-lg', c.current_debt_cents > 0 && 'text-red-ink')}>{owesText(c)}</span>
+            </Fact>
+            <Fact label="Can still buy">
+              <span className="num">{money(Math.max(c.credit_limit_cents - c.current_debt_cents, 0))}</span>
+              {c.current_debt_cents > c.credit_limit_cents && <span className="block text-sm font-normal text-red-ink">Over the limit</span>}
+            </Fact>
+            <Fact label="Credit limit">
+              <span className="num">{money(c.credit_limit_cents)}</span>
+            </Fact>
+            <Fact label="Phone">
+              <span className="num">{c.phone || 'None'}</span>
+            </Fact>
+            {c.address && (
+              <Fact label="Address" className="col-span-2">
+                {c.address}
+              </Fact>
+            )}
+          </dl>
+          <div className="flex flex-col gap-2.5">
+            {can('customers.payment') && c.current_debt_cents > 0 && (
+              <ActionButton icon={HandCoins} tone="primary" data-pay={c.id} onClick={() => onPay(c)}>
+                Take a payment
+              </ActionButton>
+            )}
+            <ActionButton icon={FileText} data-ledger={c.id} onClick={() => onStatement(c)}>
+              See and print statement
+            </ActionButton>
+            {can('customers.manage') && (
+              <ActionButton icon={Pencil} data-edit={c.id} onClick={() => onEdit(c)}>
+                Change details or limit
+              </ActionButton>
+            )}
+          </div>
+        </ModalBody>
+      )}
+    </Modal>
+  );
+}
+
 export function KhataView() {
   const { customers, can } = useApp();
   const { guard } = useToast();
@@ -172,6 +224,7 @@ export function KhataView() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
+  const [openId, setOpenId] = useState(null);
   const canManage = can('customers.manage');
   const canPay = can('customers.payment');
 
@@ -189,8 +242,8 @@ export function KhataView() {
   return (
     <Page id="khataView">
       <PageHeader
-        title="Khata accounts"
-        description="Customers who buy on credit, their limits and what they owe."
+        title="Khata"
+        description="Customers who buy now and pay later. Tap a customer to see their statement or change their limit."
         actions={
           canManage && (
             <Button variant="primary" icon={Plus} id="btnOpenAddCustomer" onClick={() => setEditing('new')}>
@@ -206,7 +259,7 @@ export function KhataView() {
           setSearch(v);
           setPage(1);
         }}
-        placeholder="Search by name or phone"
+        placeholder="Search name or phone"
         className="w-[360px]"
       />
       <div className="overflow-hidden rounded-panel border border-foil bg-surface">
@@ -219,47 +272,53 @@ export function KhataView() {
             <thead>
               <tr>
                 <Th>Customer</Th>
-                <Th>Phone</Th>
-                <Th num>Credit limit</Th>
                 <Th num>Owes</Th>
-                <Th num>Available</Th>
-                <Th />
+                <Th num>Can still buy</Th>
+                {canPay && <Th />}
               </tr>
             </thead>
             <tbody id="customerTableBody">
               {view.rows.map((c) => {
                 const walkIn = c.id === WALK_IN_ID;
-                const available = c.credit_limit_cents - c.current_debt_cents;
                 const over = c.current_debt_cents > c.credit_limit_cents;
                 return (
-                  <Tr key={c.id}>
+                  <Tr key={c.id} data-open-customer={walkIn ? undefined : c.id} onOpen={walkIn ? undefined : () => setOpenId(c.id)}>
                     <Td>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-ink">{c.name}</span>
                         {walkIn && <Pill>Cash only</Pill>}
                         {over && <Pill tone="red">Over limit</Pill>}
                       </div>
-                      {c.address && <div className="mt-0.5 text-sm text-ink-3">{c.address}</div>}
+                      {(c.phone || c.address) && <div className="num mt-0.5 text-sm text-ink-3">{[c.phone, c.address].filter(Boolean).join(' · ')}</div>}
                     </Td>
-                    <Td muted className="num">{c.phone || '—'}</Td>
-                    <Td num muted>{walkIn ? '—' : money(c.credit_limit_cents)}</Td>
                     <Td num className={c.current_debt_cents > 0 ? 'font-bold text-red-ink' : 'text-ink-2'}>
-                      {c.current_debt_cents < 0 ? `${money(-c.current_debt_cents)} in advance` : money(c.current_debt_cents)}
+                      {owesText(c)}
                     </Td>
-                    <Td num muted>{walkIn ? '—' : money(available)}</Td>
-                    <Td className="w-[220px]">
-                      {!walkIn && (
-                        <RowActions>
-                          {canPay && c.current_debt_cents > 0 && (
-                            <Button size="sm" variant="secondary" icon={HandCoins} data-pay={c.id} onClick={() => setPaying(c)}>
-                              Receive
-                            </Button>
-                          )}
-                          <IconButton icon={FileText} label={`Statement for ${c.name}`} size="sm" data-ledger={c.id} onClick={() => ledger(c)} />
-                          {canManage && <IconButton icon={Pencil} label={`Edit ${c.name}`} size="sm" data-edit={c.id} onClick={() => setEditing(c)} />}
-                        </RowActions>
+                    <Td num>
+                      {walkIn ? null : (
+                        <>
+                          <div className="font-semibold text-ink">{money(Math.max(c.credit_limit_cents - c.current_debt_cents, 0))}</div>
+                          <div className="text-sm text-ink-3">limit {money(c.credit_limit_cents)}</div>
+                        </>
                       )}
                     </Td>
+                    {canPay && (
+                      <Td className="w-[1%] text-right">
+                        {!walkIn && c.current_debt_cents > 0 && (
+                          <Button
+                            size="sm"
+                            icon={HandCoins}
+                            data-pay={c.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPaying(c);
+                            }}
+                          >
+                            Take payment
+                          </Button>
+                        )}
+                      </Td>
+                    )}
                   </Tr>
                 );
               })}
@@ -268,6 +327,22 @@ export function KhataView() {
         )}
         <Pagination page={view.page} pageSize={PAGE_SIZE} total={filtered.length} noun="customers" onChange={setPage} />
       </div>
+      <CustomerDetail
+        customer={openId ? customers.find((c) => c.id === openId) : null}
+        onClose={() => setOpenId(null)}
+        onPay={(c) => {
+          setOpenId(null);
+          setPaying(c);
+        }}
+        onStatement={(c) => {
+          setOpenId(null);
+          ledger(c);
+        }}
+        onEdit={(c) => {
+          setOpenId(null);
+          setEditing(c);
+        }}
+      />
       <CustomerDialog customer={editing} onClose={() => setEditing(null)} />
       <PaymentDialog customer={paying} onClose={() => setPaying(null)} />
     </Page>
