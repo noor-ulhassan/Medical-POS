@@ -1,5 +1,8 @@
 import { cx } from './cx.js';
 import { expiryStatus, shortDate } from '../lib/format.js';
+import { useApp } from '../state/AppState.jsx';
+import { viewMeta } from '../shell/sections.js';
+import { initials } from '../lib/look.js';
 
 const PILL_TONES = {
   neutral: 'bg-sunken text-ink-2 border-foil',
@@ -99,12 +102,69 @@ export function Fact({ label, className, children }) {
   );
 }
 
-export function PageHeader({ title, description, actions }) {
+/** A rounded tile holding an icon, in the tone around it, the one given, or plain grey for `tone={null}`. */
+export function IconTile({ icon: Icon, tone, size = 'md', className }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-xl font-bold tracking-[-0.01em] text-ink">{title}</h1>
-        {description && <p className="mt-1 text-base text-ink-2">{description}</p>}
+    <span
+      data-tone={tone || undefined}
+      className={cx(
+        'flex shrink-0 items-center justify-center',
+        tone === null ? 'bg-sunken text-ink-2' : 'bg-accent-soft text-accent-ink',
+        size === 'lg' ? 'size-12 rounded-panel [&>svg]:size-6' : size === 'sm' ? 'size-8 rounded-control [&>svg]:size-4' : 'size-10 rounded-control [&>svg]:size-5',
+        className
+      )}
+      aria-hidden="true"
+    >
+      <Icon strokeWidth={2} />
+    </span>
+  );
+}
+
+/** A thin bar showing how full something is (stock against its minimum, khata against its limit). */
+export function Meter({ value, tone = 'teal', label, className }) {
+  const pct = Math.round(Math.min(Math.max(value, 0), 1) * 100);
+  return (
+    <span
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={pct}
+      className={cx('block h-1.5 overflow-hidden rounded-full bg-foil/70', className || 'w-full')}
+    >
+      <span className={cx('block h-full rounded-full', { teal: 'bg-teal', amber: 'bg-amber', red: 'bg-red', accent: 'bg-accent' }[tone])} style={{ width: `${pct}%` }} />
+    </span>
+  );
+}
+
+/** Initials on a round tile in the person's own colour (plain grey for `tone={null}`). */
+export function Avatar({ name, tone, size = 'md' }) {
+  return (
+    <span
+      data-tone={tone || undefined}
+      className={cx(
+        'flex shrink-0 items-center justify-center rounded-full font-bold',
+        tone === null ? 'bg-sunken text-ink-2' : 'bg-accent-soft text-accent-ink',
+        size === 'sm' ? 'size-8 text-xs' : 'size-10 text-sm'
+      )}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+/** Page title with the screen's icon in its section's tone, so every screen says where you are. */
+export function PageHeader({ title, description, actions }) {
+  const { view } = useApp();
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <IconTile icon={viewMeta(view).icon} size="lg" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-[-0.01em] text-ink">{title}</h1>
+          {description && <p className="mt-0.5 text-base text-ink-2">{description}</p>}
+        </div>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </header>
@@ -113,7 +173,7 @@ export function PageHeader({ title, description, actions }) {
 
 export function Panel({ title, actions, flush = false, tone, className, children }) {
   return (
-    <section className={cx('min-w-0 rounded-panel border bg-surface', tone === 'danger' ? 'border-red/40' : 'border-foil', className)}>
+    <section className={cx('min-w-0 rounded-panel border bg-surface shadow-card', tone === 'danger' ? 'border-red/40' : 'border-foil', className)}>
       {(title || actions) && (
         <div className={cx('flex min-h-[52px] items-center justify-between gap-3 px-5', flush ? 'border-b border-foil' : 'pt-4')}>
           {title && <h2 className="text-md font-bold text-ink">{title}</h2>}
@@ -159,10 +219,11 @@ export function Tabs({ tabs, value, onChange }) {
           aria-selected={value === t.value}
           onClick={() => onChange(t.value)}
           className={cx(
-            '-mb-px border-b-2 px-3.5 pb-2.5 pt-1 text-base font-semibold transition-colors',
-            value === t.value ? 'border-teal text-teal-ink' : 'border-transparent text-ink-2 hover:text-ink'
+            '-mb-px flex items-center gap-2 border-b-2 px-3.5 pb-2.5 pt-1 text-base font-semibold transition-colors',
+            value === t.value ? 'border-accent text-accent-ink' : 'border-transparent text-ink-2 hover:text-ink'
           )}
         >
+          {t.icon && <t.icon className="size-[18px]" aria-hidden="true" />}
           {t.label}
         </button>
       ))}

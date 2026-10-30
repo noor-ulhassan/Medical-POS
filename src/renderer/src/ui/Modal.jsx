@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { IconButton } from './Button.jsx';
 import { cx } from './cx.js';
+import { IconTile } from './display.jsx';
 
 /*
  * Dialog stack: Escape closes only the topmost dialog (unless it is locked),
@@ -63,7 +64,7 @@ const SIZES = { sm: 'max-w-[440px]', md: 'max-w-[540px]', lg: 'max-w-[720px]', x
  * <Modal open onClose title id size locked initialFocus>
  *   ...<ModalBody/> <ModalFooter/>
  */
-export function Modal({ open, onClose, title, description, id, size = 'md', locked = false, initialFocus, role = 'dialog', children }) {
+export function Modal({ open, onClose, title, description, icon, tone, id, size = 'md', locked = false, initialFocus, role = 'dialog', children }) {
   const panel = useRef(null);
   const onCloseRef = useRef(onClose);
   const lockedRef = useRef(locked);
@@ -110,11 +111,14 @@ export function Modal({ open, onClose, title, description, id, size = 'md', lock
         className={cx('flex max-h-full w-full flex-col overflow-hidden rounded-dialog bg-surface shadow-dialog outline-none animate-dialog-in', SIZES[size])}
       >
         <header className="flex items-start justify-between gap-4 border-b border-foil px-6 pb-4 pt-5">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-lg font-bold text-ink">
-              {title}
-            </h2>
-            {description && <p className="mt-0.5 text-sm text-ink-2">{description}</p>}
+          <div className="flex min-w-0 items-center gap-3">
+            {icon && <IconTile icon={icon} tone={tone} />}
+            <div className="min-w-0">
+              <h2 id={titleId} className="text-lg font-bold text-ink">
+                {title}
+              </h2>
+              {description && <p className="mt-0.5 text-sm text-ink-2">{description}</p>}
+            </div>
           </div>
           {!locked && <IconButton icon={X} label="Close" size="sm" onClick={onClose} className="-mr-2 -mt-1" />}
         </header>

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased (branch ui/visual-clarity)
+
+The screens tell their parts apart and explain themselves with pictures. Only the look changed: every feature, permission and stored record works as before.
+
+- **Layers instead of white on white.** A dark side bar, a tinted background, white cards with a soft shadow, and grey wells inside them, in light and dark mode.
+- **A colour for each section.** Sell green, Sales blue, Stock violet, Khata rose, Reports orange, Settings cyan: the side-bar icon, the tabs and each page's header icon wear it, so staff can see where they are at a glance.
+- **Medicines recognisable by picture.** An icon for the medicine's form (tablet, capsule, syrup, injection, drops, inhaler, cream...) read from its name, in its category's colour, on the Sell list, the sale, Medicines, Expiring and Reorder. Category chips and the category list carry the same colour.
+- **Status you can see.** A green, amber or red dot before the stock on the Sell list; a bar under the stock on Medicines showing how full the shelf is; a bar under each khata customer showing how much of the limit is used; red and amber calendar pictures on the Expiring counts.
+- **Payments by picture.** Cash, card, mobile wallet and khata each have an icon and colour, the same on the payment window, Past sales and Today's report.
+- **People by initials.** Khata customers and suppliers show their initials in their own colour.
+- **Selling feedback.** An empty sale shows the three steps (scan or search, tap Add, Charge) as pictures. The line that just grew is highlighted for a moment and scrolled into view. The customer box shows a khata book in the khata colour when the sale goes on khata.
+- **Every dialog, Help question, Settings tab and expense has an icon.** Confirmations for risky actions show a red warning sign. Action buttons in detail windows are white with a border, so they look like buttons.
+- Removing a medicine is explained in plain words instead of "archived".
+
 ## Unreleased (branch ui/simplify-pos)
 
 A simpler interface that anyone at the counter can use. Only the screens changed: every feature, permission and stored record works as before.

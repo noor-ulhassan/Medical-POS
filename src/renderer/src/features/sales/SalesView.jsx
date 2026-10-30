@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, Printer, RotateCcw, Ban, Eye, Camera, ReceiptText, Info, Undo2 } from 'lucide-react';
+import { Search, Printer, RotateCcw, Ban, Eye, Camera, ReceiptText, Info, Undo2, FileImage } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
@@ -9,7 +9,8 @@ import { useDocuments, Receipt } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Field, Textarea, Checkbox } from '../../ui/Field.jsx';
-import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, SearchInput, Pill, EmptyState, IconTile } from '../../ui/display.jsx';
+import { paymentMethod } from '../../lib/look.js';
 import { Table, Th, Td, Tr, Pagination } from '../../ui/Table.jsx';
 import { money, dateTime, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
 
@@ -44,7 +45,7 @@ function VoidDialog({ sale, onClose, onVoided }) {
       onClose={onClose}
       title={`Cancel sale ${sale?.invoice_no || ''}`}
       description="Use this when the whole sale was a mistake or everything comes back. For some of the items, use Return instead."
-      id="modalVoidSale"
+      icon={Ban} id="modalVoidSale"
       size="sm"
     >
       <form id="voidForm" onSubmit={submit} className="contents">
@@ -133,7 +134,7 @@ function ReturnDialog({ saleId, onClose, onReturned }) {
       onClose={onClose}
       title={`Return items from ${sale?.invoice_no || ''}`}
       description="When a customer brings back some of what they bought."
-      id="modalReturnItems"
+      icon={Undo2} id="modalReturnItems"
       size="lg"
     >
       <form id="returnForm" onSubmit={submit} className="contents">
@@ -238,7 +239,7 @@ function SaleDetail({ saleId, refreshKey, onClose, onReturn, onVoid, onSellAgain
   const allReturned = returned && sale.returned_cents >= sale.total_cents;
 
   return (
-    <Modal open={Boolean(saleId)} onClose={onClose} title={sale ? `Sale ${sale.invoice_no}` : 'Sale'} id="modalSaleDetail" size="lg">
+    <Modal open={Boolean(saleId)} onClose={onClose} title={sale ? `Sale ${sale.invoice_no}` : 'Sale'} icon={ReceiptText} id="modalSaleDetail" size="lg">
       <ModalBody className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-5 bg-sunken">
         {sale && (
           <>
@@ -386,7 +387,7 @@ export function SalesView() {
         }
       />
       <input ref={fileRef} type="file" accept={PRESCRIPTION_FILE_TYPES} className="hidden" id="invoiceRxFileInput" onChange={attachRx} />
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {result && rows.length === 0 ? (
           <EmptyState icon={ReceiptText} title={query ? 'No sales match' : 'No sales yet'}>
             {query ? 'Check the invoice number or customer name.' : 'Every sale appears here as soon as it is completed.'}
@@ -424,7 +425,12 @@ export function SalesView() {
                       {s.customer_name}
                       {s.prescription_path && <span className="ml-2 text-sm font-semibold text-ink-3">· Rx photo</span>}
                     </Td>
-                    <Td muted>{METHOD_LABELS[s.payment_method] || s.payment_method}</Td>
+                    <Td>
+                      <span className="flex items-center gap-2.5 text-ink-2">
+                        <IconTile icon={paymentMethod(s.payment_method).icon} tone={paymentMethod(s.payment_method).tone} size="sm" />
+                        {METHOD_LABELS[s.payment_method] || s.payment_method}
+                      </span>
+                    </Td>
                     <Td num className={voided ? 'line-through' : 'font-semibold text-ink'}>
                       {money(s.total_cents)}
                     </Td>
@@ -469,7 +475,7 @@ export function SalesView() {
       />
       <VoidDialog sale={voiding} onClose={() => setVoiding(null)} onVoided={afterVoid} />
       <ReturnDialog saleId={returning} onClose={() => setReturning(null)} onReturned={afterVoid} />
-      <Modal open={Boolean(rx)} onClose={() => setRx(null)} title={`Prescription for ${rx?.invoiceNo || ''}`} id="modalPrescriptionViewer" size="lg">
+      <Modal open={Boolean(rx)} onClose={() => setRx(null)} title={`Prescription for ${rx?.invoiceNo || ''}`} icon={FileImage} id="modalPrescriptionViewer" size="lg">
         <ModalBody className="items-center bg-sunken">
           {rx && <img id="prescriptionImageElement" src={rx.dataUrl} alt={`Prescription for ${rx.invoiceNo}`} className="max-h-[60vh] max-w-full rounded-panel border border-foil" />}
         </ModalBody>

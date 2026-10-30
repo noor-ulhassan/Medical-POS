@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ClipboardList, ChartColumn, TriangleAlert } from 'lucide-react';
+import { RefreshCw, ClipboardList, ChartColumn, TriangleAlert, ShoppingCart, ReceiptText, NotebookPen, HandCoins, Banknote } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { Button } from '../../ui/Button.jsx';
-import { Page, PageHeader, Panel, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, Panel, EmptyState, IconTile } from '../../ui/display.jsx';
+import { paymentMethod } from '../../lib/look.js';
 import { Table, Th, Td, Tr, EmptyRow } from '../../ui/Table.jsx';
 import { money, plural } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
@@ -13,10 +14,19 @@ const METHOD_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wal
 /** A few typos a day are normal; this many suggests someone is guessing. */
 const WRONG_PIN_WARNING = 10;
 
-function Stat({ label, value, note, id, noteId, tone }) {
+function Stat({ label, value, note, id, noteId, tone, icon, iconTone }) {
   return (
     <div className="min-w-0 bg-surface px-6 py-5">
-      <div className="text-sm font-semibold text-ink-2">{label}</div>
+      <div className="flex items-center gap-2.5 text-sm font-semibold text-ink-2">
+        {tone === 'danger' ? (
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-red-soft text-red-ink" aria-hidden="true">
+            <TriangleAlert className="size-4" />
+          </span>
+        ) : (
+          <IconTile icon={icon} tone={iconTone} size="sm" />
+        )}
+        {label}
+      </div>
       <div id={id} className={cx('num mt-1.5 break-words text-2xl font-bold tracking-[-0.02em]', tone === 'danger' ? 'text-red-ink' : 'text-ink')}>
         {value}
       </div>
@@ -45,16 +55,18 @@ function TodayCash({ today }) {
           {rows.map((r) => {
             const m = by(r.method);
             return (
-              <div key={r.method} className="flex items-baseline justify-between py-2">
-                <dt className="text-ink-2">
+              <div key={r.method} className="flex items-center justify-between py-2">
+                <dt className="flex items-center gap-2.5 text-ink-2">
+                  <IconTile icon={paymentMethod(r.method).icon} tone={paymentMethod(r.method).tone} size="sm" />
                   {r.label} <span className="text-sm text-ink-3">({plural(m.count, 'sale')})</span>
                 </dt>
                 <dd className="num font-semibold text-ink">{money(m.total_cents)}</dd>
               </div>
             );
           })}
-          <div className="flex items-baseline justify-between py-2">
-            <dt className="text-ink-2">
+          <div className="flex items-center justify-between py-2">
+            <dt className="flex items-center gap-2.5 text-ink-2">
+              <IconTile icon={HandCoins} tone={4} size="sm" />
               Khata payments received
               {today.khataPaymentsCents !== today.khataCashPaymentsCents && (
                 <span className="text-sm text-ink-3"> ({money(today.khataCashPaymentsCents)} in cash)</span>
@@ -92,7 +104,12 @@ function TodayCash({ today }) {
           )}
         </dl>
         <div className="flex flex-col justify-center rounded-panel bg-teal-soft px-6 py-5 text-teal-ink">
-          <div className="text-base font-semibold">Cash that should be in the drawer</div>
+          <div className="flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-9 items-center justify-center rounded-control bg-teal text-teal-on" aria-hidden="true">
+              <Banknote className="size-5" />
+            </span>
+            Cash that should be in the drawer
+          </div>
           <div id="dashExpectedCash" className="num mt-1 text-3xl font-bold tracking-[-0.02em]">
             {money(today.expectedCashCents)}
           </div>
@@ -164,10 +181,10 @@ export function DashboardView() {
       />
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-foil bg-foil xl:grid-cols-4">
-        <Stat label="Today's sales" id="dashTodaySales" noteId="dashTodayInvoices" value={money(d?.todayRevenueCents)} note={d ? (d.todayInvoices ? plural(d.todayInvoices, 'sale') + ' today' : 'No sales yet today') : ' '} />
-        <Stat label="All-time sales" id="dashTotalSales" noteId="dashTotalInvoices" value={money(d?.totalRevenueCents)} note={d ? plural(d.totalInvoices, 'sale') : ' '} />
-        <Stat label="Owed on khata" id="dashCustomerDebt" value={money(d?.outstandingDebtCents)} note="Outstanding customer balances" />
-        <Stat label="Medicines needing attention" id="dashRiskAlerts" value={d ? d.riskCount : 0} note="Running low or expiring in 6 months" tone={d?.riskCount ? 'danger' : undefined} />
+        <Stat label="Today's sales" icon={ShoppingCart} iconTone={1} id="dashTodaySales" noteId="dashTodayInvoices" value={money(d?.todayRevenueCents)} note={d ? (d.todayInvoices ? plural(d.todayInvoices, 'sale') + ' today' : 'No sales yet today') : ' '} />
+        <Stat label="All-time sales" icon={ReceiptText} iconTone={2} id="dashTotalSales" noteId="dashTotalInvoices" value={money(d?.totalRevenueCents)} note={d ? plural(d.totalInvoices, 'sale') : ' '} />
+        <Stat label="Owed on khata" icon={NotebookPen} iconTone={4} id="dashCustomerDebt" value={money(d?.outstandingDebtCents)} note="Outstanding customer balances" />
+        <Stat label="Medicines needing attention" icon={TriangleAlert} iconTone={5} id="dashRiskAlerts" value={d ? d.riskCount : 0} note="Running low or expiring in 6 months" tone={d?.riskCount ? 'danger' : undefined} />
       </div>
 
       <BackupCopyWarning copy={d?.backupCopy} />

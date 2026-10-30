@@ -21,7 +21,10 @@ module.exports = {
         ink: { DEFAULT: token('ink'), 2: token('ink-2'), 3: token('ink-3') },
         teal: { DEFAULT: token('teal'), hover: token('teal-hover'), soft: token('teal-soft'), ink: token('teal-ink'), on: token('teal-on') },
         amber: { DEFAULT: token('amber'), soft: token('amber-soft'), ink: token('amber-ink') },
-        red: { DEFAULT: token('red'), hover: token('red-hover'), soft: token('red-soft'), ink: token('red-ink'), on: token('red-on') }
+        red: { DEFAULT: token('red'), hover: token('red-hover'), soft: token('red-soft'), ink: token('red-ink'), on: token('red-on') },
+        // The tone of the nearest data-tone element (see index.css).
+        accent: { DEFAULT: token('accent'), soft: token('accent-soft'), ink: token('accent-ink'), glow: token('accent-glow'), on: token('tone-on') },
+        rail: { DEFAULT: token('rail'), ink: token('rail-ink'), 'ink-2': token('rail-ink-2') }
       },
       fontFamily: {
         sans: ['"Atkinson Hyperlegible Next"', '"Segoe UI"', 'system-ui', 'sans-serif']
@@ -44,7 +47,9 @@ module.exports = {
       },
       boxShadow: {
         dialog: '0 24px 64px -12px rgb(var(--shadow) / 0.35), 0 0 0 1px rgb(var(--foil) / 1)',
-        pop: '0 8px 24px -6px rgb(var(--shadow) / 0.25)'
+        pop: '0 8px 24px -6px rgb(var(--shadow) / 0.25)',
+        // Lifts a white card off the tinted paper.
+        card: '0 1px 2px rgb(var(--shadow) / 0.06), 0 4px 12px -4px rgb(var(--shadow) / 0.10)'
       },
       keyframes: {
         'dialog-in': { from: { opacity: '0', transform: 'translateY(8px) scale(0.98)' }, to: { opacity: '1', transform: 'none' } },

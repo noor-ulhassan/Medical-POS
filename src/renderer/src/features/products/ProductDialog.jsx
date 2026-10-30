@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Pill } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
@@ -141,7 +141,7 @@ export function ProductDialog({ product, onClose }) {
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={isNew ? 'Add medicine' : 'Change medicine'} id="modalAddProduct" size="lg">
+      <Modal open={open} onClose={onClose} title={isNew ? 'Add medicine' : 'Change medicine'} icon={Pill} id="modalAddProduct" size="lg">
         <form id="addProductForm" onSubmit={submit} className="contents">
           <ModalBody className="gap-6">
             <Fieldset legend="Medicine">

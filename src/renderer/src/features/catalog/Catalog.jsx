@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Plus, Truck, Tag } from 'lucide-react';
+import { Plus, Truck, Tag, Building2 } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { Button } from '../../ui/Button.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
-import { Page, PageHeader, Panel, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, Panel, EmptyState, Avatar } from '../../ui/display.jsx';
+import { idTone, categoryTone } from '../../lib/look.js';
 import { Table, Th, Td, Tr } from '../../ui/Table.jsx';
 import { cx } from '../../ui/cx.js';
 
@@ -130,7 +131,12 @@ function SupplierTable({ supplier, maxHeight, showAddress = true, onEdit = suppl
       <tbody id={showAddress ? 'pageSuppliersTableBody' : 'suppliersListModalBody'}>
         {suppliers.map((s) => (
           <Tr key={s.id} className={cx(String(supplier.editingId) === String(s.id) && '!bg-teal-soft')}>
-            <Td className="font-semibold">{s.name}</Td>
+            <Td>
+              <span className="flex items-center gap-3 font-semibold">
+                <Avatar name={s.name} tone={idTone(s.id)} size="sm" />
+                {s.name}
+              </span>
+            </Td>
             <Td muted>{s.contact_person || '—'}</Td>
             <Td muted className="num">{s.phone || '—'}</Td>
             {showAddress && <Td muted>{s.address || '—'}</Td>}
@@ -160,7 +166,12 @@ function CategoryTable({ category, maxHeight, bodyId }) {
       <tbody id={bodyId}>
         {categories.map((c) => (
           <Tr key={c.id} className={cx(String(category.editingId) === String(c.id) && '!bg-teal-soft')}>
-            <Td className="font-semibold">{c.name}</Td>
+            <Td>
+              <span className="flex items-center gap-2.5 font-semibold" data-tone={categoryTone(c.id)}>
+                <span className="size-3 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                {c.name}
+              </span>
+            </Td>
             <Td className="w-[1%] text-right">
               <Button size="sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => category.startEdit(c)}>
                 Edit
@@ -219,7 +230,7 @@ export function SuppliersView() {
           setSupplierOpen(false);
         }}
         title={supplier.editing ? 'Change supplier' : 'Add supplier'}
-        id="modalSupplier"
+        icon={Building2} id="modalSupplier"
         size="md"
       >
         <ModalBody>{supplier.form}</ModalBody>
@@ -233,7 +244,7 @@ export function CatalogQuickDialog({ open, onClose }) {
   const supplier = useSupplierForm({ id: 'addSupplierForm', compact: true });
   const category = useCategoryForm({ id: 'addCategoryForm' });
   return (
-    <Modal open={open} onClose={onClose} title="Suppliers and categories" description="Anything you add here can be picked for the medicine straight away." id="modalManageSuppliers" size="lg">
+    <Modal open={open} onClose={onClose} title="Suppliers and categories" description="Anything you add here can be picked for the medicine straight away." icon={Building2} id="modalManageSuppliers" size="lg">
       <ModalBody className="gap-5">
         <section className="flex flex-col gap-3">
           {category.form}

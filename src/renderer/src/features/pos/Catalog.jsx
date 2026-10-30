@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, SearchX } from 'lucide-react';
+import { Search, SearchX, Plus, PackagePlus } from 'lucide-react';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { isAnyModalOpen } from '../../ui/Modal.jsx';
-import { RxPill, EmptyState } from '../../ui/display.jsx';
+import { RxPill, EmptyState, IconTile } from '../../ui/display.jsx';
+import { medicineIcon, categoryTone, stockLevel, STOCK_DOT } from '../../lib/look.js';
 import { money, isLowStock, isOutOfStock, expiryStatus, shortDate } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 
@@ -21,10 +22,14 @@ function stockWords(p) {
   return isLowStock(p) ? { text: `Only ${amount} left`, tone: 'text-amber-ink font-semibold' } : { text: `${amount} in stock`, tone: '' };
 }
 
-const chip = (on) =>
+const chip = (on, toned) =>
   cx(
-    'h-10 shrink-0 whitespace-nowrap rounded-full border px-4 text-base font-semibold transition-colors',
-    on ? 'border-ink bg-ink text-surface' : 'border-foil-strong bg-surface text-ink-2 hover:border-ink-3 hover:text-ink'
+    'flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-base font-semibold transition-colors',
+    on
+      ? toned
+        ? 'border-accent bg-accent text-accent-on'
+        : 'border-ink bg-ink text-surface'
+      : 'border-foil-strong bg-surface text-ink-2 hover:border-ink-3 hover:text-ink'
   );
 
 export function Catalog() {
@@ -202,17 +207,20 @@ export function Catalog() {
           >
             {[{ id: 'ALL', name: 'All' }, ...categories].map((c) => {
               const value = String(c.id);
+              const tone = c.id === 'ALL' ? undefined : categoryTone(c.id);
               return (
                 <button
                   key={value}
                   type="button"
+                  data-tone={tone}
                   aria-pressed={category === value}
                   onClick={() => {
                     setCategory(value);
                     setActive(-1);
                   }}
-                  className={chip(category === value)}
+                  className={chip(category === value, Boolean(tone))}
                 >
+                  {tone && <span className={cx('size-2.5 rounded-full', category === value ? 'bg-accent-on' : 'bg-accent')} aria-hidden="true" />}
                   {c.name}
                 </button>
               );
@@ -240,7 +248,7 @@ export function Catalog() {
         </div>
       )}
 
-      <div className="mx-5 mb-4 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-foil bg-surface shadow-sm">
+      <div className="mx-5 mb-4 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         <div ref={listRef} id="productGrid" role="listbox" aria-label="Products" className="min-h-0 flex-1 overflow-y-auto">
           {shown.length === 0 ? (
             <EmptyState icon={SearchX} title={products.length ? 'No medicine matches' : 'No medicines yet'}>
@@ -250,6 +258,7 @@ export function Catalog() {
             shown.map((p, index) => {
               const out = isOutOfStock(p);
               const stock = stockWords(p);
+              const level = stockLevel(p);
               const urgent = expiryStatus(p.expiry_date).level === 'urgent';
               return (
                 <div
@@ -268,6 +277,7 @@ export function Catalog() {
                     out && 'is-out'
                   )}
                 >
+                  <IconTile icon={medicineIcon(p.title)} tone={categoryTone(p.category_id)} className={cx(level !== 'ok' && level !== 'low' && 'opacity-50 grayscale')} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className={cx('truncate text-md font-bold', out ? 'text-ink-2' : 'text-ink')} title={p.title}>
@@ -275,10 +285,13 @@ export function Catalog() {
                       </span>
                       {p.is_prescription_required ? <RxPill /> : null}
                     </div>
-                    <div className="mt-0.5 truncate text-sm text-ink-2">
-                      {p.generic_name && `${p.generic_name} · `}
-                      <span className={stock.tone}>{stock.text}</span>
-                      {urgent && <span className="font-semibold text-red-ink"> · expires {shortDate(p.expiry_date)}</span>}
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-sm text-ink-2">
+                      <span className={cx('size-2 shrink-0 rounded-full', STOCK_DOT[level])} aria-hidden="true" />
+                      <span className="truncate">
+                        <span className={stock.tone}>{stock.text}</span>
+                        {urgent && <span className="font-semibold text-red-ink"> · expires {shortDate(p.expiry_date)}</span>}
+                        {p.generic_name && ` · ${p.generic_name}`}
+                      </span>
                     </div>
                   </div>
                   <div className="num shrink-0 text-right">
@@ -295,11 +308,12 @@ export function Catalog() {
                         type="button"
                         onClick={() => addByClick(p, 'PACK')}
                         className={cx(
-                          'h-11 rounded-control border px-4 text-base font-semibold',
+                          'flex h-11 items-center gap-1.5 rounded-control border px-3.5 text-base font-semibold',
                           out ? 'border-foil bg-sunken text-ink-3' : 'border-foil-strong bg-surface text-ink hover:border-teal hover:text-teal-ink'
                         )}
                         title={`Add one pack of ${p.pack_size} (${money(p.sale_price_cents)})`}
                       >
+                        <PackagePlus className="size-[18px]" aria-hidden="true" />
                         Pack
                       </button>
                     )}
@@ -307,11 +321,12 @@ export function Catalog() {
                       type="button"
                       onClick={() => addByClick(p, 'SINGLE')}
                       className={cx(
-                        'h-11 rounded-control px-5 text-base font-bold',
+                        'flex h-11 items-center gap-1.5 rounded-control pl-3.5 pr-4 text-base font-bold',
                         out ? 'bg-sunken text-ink-3' : 'bg-teal text-teal-on hover:bg-teal-hover'
                       )}
                       title={p.pack_size > 1 ? `Add one unit (${money(p.single_price_cents)})` : `Add one (${money(p.single_price_cents)})`}
                     >
+                      <Plus className="size-[18px]" strokeWidth={2.5} aria-hidden="true" />
                       Add
                     </button>
                   </div>

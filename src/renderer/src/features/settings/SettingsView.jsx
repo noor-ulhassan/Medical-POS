@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Download, Upload, Folder, RefreshCw, TriangleAlert } from 'lucide-react';
+import { Plus, Download, Upload, Folder, RefreshCw, TriangleAlert, UserRound, Store, Users, DatabaseBackup, History, Monitor } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useToast } from '../../ui/Toast.jsx';
@@ -60,7 +60,7 @@ function StoreTab() {
   });
 
   return (
-    <form id="settingsForm" onSubmit={submit} className="max-w-[880px] rounded-panel border border-foil bg-surface">
+    <form id="settingsForm" onSubmit={submit} className="max-w-[880px] rounded-panel border border-foil bg-surface shadow-card">
       <div className="flex flex-col gap-6 p-6">
         <Fieldset legend="Shown on receipts">
           <div className="grid grid-cols-2 gap-4">
@@ -158,7 +158,7 @@ function UserDialog({ state, onClose, onSaved }) {
 
   const title = mode === 'create' ? 'Add staff member' : mode === 'pin' ? `Reset PIN for ${user?.name}` : `Edit ${user?.name || ''}`;
   return (
-    <Modal open={Boolean(state)} onClose={onClose} title={title} id="modalUser" size="sm">
+    <Modal open={Boolean(state)} onClose={onClose} title={title} icon={UserRound} id="modalUser" size="sm">
       <form id="userForm" onSubmit={submit} className="contents">
         <ModalBody>
           {mode !== 'pin' && (
@@ -620,11 +620,11 @@ export function SettingsView() {
   }, [guard, loadSettings]);
 
   const tabs = [
-    { value: 'store', label: 'Store details' },
-    can('users.manage') && { value: 'staff', label: 'Staff and PINs' },
-    can('backup.manage') && { value: 'backup', label: 'Backup and restore' },
-    can('users.manage') && { value: 'activity', label: 'Activity log' },
-    { value: 'computer', label: 'This computer' }
+    { value: 'store', label: 'Store details', icon: Store },
+    can('users.manage') && { value: 'staff', label: 'Staff and PINs', icon: Users },
+    can('backup.manage') && { value: 'backup', label: 'Backup and restore', icon: DatabaseBackup },
+    can('users.manage') && { value: 'activity', label: 'Activity log', icon: History },
+    { value: 'computer', label: 'This computer', icon: Monitor }
   ].filter(Boolean);
 
   return (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FolderOpen } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useCart } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
@@ -64,7 +65,7 @@ export function PosView() {
       <Catalog />
       <Cart onCheckout={openCheckout} onHold={hold} onShowHeld={showHeld} />
 
-      <Modal open={Boolean(held)} onClose={() => setHeld(null)} title="Held sales" description="Pick up where you left off." id="modalParkedTabs" size="sm">
+      <Modal open={Boolean(held)} onClose={() => setHeld(null)} title="Held sales" description="Pick up where you left off." icon={FolderOpen} id="modalParkedTabs" size="sm">
         <ModalBody className="gap-2">
           <div id="parkedList" className="flex flex-col gap-2">
             {held?.map((p) => (

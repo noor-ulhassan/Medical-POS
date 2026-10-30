@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, KeyRound } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useToast } from '../../ui/Toast.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
@@ -32,7 +32,7 @@ export function ChangePinDialog({ open, forced, onClose, onChanged, onLock }) {
   const pinProps = { type: 'password', inputMode: 'numeric', autoComplete: 'off', maxLength: 6, required: true };
 
   return (
-    <Modal open={open} onClose={onClose} locked={forced} title="Change your PIN" id="modalChangePin" size="sm">
+    <Modal open={open} onClose={onClose} locked={forced} title="Change your PIN" icon={KeyRound} id="modalChangePin" size="sm">
       <form id="changePinForm" onSubmit={submit} className="contents">
         <ModalBody>
           {forced && (

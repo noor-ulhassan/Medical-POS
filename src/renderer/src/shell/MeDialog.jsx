@@ -1,4 +1,4 @@
-import { KeyRound, Lock, Moon, Sun, Type } from 'lucide-react';
+import { KeyRound, Lock, Moon, Sun, Type, UserRound } from 'lucide-react';
 import { useApp } from '../state/AppState.jsx';
 import { TEXT_SIZES } from '../lib/prefs.js';
 import { Modal, ModalBody } from '../ui/Modal.jsx';
@@ -26,7 +26,7 @@ export function MeDialog({ open, onClose, theme, onToggleTheme, textSize, onCycl
   );
   const next = TEXT_SIZES[(index + 1) % TEXT_SIZES.length];
   return (
-    <Modal open={open} onClose={onClose} title={user ? user.name : ''} description={user ? `${user.role} on this till` : ''} id="modalMe" size="sm">
+    <Modal open={open} onClose={onClose} title={user ? user.name : ''} description={user ? `${user.role} on this till` : ''} icon={UserRound} id="modalMe" size="sm">
       <ModalBody className="gap-2.5">
         <Choice icon={KeyRound} title="Change my PIN" onClick={onChangePin} />
         <Choice

@@ -75,7 +75,7 @@ export function QuotationView() {
           </Button>
         }
       />
-      <div className="grid grid-cols-[2fr_1.2fr_1fr] gap-4 rounded-panel border border-foil bg-surface p-5">
+      <div className="grid grid-cols-[2fr_1.2fr_1fr] gap-4 rounded-panel border border-foil bg-surface shadow-card p-5">
         <Field label="Prepared for">
           <Input id="quoteCustomerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. City General Clinic" />
         </Field>
@@ -86,7 +86,7 @@ export function QuotationView() {
           <Input id="quoteValidDays" numeric type="number" min={1} max={365} value={validDays} onChange={(e) => setValidDays(e.target.value)} />
         </Field>
       </div>
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         <Table>
           <thead>
             <tr>

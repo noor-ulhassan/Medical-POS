@@ -14,10 +14,17 @@
  *   red    expired, out of stock, destructive
  */
 @layer base {
+  /*
+   * Layers, back to front: the side rail (dark), the paper canvas (tinted), surface cards
+   * (white), sunken wells inside cards. Each part of the screen sits on its own layer.
+   */
   :root {
-    --paper: 246 248 247;
+    --paper: 232 238 242;
     --surface: 255 255 255;
-    --sunken: 239 243 241;
+    --sunken: 241 245 247;
+    --rail: 17 40 46;
+    --rail-ink: 236 244 245;
+    --rail-ink-2: 160 182 186;
     --foil: 220 227 224;
     --foil-strong: 197 207 203;
     --ink: 21 35 31;
@@ -38,6 +45,36 @@
     --red-on: 255 255 255;
     --shadow: 16 32 28;
     color-scheme: light;
+    /*
+     * Six tones that tell things apart: each section of the app, each medicine category,
+     * each way of paying. solid = filled tile, soft = tinted background, ink = text on soft,
+     * glow = icon on the dark rail.
+     */
+    --tone-1: 11 110 95;
+    --tone-1-soft: 222 242 236;
+    --tone-1-ink: 9 88 76;
+    --tone-1-glow: 127 214 195;
+    --tone-2: 37 99 200;
+    --tone-2-soft: 226 236 252;
+    --tone-2-ink: 30 80 170;
+    --tone-2-glow: 160 192 250;
+    --tone-3: 112 72 200;
+    --tone-3-soft: 238 232 252;
+    --tone-3-ink: 92 56 170;
+    --tone-3-glow: 196 178 250;
+    --tone-4: 184 50 120;
+    --tone-4-soft: 251 230 241;
+    --tone-4-ink: 150 36 98;
+    --tone-4-glow: 245 165 205;
+    --tone-5: 190 88 20;
+    --tone-5-soft: 253 236 222;
+    --tone-5-ink: 150 66 10;
+    --tone-5-glow: 248 190 140;
+    --tone-6: 14 125 152;
+    --tone-6-soft: 222 243 248;
+    --tone-6-ink: 10 100 124;
+    --tone-6-glow: 140 220 235;
+    --tone-on: 255 255 255;
     /* Chart series (validated for colour-blind separation on this surface):
        1 net sales, 2 gross profit, 3 net profit, 4 expenses. */
     --chart-1: #2a78d6;
@@ -47,9 +84,31 @@
   }
 
   [data-theme='dark'] {
-    --paper: 13 20 18;
-    --surface: 20 30 27;
-    --sunken: 16 25 22;
+    --paper: 11 17 19;
+    --surface: 21 31 33;
+    --sunken: 16 24 26;
+    --rail: 6 10 12;
+    --rail-ink: 228 238 240;
+    --rail-ink-2: 140 160 164;
+    --tone-1: 63 180 156;
+    --tone-1-soft: 22 52 46;
+    --tone-1-ink: 127 214 195;
+    --tone-2: 96 150 240;
+    --tone-2-soft: 24 38 66;
+    --tone-2-ink: 160 192 250;
+    --tone-3: 160 130 240;
+    --tone-3-soft: 40 30 70;
+    --tone-3-ink: 196 178 250;
+    --tone-4: 230 110 170;
+    --tone-4-soft: 62 24 44;
+    --tone-4-ink: 245 165 205;
+    --tone-5: 236 140 70;
+    --tone-5-soft: 62 36 16;
+    --tone-5-ink: 248 190 140;
+    --tone-6: 70 190 215;
+    --tone-6-soft: 16 50 60;
+    --tone-6-ink: 140 220 235;
+    --tone-on: 8 16 18;
     --foil: 38 52 47;
     --foil-strong: 54 70 64;
     --ink: 228 238 234;
@@ -74,6 +133,48 @@
     --chart-2: #199e70;
     --chart-3: #d95926;
     --chart-4: #9085e9;
+  }
+
+  /*
+   * `data-tone="1".."6"` picks one of the six tones for an element and everything inside it
+   * (the `accent` colours). The root carries the current section's tone, so dialogs match it.
+   */
+  :root,
+  [data-tone='1'] {
+    --accent: var(--tone-1);
+    --accent-soft: var(--tone-1-soft);
+    --accent-ink: var(--tone-1-ink);
+    --accent-glow: var(--tone-1-glow);
+  }
+  [data-tone='2'] {
+    --accent: var(--tone-2);
+    --accent-soft: var(--tone-2-soft);
+    --accent-ink: var(--tone-2-ink);
+    --accent-glow: var(--tone-2-glow);
+  }
+  [data-tone='3'] {
+    --accent: var(--tone-3);
+    --accent-soft: var(--tone-3-soft);
+    --accent-ink: var(--tone-3-ink);
+    --accent-glow: var(--tone-3-glow);
+  }
+  [data-tone='4'] {
+    --accent: var(--tone-4);
+    --accent-soft: var(--tone-4-soft);
+    --accent-ink: var(--tone-4-ink);
+    --accent-glow: var(--tone-4-glow);
+  }
+  [data-tone='5'] {
+    --accent: var(--tone-5);
+    --accent-soft: var(--tone-5-soft);
+    --accent-ink: var(--tone-5-ink);
+    --accent-glow: var(--tone-5-glow);
+  }
+  [data-tone='6'] {
+    --accent: var(--tone-6);
+    --accent-soft: var(--tone-6-soft);
+    --accent-ink: var(--tone-6-ink);
+    --accent-glow: var(--tone-6-glow);
   }
 
   html,

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, ReceiptText, FileText } from 'lucide-react';
 import { call } from '../lib/api.js';
 import { money, dateTime, shortDate } from '../lib/format.js';
 import { useApp } from '../state/AppState.jsx';
@@ -62,7 +62,7 @@ export function DocumentsProvider({ children }) {
   return (
     <DocumentsContext.Provider value={{ showReceipt, showDocument, print }}>
       {children}
-      <Modal open={Boolean(receipt)} onClose={() => setReceipt(null)} title="Receipt" id="modalReceiptPreview" size="receipt">
+      <Modal open={Boolean(receipt)} onClose={() => setReceipt(null)} title="Receipt" icon={ReceiptText} id="modalReceiptPreview" size="receipt">
         <ModalBody className="items-center bg-sunken">{receipt && <Receipt sale={receipt} />}</ModalBody>
         <ModalFooter>
           <Button onClick={() => setReceipt(null)}>Done</Button>
@@ -71,7 +71,7 @@ export function DocumentsProvider({ children }) {
           </Button>
         </ModalFooter>
       </Modal>
-      <Modal open={Boolean(doc)} onClose={() => setDoc(null)} title={doc?.title} id="modalA4Preview" size="xl">
+      <Modal open={Boolean(doc)} onClose={() => setDoc(null)} title={doc?.title} icon={FileText} id="modalA4Preview" size="xl">
         <ModalBody className="bg-sunken">
           <div className="printable-area mx-auto w-full max-w-[794px] bg-white p-10 text-[13px] leading-normal text-black shadow-sm ring-1 ring-black/5">
             {doc?.content}

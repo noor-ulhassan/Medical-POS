@@ -8,7 +8,8 @@ import { useDocuments, StockHistory } from '../../print/Documents.jsx';
 import { Button, ActionButton } from '../../ui/Button.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
 import { Field, Input } from '../../ui/Field.jsx';
-import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState, Fact } from '../../ui/display.jsx';
+import { Page, PageHeader, Segmented, SearchInput, ExpiryPill, Pill, RxPill, EmptyState, Fact, IconTile, Meter } from '../../ui/display.jsx';
+import { medicineIcon, categoryTone, stockFill } from '../../lib/look.js';
 import { Table, Th, Td, Tr, Pagination, paginate } from '../../ui/Table.jsx';
 import { money, isLowStock, isOutOfStock, splitUnits, toCents, centsToInput, shortDate } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
@@ -74,7 +75,7 @@ function ReceiveStockDialog({ product, onClose }) {
   });
 
   return (
-    <Modal open={Boolean(product)} onClose={onClose} title="Receive stock" description={product ? product.title : ''} id="modalReceiveStock" size="sm">
+    <Modal open={Boolean(product)} onClose={onClose} title="Receive stock" description={product ? product.title : ''} icon={PackagePlus} id="modalReceiveStock" size="sm">
       <form id="receiveStockForm" onSubmit={submit} className="contents">
         {product && (
           <ModalBody>
@@ -121,10 +122,15 @@ function MedicineDetail({ product, onClose, onReceive, onEdit, onHistory, onRemo
   const out = product && isOutOfStock(product);
   const low = product && !out && isLowStock(product);
   return (
-    <Modal open={Boolean(product)} onClose={onClose} title={product ? product.title : ''} description={product?.generic_name || undefined} id="modalMedicine" size="lg">
+    <Modal
+      open={Boolean(product)}
+      onClose={onClose}
+      icon={product ? medicineIcon(product.title) : undefined}
+      tone={product ? categoryTone(product.category_id) : undefined}
+      title={product ? product.title : ''} description={product?.generic_name || undefined} id="modalMedicine" size="lg">
       {product && (
         <ModalBody className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-5 bg-sunken">
-          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface p-5">
+          <dl className="grid grid-cols-2 gap-4 rounded-panel border border-foil bg-surface shadow-card p-5">
             <Fact label="In stock">
               {out ? <Pill tone="red">Out of stock</Pill> : <span className={cx('num', low && 'text-amber-ink')}>{stockText(product.stock_units, product.pack_size)}</span>}
               {low && <span className="block text-sm font-normal text-amber-ink">Running low</span>}
@@ -200,13 +206,13 @@ export function ProductsView() {
     const product = productById(id);
     const ok = await confirm({
       title: `Remove ${product.title}?`,
-      message: 'Products with past sales are archived instead, so reports and voids keep working.',
-      confirmText: 'Remove product',
+      message: 'It leaves the medicine list and the till. A medicine that was sold before is kept out of sight instead of deleted, so past sales, returns and reports stay correct.',
+      confirmText: 'Remove medicine',
       danger: true
     });
     if (!ok) return;
     const { mode } = await call('products.remove', { id });
-    toast(mode === 'archived' ? `${product.title} archived` : `${product.title} removed`);
+    toast(mode === 'archived' ? `${product.title} removed from the list (kept for past sales)` : `${product.title} removed`);
     await loadProducts();
     refreshAlerts();
   });
@@ -254,7 +260,7 @@ export function ProductsView() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-panel border border-foil bg-surface">
+      <div className="overflow-hidden rounded-panel border border-foil bg-surface shadow-card">
         {view.rows.length === 0 ? (
           <EmptyState icon={PackageOpen} title={products.length ? 'No products match' : 'No products yet'}>
             {products.length ? 'Try a different search or filter.' : 'Add your first product to start selling.'}
@@ -277,13 +283,18 @@ export function ProductsView() {
                 return (
                   <Tr key={p.id} tone={out ? 'danger' : low ? 'warn' : undefined} data-open-product={p.id} onOpen={() => setOpenId(p.id)}>
                     <Td className="min-w-[260px]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-ink">{p.title}</span>
-                        {p.is_prescription_required ? <RxPill /> : null}
+                      <div className="flex items-center gap-3">
+                        <IconTile icon={medicineIcon(p.title)} tone={categoryTone(p.category_id)} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-ink">{p.title}</span>
+                            {p.is_prescription_required ? <RxPill /> : null}
+                          </div>
+                          {(p.generic_name || p.category_name) && (
+                            <div className="mt-0.5 truncate text-sm text-ink-3">{[p.generic_name, p.category_name].filter(Boolean).join(' · ')}</div>
+                          )}
+                        </div>
                       </div>
-                      {(p.generic_name || p.category_name) && (
-                        <div className="mt-0.5 truncate text-sm text-ink-3">{[p.generic_name, p.category_name].filter(Boolean).join(' · ')}</div>
-                      )}
                     </Td>
                     <Td className="whitespace-nowrap">
                       {out ? (
@@ -291,7 +302,8 @@ export function ProductsView() {
                       ) : (
                         <>
                           <div className={cx('num font-semibold', low && 'text-amber-ink')}>{stockText(p.stock_units, p.pack_size)}</div>
-                          {low && <div className="text-sm text-amber-ink">Running low</div>}
+                          <Meter value={stockFill(p)} tone={low ? 'amber' : 'teal'} label="How full the shelf is" className="mt-1.5 w-28" />
+                          {low && <div className="mt-1 text-sm text-amber-ink">Running low</div>}
                         </>
                       )}
                     </Td>

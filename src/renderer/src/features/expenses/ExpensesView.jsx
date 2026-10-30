@@ -7,9 +7,10 @@ import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
 import { Field, Input, Select, Checkbox } from '../../ui/Field.jsx';
-import { Page, PageHeader, Panel, Pill, EmptyState } from '../../ui/display.jsx';
+import { Page, PageHeader, Panel, Pill, EmptyState, IconTile } from '../../ui/display.jsx';
 import { Table, Th, Td, Tr } from '../../ui/Table.jsx';
 import { money, toCents, shortDate, plural } from '../../lib/format.js';
+import { expenseLook } from '../../lib/look.js';
 
 const { EXPENSE_CATEGORIES, expenseCategoryLabel } = expensesShared;
 
@@ -203,7 +204,12 @@ export function ExpensesView() {
                 {(rows || []).map((r) => (
                   <Tr key={r.id}>
                     <Td className="num whitespace-nowrap">{shortDate(r.expense_date)}</Td>
-                    <Td className="min-w-[150px] font-semibold text-ink">{expenseCategoryLabel(r.category)}</Td>
+                    <Td className="min-w-[150px] font-semibold text-ink">
+                      <span className="flex items-center gap-2.5">
+                        <IconTile icon={expenseLook(r.category).icon} tone={expenseLook(r.category).tone} size="sm" />
+                        {expenseCategoryLabel(r.category)}
+                      </span>
+                    </Td>
                     <Td muted className="min-w-[180px] max-w-[320px] break-words">
                       {r.note || '—'}
                       <div className="text-xs text-ink-3">by {r.user_name}</div>

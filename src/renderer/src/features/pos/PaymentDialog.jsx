@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Banknote, CreditCard, Smartphone, NotebookPen, Check, CircleAlert } from 'lucide-react';
+import { Banknote, Check, CircleAlert } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart, WALK_IN_ID } from '../../state/Cart.jsx';
@@ -11,13 +11,9 @@ import { Button } from '../../ui/Button.jsx';
 import { money, toCents, centsToInput } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 import { readPrefs } from '../../lib/prefs.js';
+import { PAYMENT_METHODS as METHODS } from '../../lib/look.js';
 
-const METHODS = [
-  { value: 'CASH', label: 'Cash', icon: Banknote },
-  { value: 'CARD', label: 'Card', icon: CreditCard },
-  { value: 'MOBILE WALLET', label: 'Mobile wallet', icon: Smartphone },
-  { value: 'CREDIT', label: 'Khata', icon: NotebookPen }
-];
+
 
 const NOTES = [10, 20, 50, 100, 500, 1000, 5000];
 
@@ -124,7 +120,7 @@ export function PaymentDialog() {
   const balanceAfter = customer ? customer.current_debt_cents + total : 0;
 
   return (
-    <Modal open={open} onClose={() => cart.setPaymentOpen(false)} title="Take payment" id="modalCheckoutPayment" size="md">
+    <Modal open={open} onClose={() => cart.setPaymentOpen(false)} title="Take payment" icon={Banknote} id="modalCheckoutPayment" size="md">
       <form
         id="checkoutPaymentForm"
         className="contents"
@@ -150,14 +146,18 @@ export function PaymentDialog() {
                 return (
                   <label
                     key={m.value}
+                    data-tone={m.tone}
                     className={cx(
-                      'flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-panel border text-sm font-semibold transition-colors',
-                      on ? 'border-teal bg-teal-soft text-teal-ink ring-1 ring-teal' : 'border-foil-strong text-ink-2 hover:border-ink-3 hover:text-ink'
+                      'relative flex h-[84px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-panel border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-accent/40',
+                      on ? 'border-accent bg-accent-soft text-accent-ink' : 'border-foil text-ink-2 hover:border-accent/50 hover:bg-accent-soft/50'
                     )}
                   >
                     <input type="radio" name="paymentMethod" value={m.value} checked={on} onChange={() => setMethod(m.value)} className="sr-only" />
-                    <Icon className="size-5" aria-hidden="true" />
+                    <span className={cx('flex size-9 items-center justify-center rounded-full', on ? 'bg-accent text-accent-on' : 'bg-accent-soft text-accent-ink')}>
+                      <Icon className="size-5" aria-hidden="true" />
+                    </span>
                     {m.label}
+                    {on && <Check className="absolute right-2 top-2 size-4 text-accent" strokeWidth={3} aria-hidden="true" />}
                   </label>
                 );
               })}
