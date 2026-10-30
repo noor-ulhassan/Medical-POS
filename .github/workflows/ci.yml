@@ -11,7 +11,9 @@ permissions:
 jobs:
   check:
     name: Lint, unit tests, UI smoke test
-    runs-on: windows-latest
+    # Not windows-latest: on the windows-2025 image from 2026-10-21, Electron 22's GPU
+    # process crashes at launch ("GPU process isn't usable") before the smoke test runs.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
