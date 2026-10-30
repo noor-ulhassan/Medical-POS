@@ -89,7 +89,7 @@
     await waitFor('cart line', () => document.querySelectorAll('#cartItemsList .cart-item').length === 1);
     button('#cartItemsList .cart-item', 'Pack').click();
     await waitFor('pack line', () => text('#cartItemsList').includes('per pack'));
-    button(`#productGrid [data-product-id="${row.dataset.productId}"]`, 'Unit').click();
+    button(`#productGrid [data-product-id="${row.dataset.productId}"]`, 'Add').click();
     await waitFor('two lines', () => document.querySelectorAll('#cartItemsList .cart-item').length === 2);
     if (text('#summaryTotal') === 'Rs 0.00') throw new Error('total did not update');
   });

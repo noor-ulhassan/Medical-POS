@@ -223,6 +223,7 @@ export function App() {
           e.preventDefault();
           if (isAnyModalOpen()) return;
           go('posView');
+          cart.setDiscountOpen(true);
           focusLater('cartDiscountInput');
           return;
         case 'F4':

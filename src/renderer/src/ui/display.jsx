@@ -159,7 +159,3 @@ export function Tabs({ tabs, value, onChange }) {
     </div>
   );
 }
-
-export function Kbd({ children }) {
-  return <kbd>{children}</kbd>;
-}
