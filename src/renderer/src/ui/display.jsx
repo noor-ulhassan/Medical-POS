@@ -74,8 +74,8 @@ export function Page({ id, children }) {
 /** Search box used in page toolbars. */
 export function SearchInput({ id, value, onChange, placeholder, icon: Icon, className }) {
   return (
-    <label className={cx('flex h-9 min-w-[280px] items-center gap-2 rounded-control border border-foil-strong bg-surface px-3 transition-colors focus-within:border-teal focus-within:ring-2 focus-within:ring-teal/25', className)}>
-      {Icon && <Icon className="size-4 shrink-0 text-ink-3" aria-hidden="true" />}
+    <label className={cx('flex h-11 min-w-[300px] items-center gap-2.5 rounded-control border border-foil-strong bg-surface px-3.5 transition-colors focus-within:border-teal focus-within:ring-2 focus-within:ring-teal/25', className)}>
+      {Icon && <Icon className="size-5 shrink-0 text-ink-3" aria-hidden="true" />}
       <input
         id={id}
         type="search"

@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, Printer, RotateCcw, Ban, Eye, Camera, RefreshCw, ReceiptText, Info, Undo2 } from 'lucide-react';
+import { Search, Printer, RotateCcw, Ban, Eye, Camera, ReceiptText, Info, Undo2 } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
-import { useDocuments } from '../../print/Documents.jsx';
+import { useDocuments, Receipt } from '../../print/Documents.jsx';
 import { Modal, ModalBody, ModalFooter } from '../../ui/Modal.jsx';
-import { Button, IconButton } from '../../ui/Button.jsx';
+import { Button } from '../../ui/Button.jsx';
 import { Field, Textarea, Checkbox } from '../../ui/Field.jsx';
 import { Page, PageHeader, SearchInput, Pill, EmptyState } from '../../ui/display.jsx';
-import { Table, Th, Td, Tr, RowActions, Pagination } from '../../ui/Table.jsx';
+import { Table, Th, Td, Tr, Pagination } from '../../ui/Table.jsx';
 import { money, dateTime, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
+import { cx } from '../../ui/cx.js';
 
 const PAGE_SIZE = 25;
 const METHOD_LABELS = { CASH: 'Cash', CARD: 'Card', 'MOBILE WALLET': 'Mobile wallet', CREDIT: 'Khata' };
@@ -221,18 +222,110 @@ function ReturnDialog({ saleId, onClose, onReturned }) {
   );
 }
 
+function DetailAction({ icon: Icon, tone = 'default', children, ...props }) {
+  return (
+    <button
+      type="button"
+      className={cx(
+        'flex h-12 w-full items-center gap-3 rounded-control px-4 text-left text-base font-semibold transition-colors',
+        tone === 'primary' && 'bg-teal text-teal-on hover:bg-teal-hover',
+        tone === 'danger' && 'text-red-ink ring-1 ring-red/30 hover:bg-red-soft',
+        tone === 'default' && 'bg-sunken text-ink hover:bg-foil'
+      )}
+      {...props}
+    >
+      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      {children}
+    </button>
+  );
+}
+
+/** One past sale: its receipt next to everything that can be done with it. */
+function SaleDetail({ saleId, refreshKey, onClose, onReturn, onVoid, onSellAgain, onViewRx, onAttachRx }) {
+  const { can } = useApp();
+  const { guard } = useToast();
+  const { print } = useDocuments();
+  const [sale, setSale] = useState(null);
+
+  useEffect(() => {
+    setSale(null);
+    if (saleId) guard(async () => setSale(await call('sales.get', { id: saleId })))();
+  }, [saleId, refreshKey, guard]);
+
+  const voided = sale?.status === 'VOIDED';
+  const returned = sale ? sale.returned_cents > 0 : false;
+  const allReturned = returned && sale.returned_cents >= sale.total_cents;
+
+  return (
+    <Modal open={Boolean(saleId)} onClose={onClose} title={sale ? `Sale ${sale.invoice_no}` : 'Sale'} id="modalSaleDetail" size="lg">
+      <ModalBody className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-5 bg-sunken">
+        {sale && (
+          <>
+            <Receipt sale={sale} />
+            <div className="flex flex-col gap-2.5">
+              <div className="mb-1">
+                {voided ? (
+                  <Pill tone="red">Cancelled{sale.void ? ` by ${sale.void.user_name}` : ''}</Pill>
+                ) : returned ? (
+                  <Pill tone="amber">{allReturned ? 'All items returned' : `${money(sale.returned_cents)} given back`}</Pill>
+                ) : (
+                  <Pill tone="teal">Completed</Pill>
+                )}
+                {voided && sale.void && <p className="mt-1.5 text-sm text-ink-2">Reason: {sale.void.reason}</p>}
+              </div>
+              <DetailAction icon={Printer} tone="primary" data-reprint={sale.id} onClick={print}>
+                Print receipt
+              </DetailAction>
+              {can('pos.sell') && (
+                <DetailAction icon={RotateCcw} data-reorder={sale.id} onClick={() => onSellAgain(sale.id)}>
+                  Sell these again
+                </DetailAction>
+              )}
+              {sale.prescription_path ? (
+                <>
+                  <DetailAction icon={Eye} data-rx-view={sale.id} onClick={() => onViewRx(sale.id)}>
+                    See prescription photo
+                  </DetailAction>
+                  <DetailAction icon={Camera} data-rx-attach={sale.id} onClick={() => onAttachRx(sale.id)}>
+                    Replace prescription photo
+                  </DetailAction>
+                </>
+              ) : (
+                <DetailAction icon={Camera} data-rx-attach={sale.id} onClick={() => onAttachRx(sale.id)}>
+                  Add prescription photo
+                </DetailAction>
+              )}
+              {!voided && !allReturned && can('sales.void') && (
+                <DetailAction icon={Undo2} data-return={sale.id} onClick={() => onReturn(sale.id)}>
+                  Customer returns items
+                </DetailAction>
+              )}
+              {!voided && !returned && can('sales.void') && (
+                <DetailAction icon={Ban} tone="danger" data-void={sale.id} onClick={() => onVoid(sale)}>
+                  Cancel the whole sale
+                </DetailAction>
+              )}
+            </div>
+          </>
+        )}
+      </ModalBody>
+    </Modal>
+  );
+}
+
 export function SalesView() {
-  const { can, go, loadProducts, loadCustomers, refreshAlerts } = useApp();
+  const { go, loadProducts, loadCustomers, refreshAlerts } = useApp();
   const cart = useCart();
   const { toast, guard } = useToast();
   const confirm = useConfirm();
-  const { showReceipt } = useDocuments();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [voiding, setVoiding] = useState(null);
   const [returning, setReturning] = useState(null); // sale id
+  const [openSale, setOpenSale] = useState(null); // sale id shown in the sale window
+  const [detailVersion, setDetailVersion] = useState(0);
   const [rx, setRx] = useState(null);
   const fileRef = useRef(null);
   const rxTarget = useRef(null);
@@ -257,8 +350,6 @@ export function SalesView() {
   useEffect(() => {
     load();
   }, [load]);
-
-  const reprint = guard(async (id) => showReceipt(await call('sales.get', { id })));
 
   const sellAgain = guard(async (id) => {
     if (
@@ -289,7 +380,8 @@ export function SalesView() {
     if (!file || !rxTarget.current) return;
     await call('sales.attachPrescription', { id: rxTarget.current, fileName: file.name, base64Data: await readFileAsBase64(file) });
     rxTarget.current = null;
-    toast('Prescription attached');
+    toast('Prescription photo added');
+    setDetailVersion((n) => n + 1);
     await load();
   });
 
@@ -299,27 +391,34 @@ export function SalesView() {
   };
 
   const rows = result?.rows || [];
+  const attachFor = (id) => {
+    rxTarget.current = id;
+    fileRef.current?.click();
+  };
   return (
     <Page id="salesView">
-      <PageHeader title="Sales history" description="Every sale made on this computer. Reprint a receipt, attach a prescription, take back returned items, or cancel a sale made by mistake." actions={<Button icon={RefreshCw} onClick={load}>Refresh</Button>} />
-      <SearchInput id="salesSearchInput" icon={Search} value={search} onChange={setSearch} placeholder="Search by invoice number or customer" className="w-[360px]" />
+      <PageHeader
+        title="Past sales"
+        description="Tap a sale to see its receipt, print it, take items back or cancel it."
+        actions={
+          <SearchInput id="salesSearchInput" icon={Search} value={search} onChange={setSearch} placeholder="Invoice number or customer" className="w-[340px]" />
+        }
+      />
       <input ref={fileRef} type="file" accept={PRESCRIPTION_FILE_TYPES} className="hidden" id="invoiceRxFileInput" onChange={attachRx} />
       <div className="overflow-hidden rounded-panel border border-foil bg-surface">
         {result && rows.length === 0 ? (
           <EmptyState icon={ReceiptText} title={query ? 'No sales match' : 'No sales yet'}>
-            {query ? 'Check the invoice number or customer name.' : 'Completed sales appear here.'}
+            {query ? 'Check the invoice number or customer name.' : 'Every sale appears here as soon as it is completed.'}
           </EmptyState>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Invoice</Th>
+                <Th>Sale</Th>
                 <Th>Customer</Th>
                 <Th>Paid by</Th>
                 <Th num>Total</Th>
                 <Th>Status</Th>
-                <Th>Prescription</Th>
-                <Th />
               </tr>
             </thead>
             <tbody id="salesTableBody">
@@ -328,14 +427,30 @@ export function SalesView() {
                 const returned = s.returned_cents > 0;
                 const allReturned = returned && s.returned_cents >= s.total_cents;
                 return (
-                  <Tr key={s.id} tone={voided ? 'muted' : undefined}>
+                  <Tr
+                    key={s.id}
+                    tone={voided ? 'muted' : undefined}
+                    data-open-sale={s.id}
+                    onClick={() => setOpenSale(s.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setOpenSale(s.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    className="cursor-pointer"
+                  >
                     <Td>
                       <div className="num font-semibold text-ink">{s.invoice_no}</div>
                       <div className="num text-sm text-ink-3">
                         {dateTime(s.created_at)}, {s.cashier_name}
                       </div>
                     </Td>
-                    <Td>{s.customer_name}</Td>
+                    <Td>
+                      {s.customer_name}
+                      {s.prescription_path && <span className="ml-2 text-sm font-semibold text-ink-3">· Rx photo</span>}
+                    </Td>
                     <Td muted>{METHOD_LABELS[s.payment_method] || s.payment_method}</Td>
                     <Td num className={voided ? 'line-through' : 'font-semibold text-ink'}>
                       {money(s.total_cents)}
@@ -351,47 +466,34 @@ export function SalesView() {
                         <Pill tone="teal">Completed</Pill>
                       )}
                     </Td>
-                    <Td>
-                      {s.prescription_path ? (
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost" icon={Eye} data-rx-view={s.id} onClick={() => viewRx(s.id)}>
-                            View
-                          </Button>
-                          <IconButton icon={Camera} label="Replace prescription" size="sm" data-rx-attach={s.id} onClick={() => { rxTarget.current = s.id; fileRef.current?.click(); }} />
-                        </div>
-                      ) : (
-                        <Button size="sm" variant="ghost" icon={Camera} data-rx-attach={s.id} onClick={() => { rxTarget.current = s.id; fileRef.current?.click(); }}>
-                          Attach
-                        </Button>
-                      )}
-                    </Td>
-                    <Td className="w-[360px]">
-                      <RowActions>
-                        <Button size="sm" variant="ghost" icon={Printer} data-reprint={s.id} onClick={() => reprint(s.id)}>
-                          Receipt
-                        </Button>
-                        {can('pos.sell') && <IconButton icon={RotateCcw} label="Sell these items again" size="sm" data-reorder={s.id} onClick={() => sellAgain(s.id)} />}
-                        {!voided && !allReturned && can('sales.void') && (
-                          <Button size="sm" variant="ghost" icon={Undo2} data-return={s.id} onClick={() => setReturning(s.id)}>
-                            Return
-                          </Button>
-                        )}
-                        {!voided && !returned && can('sales.void') && (
-                          <Button size="sm" variant="danger-ghost" icon={Ban} data-void={s.id} onClick={() => setVoiding(s)}>
-                            Cancel sale
-                          </Button>
-                        )}
-                      </RowActions>
-                    </Td>
                   </Tr>
                 );
               })}
             </tbody>
           </Table>
         )}
-        <Pagination page={page} pageSize={PAGE_SIZE} total={result?.total || 0} noun="invoices" onChange={setPage} />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={result?.total || 0} noun="sales" onChange={setPage} />
       </div>
 
+      <SaleDetail
+        saleId={openSale}
+        refreshKey={detailVersion}
+        onClose={() => setOpenSale(null)}
+        onReturn={(id) => {
+          setOpenSale(null);
+          setReturning(id);
+        }}
+        onVoid={(sale) => {
+          setOpenSale(null);
+          setVoiding(sale);
+        }}
+        onSellAgain={(id) => {
+          setOpenSale(null);
+          sellAgain(id);
+        }}
+        onViewRx={viewRx}
+        onAttachRx={attachFor}
+      />
       <VoidDialog sale={voiding} onClose={() => setVoiding(null)} onVoided={afterVoid} />
       <ReturnDialog saleId={returning} onClose={() => setReturning(null)} onReturned={afterVoid} />
       <Modal open={Boolean(rx)} onClose={() => setRx(null)} title={`Prescription for ${rx?.invoiceNo || ''}`} id="modalPrescriptionViewer" size="lg">

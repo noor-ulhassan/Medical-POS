@@ -67,11 +67,11 @@ export function QuotationView() {
   return (
     <Page id="quotationView">
       <PageHeader
-        title="Quotation"
-        description="Prepare a printed price quote for a clinic or a customer. Nothing is sold or reserved."
+        title="Price quote"
+        description="Write down prices for a clinic or a customer and print them. Nothing is sold or taken from stock."
         actions={
           <Button variant="primary" icon={Printer} id="btnPrintQuote" onClick={print}>
-            Preview and print
+            See and print quote
           </Button>
         }
       />

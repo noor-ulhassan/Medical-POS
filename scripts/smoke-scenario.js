@@ -221,8 +221,10 @@
 
   await step('void the sale from sales history', async () => {
     nav('salesView');
-    await waitFor('sales row', () => $('#salesTableBody [data-void]'));
-    $('#salesTableBody [data-void]').click();
+    await waitFor('sales row', () => $('#salesTableBody [data-open-sale]'));
+    $('#salesTableBody [data-open-sale]').click();
+    await waitFor('sale window', () => $('#modalSaleDetail [data-void]'));
+    $('#modalSaleDetail [data-void]').click();
     await waitFor('void dialog', () => exists('modalVoidSale'));
     type(field('voidForm', 'reason'), 'Smoke test');
     $('#voidForm').requestSubmit();
@@ -245,8 +247,10 @@
     await waitFor('receipt', () => exists('modalReceiptPreview'));
     $('#modalReceiptPreview button[aria-label="Close"]').click();
     nav('salesView');
-    await waitFor('return button', () => $('#salesTableBody [data-return]'));
-    $('#salesTableBody [data-return]').click();
+    await waitFor('sales row', () => $('#salesTableBody [data-open-sale]'));
+    $('#salesTableBody [data-open-sale]').click();
+    await waitFor('return button', () => $('#modalSaleDetail [data-return]'));
+    $('#modalSaleDetail [data-return]').click();
     await waitFor('return dialog', () => exists('modalReturnItems') && $('[data-return-qty]'));
     type($('[data-return-qty]'), '1');
     await waitFor('refund shown', () => text('#returnRefund').includes('cash back'));
