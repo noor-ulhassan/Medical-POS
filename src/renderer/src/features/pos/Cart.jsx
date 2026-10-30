@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { FolderOpen, Trash2, X, Minus, Plus, ScanBarcode, Percent, FileImage, Pause, CircleCheck } from 'lucide-react';
+import { FolderOpen, Trash2, X, Minus, Plus, ScanBarcode, Percent, FileImage, Pause, CircleCheck, ShoppingCart, UserRound, NotebookPen, MousePointerClick, Banknote, ChevronRight } from 'lucide-react';
 import { call } from '../../lib/api.js';
 import { useApp } from '../../state/AppState.jsx';
 import { useCart, WALK_IN_ID } from '../../state/Cart.jsx';
 import { useToast } from '../../ui/Toast.jsx';
 import { useConfirm } from '../../ui/Confirm.jsx';
 import { Button, IconButton } from '../../ui/Button.jsx';
-import { Segmented, EmptyState } from '../../ui/display.jsx';
+import { Segmented, IconTile } from '../../ui/display.jsx';
+import { medicineIcon, categoryTone } from '../../lib/look.js';
 import { money, readFileAsBase64, PRESCRIPTION_FILE_TYPES } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 
@@ -76,6 +77,51 @@ function ActionButton({ icon: Icon, active, warn, className, children, ...props 
   );
 }
 
+const STEPS = [
+  { icon: ScanBarcode, label: 'Scan or search' },
+  { icon: MousePointerClick, label: 'Tap Add' },
+  { icon: Banknote, label: 'Charge' }
+];
+
+function EmptySale() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-5 px-6 text-center">
+      <p className="text-md font-semibold text-ink">Nothing in the sale yet</p>
+      <ol className="flex items-start gap-1" aria-label="How to sell">
+        {STEPS.map((step, i) => (
+          <li key={step.label} className="flex items-start gap-1">
+            <div className="flex w-[84px] flex-col items-center gap-2">
+              <span className="relative">
+                <IconTile icon={step.icon} size="lg" />
+                <span className="num absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-on">{i + 1}</span>
+              </span>
+              <span className="text-sm font-semibold text-ink-2">{step.label}</span>
+            </div>
+            {i < STEPS.length - 1 && <ChevronRight className="mt-3.5 size-5 shrink-0 text-ink-3" aria-hidden="true" />}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** The line that just grew, highlighted for a moment and scrolled into view, so staff see where the item went. */
+function useJustAdded(lines) {
+  const [key, setKey] = useState(null);
+  const seen = useRef(new Map());
+  useEffect(() => {
+    const now = new Map(lines.map((l) => [`${l.productId}-${l.unitType}`, l.quantity]));
+    const grown = [...now].find(([k, q]) => q > (seen.current.get(k) || 0));
+    seen.current = now;
+    if (!grown) return undefined;
+    setKey(grown[0]);
+    document.querySelector(`[data-line="${grown[0]}"]`)?.scrollIntoView({ block: 'nearest' });
+    const timer = setTimeout(() => setKey(null), 900);
+    return () => clearTimeout(timer);
+  }, [lines]);
+  return key;
+}
+
 export function Cart({ onCheckout, onHold, onShowHeld }) {
   const { customers, customerById } = useApp();
   const cart = useCart();
@@ -87,6 +133,8 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
   const showDiscount = cart.discountOpen || totals.discountCents > 0 || cart.discountNeedsManager;
   const needsRx = cart.priced.some((l) => l.product.is_prescription_required);
   const showBreakdown = totals.discountCents > 0 || totals.taxCents > 0;
+  const justAdded = useJustAdded(cart.lines);
+  const onKhata = cart.customerId !== WALK_IN_ID;
 
   const clear = guard(async () => {
     if (!empty && !(await confirm({ title: 'Clear this sale?', message: 'All items will be removed from the sale.', confirmText: 'Clear sale', danger: true }))) return;
@@ -111,11 +159,12 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
   };
 
   return (
-    <aside className="flex h-full w-[380px] shrink-0 flex-col border-l border-foil bg-surface 2xl:w-[420px]" aria-label="Current sale">
+    <aside className="flex h-full w-[380px] shrink-0 flex-col border-l border-foil bg-surface shadow-card 2xl:w-[420px]" aria-label="Current sale">
       <div className="flex shrink-0 items-center gap-2 px-4 pt-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-ink">
+        <h2 className="flex items-center gap-2.5 text-lg font-bold text-ink">
+          <IconTile icon={ShoppingCart} size="sm" />
           Sale
-          <span id="cartItemCountBadge" className="num rounded-full bg-sunken px-2.5 text-sm font-bold leading-6 text-ink-2">
+          <span id="cartItemCountBadge" className={cx('num rounded-full px-2.5 text-sm font-bold leading-6', empty ? 'bg-sunken text-ink-2' : 'bg-accent text-accent-on')}>
             {cart.itemCount}
           </span>
         </h2>
@@ -130,32 +179,46 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
       </div>
 
       <div className="shrink-0 px-4 pb-3 pt-2">
-        <select
-          id="cartCustomerSelect"
-          aria-label="Customer"
-          value={String(cart.customerId)}
-          onChange={(e) => cart.setCustomerId(Number(e.target.value))}
-          className="control !h-12 !rounded-full !pl-5 text-md font-semibold"
-        >
-          {customers.map((c) => (
-            <option key={c.id} value={String(c.id)}>
-              {c.id === WALK_IN_ID ? 'Walk-in customer' : `${c.name} (khata, owes ${money(c.current_debt_cents)})`}
-            </option>
-          ))}
-        </select>
+        <div className="relative" data-tone={onKhata ? 4 : undefined}>
+          <span
+            className={cx(
+              'pointer-events-none absolute left-1.5 top-1.5 flex size-9 items-center justify-center rounded-full',
+              onKhata ? 'bg-accent text-accent-on' : 'bg-sunken text-ink-2'
+            )}
+            aria-hidden="true"
+          >
+            {onKhata ? <NotebookPen className="size-[18px]" /> : <UserRound className="size-[18px]" />}
+          </span>
+          <select
+            id="cartCustomerSelect"
+            aria-label="Customer"
+            value={String(cart.customerId)}
+            onChange={(e) => cart.setCustomerId(Number(e.target.value))}
+            className={cx('control !h-12 !rounded-full !pl-[52px] text-md font-semibold', onKhata && '!border-accent')}
+          >
+            {customers.map((c) => (
+              <option key={c.id} value={String(c.id)}>
+                {c.id === WALK_IN_ID ? 'Walk-in customer' : `${c.name} (khata, owes ${money(c.current_debt_cents)})`}
+              </option>
+            ))}
+          </select>
+        </div>
         <CreditStatus customer={customerById(cart.customerId)} />
       </div>
 
       <div id="cartItemsList" className="min-h-0 flex-1 overflow-y-auto border-t border-foil">
         {empty ? (
-          <EmptyState icon={ScanBarcode} title="Nothing in the sale yet" className="h-full">
-            Scan the box, or tap Add next to a medicine.
-          </EmptyState>
+          <EmptySale />
         ) : (
           <ul className="divide-y divide-foil">
             {cart.priced.map((line, index) => (
-              <li key={`${line.productId}-${line.unitType}`} className="cart-item px-4 py-3">
-                <div className="flex items-start gap-2">
+              <li
+                key={`${line.productId}-${line.unitType}`}
+                data-line={`${line.productId}-${line.unitType}`}
+                className={cx('cart-item px-4 py-3 transition-colors duration-700', justAdded === `${line.productId}-${line.unitType}` && 'bg-accent-soft duration-0')}
+              >
+                <div className="flex items-start gap-3">
+                  <IconTile icon={medicineIcon(line.product.title)} tone={categoryTone(line.product.category_id)} size="sm" className="mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <div className="line-clamp-2 text-md font-bold leading-snug text-ink" title={line.product.title}>
                       {line.product.title}
@@ -167,7 +230,7 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
                   <div className="num pt-0.5 text-md font-bold text-ink">{money(line.priceCents * line.quantity)}</div>
                   <IconButton icon={X} label={`Remove ${line.product.title}`} size="sm" tone="danger" data-cart-action="remove" onClick={() => cart.remove(index)} className="-mr-2 -mt-1" />
                 </div>
-                <div className="mt-2 flex items-center gap-3">
+                <div className="mt-2 flex items-center gap-3 pl-11">
                   <div className="flex items-center rounded-full border border-foil-strong">
                     <button type="button" data-cart-action="dec" aria-label="One less" onClick={() => cart.changeQuantity(index, -1)} className="flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-sunken hover:text-ink">
                       <Minus className="size-4" aria-hidden="true" />
@@ -197,7 +260,7 @@ export function Cart({ onCheckout, onHold, onShowHeld }) {
         )}
       </div>
 
-      <div className="shrink-0 space-y-2.5 border-t border-foil px-4 py-3">
+      <div className="shrink-0 space-y-2.5 border-t border-foil bg-sunken/60 px-4 py-3">
         <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2">
           <ActionButton icon={Percent} id="btnDiscount" active={totals.discountCents > 0} aria-expanded={showDiscount} onClick={toggleDiscount}>
             Discount

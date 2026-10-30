@@ -12,11 +12,12 @@ import { money, toCents, centsToInput } from '../../lib/format.js';
 import { cx } from '../../ui/cx.js';
 import { readPrefs } from '../../lib/prefs.js';
 
-const METHODS = [
-  { value: 'CASH', label: 'Cash', icon: Banknote },
-  { value: 'CARD', label: 'Card', icon: CreditCard },
-  { value: 'MOBILE WALLET', label: 'Mobile wallet', icon: Smartphone },
-  { value: 'CREDIT', label: 'Khata', icon: NotebookPen }
+/** Each way of paying keeps one tone wherever it appears (here, Past sales, Today's report). */
+export const METHODS = [
+  { value: 'CASH', label: 'Cash', icon: Banknote, tone: 1 },
+  { value: 'CARD', label: 'Card', icon: CreditCard, tone: 2 },
+  { value: 'MOBILE WALLET', label: 'Mobile wallet', icon: Smartphone, tone: 3 },
+  { value: 'CREDIT', label: 'Khata', icon: NotebookPen, tone: 4 }
 ];
 
 const NOTES = [10, 20, 50, 100, 500, 1000, 5000];
@@ -150,14 +151,18 @@ export function PaymentDialog() {
                 return (
                   <label
                     key={m.value}
+                    data-tone={m.tone}
                     className={cx(
-                      'flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-panel border text-sm font-semibold transition-colors',
-                      on ? 'border-teal bg-teal-soft text-teal-ink ring-1 ring-teal' : 'border-foil-strong text-ink-2 hover:border-ink-3 hover:text-ink'
+                      'relative flex h-[84px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-panel border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-accent/40',
+                      on ? 'border-accent bg-accent-soft text-accent-ink' : 'border-foil text-ink-2 hover:border-accent/50 hover:bg-accent-soft/50'
                     )}
                   >
                     <input type="radio" name="paymentMethod" value={m.value} checked={on} onChange={() => setMethod(m.value)} className="sr-only" />
-                    <Icon className="size-5" aria-hidden="true" />
+                    <span className={cx('flex size-9 items-center justify-center rounded-full', on ? 'bg-accent text-accent-on' : 'bg-accent-soft text-accent-ink')}>
+                      <Icon className="size-5" aria-hidden="true" />
+                    </span>
                     {m.label}
+                    {on && <Check className="absolute right-2 top-2 size-4 text-accent" strokeWidth={3} aria-hidden="true" />}
                   </label>
                 );
               })}
