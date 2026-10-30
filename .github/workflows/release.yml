@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     name: Build Windows installers
-    runs-on: windows-latest
+    runs-on: windows-2022
     permissions:
       contents: write
     steps:
